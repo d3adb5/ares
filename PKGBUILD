@@ -136,6 +136,16 @@ prepare() {
       third_party/volk third_party/khronos/vulkan-headers
 }
 
+# Local builds are versioned by commit; CI stamps pkgver itself (its shallow checkout has no tags).
+pkgver() {
+    cd "${startdir}"
+    if [[ ${BRANCH:-local} == local ]]; then
+        printf '%s.r%s.g%s\n' "${pkgver%%.r*}" "$(git rev-list --count HEAD)" "$(git rev-parse --short=8 HEAD)"
+    else
+        echo "${pkgver}"
+    fi
+}
+
 build() {
     cd "${startdir}"
     # Nightly CI stamps the short commit into pkgver (0.5.1+abc1234) and passes
