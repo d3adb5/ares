@@ -82,6 +82,7 @@ namespace VDISPLAY {
     UAPI_TOO_OLD,
     MISSING_CAPABILITIES,
     DEVICE_NODE_MISSING,
+    NO_ACCESS,  ///< The driver's desktop render node exists but this user may not open it.
   };
 
   struct HermesKmsStatus {
@@ -104,6 +105,16 @@ namespace VDISPLAY {
     std::string running_kernel;
     std::vector<std::string> dkms_kernels;
     std::vector<EvdiVirtualDisplayStatus> active_displays;
+    std::string inaccessible_node;  ///< The render node behind NO_ACCESS, e.g. /dev/dri/renderD130.
+    /// The version DKMS installed for the running kernel, empty when the
+    /// module was not installed through DKMS or DKMS's records are unreadable.
+    std::string installed_version;
+    /// installed_version is a different release from the loaded driver, so the
+    /// driver in use is not the one installed until the module is reloaded.
+    bool reload_needed {false};
+    /// The newest UAPI this Hermes knows. A driver above it is newer than this
+    /// release of Hermes, which usually works but has not been tried with it.
+    uint32_t newest_known_uapi_version {0};
   };
 
   struct EvdiStatus {
@@ -1007,6 +1018,15 @@ namespace VDISPLAY {
 
   /** Activate a virtual output using the current session's display protocol. */
   bool activateVirtualDisplayOutput(const std::string &displayName);
+
+  /**
+   * Put windows of these classes on the session's virtual output, now and as
+   * they appear, until the display is removed. KWin only; elsewhere nothing
+   * happens. For an application that reuses a window already open on a
+   * physical monitor, such as Steam switching to Big Picture. Gamescope windows
+   * must also match a launched PID; other local instances are left alone.
+   */
+  void placeWindowsOnVirtualDisplay(const std::string &displayName, const std::vector<std::string> &windowClasses, const std::vector<std::uint32_t> &gamescopePids = {});
   /** Enable/restore exclusive layout for an EVDI virtual display. */
   bool enableExclusiveVirtualDisplay(const std::string &displayName);
   void restoreExclusiveVirtualDisplay();
@@ -1236,3 +1256,4 @@ namespace VDISPLAY {
                               HermesKmsCursor &out);
 
 }  // namespace VDISPLAY
+

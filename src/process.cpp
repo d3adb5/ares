@@ -39,6 +39,7 @@
   #include <xf86drm.h>
 
   #include "platform/linux/gamescope_session.h"
+  #include "platform/linux/window_placement.h"
   // For the GBM allocation probe: picking the render node an isolated session
   // renders on is the same question the capture path answers, so it uses the
   // same answer rather than a second heuristic. Compiles to "yes" where Wayland
@@ -3800,6 +3801,25 @@ namespace proc {
 
     _env["APOLLO_APP_STATUS"] = "RUNNING";
 
+#ifdef __linux__
+    // Parse exactly as application commands are parsed elsewhere. Quoted
+    // executable paths and Flatpak Steam entries must not silently miss this.
+    const auto placement_arguments = [](const std::string &command) {
+      try {
+        return boost::program_options::split_unix(command);
+      } catch (const std::exception &error) {
+        BOOST_LOG(warning) << "[VDISPLAY] Could not parse window placement command: " << error.what();
+        return std::vector<std::string> {};
+      }
+    };
+    const auto app_arguments = placement_arguments(_app.cmd);
+    bool place_steam = platf::window_placement::opens_big_picture(app_arguments);
+    const bool app_gamescope = !gamescope_session &&
+                              (platf::window_placement::launches_gamescope(app_arguments) ||
+                               launch_session->launch_mode == "gamescope");
+    std::vector<std::uint32_t> gamescope_pids;
+#endif
+
     for (auto &cmd : _app.detached) {
       boost::filesystem::path working_dir = _app.working_dir.empty() ?
                                               find_working_directory(cmd, _env) :
@@ -3809,6 +3829,13 @@ namespace proc {
       if (ec) {
         BOOST_LOG(warning) << "Couldn't spawn ["sv << cmd << "]: System: "sv << ec.message();
       } else {
+#ifdef __linux__
+        const auto arguments = placement_arguments(cmd);
+        place_steam = place_steam || platf::window_placement::opens_big_picture(arguments);
+        if (!gamescope_session && platf::window_placement::launches_gamescope(arguments)) {
+          gamescope_pids.push_back(static_cast<std::uint32_t>(child.id()));
+        }
+#endif
         child.detach();
       }
     }
@@ -3869,6 +3896,21 @@ namespace proc {
         return -1;
       }
     }
+
+#ifdef __linux__
+    if (!this->display_name.empty()) {
+      if (app_gamescope && _process.valid()) {
+        gamescope_pids.push_back(static_cast<std::uint32_t>(_process.id()));
+      }
+      // Install after spawning: exact PIDs are now known. The script visits
+      // existing windows too, so a fast launch cannot miss its placement.
+      if (!gamescope_pids.empty()) {
+        VDISPLAY::placeWindowsOnVirtualDisplay(this->display_name, {"gamescope"}, gamescope_pids);
+      } else if (place_steam) {
+        VDISPLAY::placeWindowsOnVirtualDisplay(this->display_name, {"steam"});
+      }
+    }
+#endif
 
     _app_launch_time = std::chrono::steady_clock::now();
 
@@ -5225,3 +5267,4 @@ namespace proc {
 #endif
 
 }  // namespace proc
+

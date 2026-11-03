@@ -17,6 +17,7 @@
 #include <chrono>
 #include <cctype>
 #include <cerrno>
+#include <cstdarg>
 #include <cstddef>
 #include <cmath>
 #include <cstdio>
@@ -65,6 +66,7 @@
 #include "src/logging.h"
 #include "src/utility.h"
 #include "virtual_display.h"
+#include "window_placement.h"
 #ifdef SUNSHINE_BUILD_WAYLAND
   #include "wayland.h"
 #endif
@@ -825,6 +827,10 @@ namespace VDISPLAY {
     constexpr uint32_t session_access_uapi_version = 11;
     constexpr uint32_t dynamic_devices_uapi_version = 12;
     constexpr uint32_t session_lifecycle_uapi_version = 13;
+    /// The newest UAPI this source is written against: ACQUIRE_FRAME2, which
+    /// returns each frame's colour state, arrived in 14. Raise it together
+    /// with support for whatever a later driver adds.
+    constexpr uint32_t newest_known_uapi_version = 14;
     constexpr size_t name_len = 32;
 
     constexpr uint64_t cap_virtual_output = 1ULL << 0;
@@ -3839,6 +3845,130 @@ namespace VDISPLAY {
 
     static void unmap_input_devices(const std::string & /* display_name */) {}
 #endif
+
+#ifdef SUNSHINE_BUILD_SDBUS
+    /**
+     * Windows of these classes, put on a session's virtual output by a KWin
+     * script, keyed by the display the session made.
+     *
+     * KWin opens a new window on the output under the pointer, which during a
+     * stream is the virtual one, so most applications land there by
+     * themselves. Steam Big Picture does not: the app's command asks the Steam
+     * already running to switch its existing window, which stays on the
+     * physical monitor it was on (#31). Nothing creates a window for KWin to
+     * place. KWin's own scripting moves such windows, now and as they appear,
+     * and they go back once the output is removed.
+     */
+    std::mutex placements_mutex;
+    std::map<std::string, std::string> placements;  ///< Display name to script plugin name.
+
+    static bool call_kwin_scripting(sd_bus *bus, const char *path, const char *interface, const char *method, sd_bus_message **reply, const char *types, ...) {
+      sd_bus_error error = SD_BUS_ERROR_NULL;
+      va_list arguments;
+      va_start(arguments, types);
+      sd_bus_message *message = nullptr;
+      int status = sd_bus_message_new_method_call(bus, &message, kwin_service, path, interface, method);
+      if (status >= 0 && types) {
+        status = sd_bus_message_appendv(message, types, arguments);
+      }
+      va_end(arguments);
+      if (status >= 0) {
+        status = sd_bus_call(bus, message, 2000000, &error, reply);
+      }
+      sd_bus_message_unref(message);
+      if (status < 0) {
+        BOOST_LOG(warning) << "[VDISPLAY/KScreen] KWin scripting " << method << " failed: "
+                           << (error.message ? error.message : std::strerror(-status));
+      }
+      sd_bus_error_free(&error);
+      return status >= 0;
+    }
+
+    static void place_windows(const std::string &display_name, const std::vector<std::string> &classes, const std::vector<std::uint32_t> &gamescope_pids) {
+      std::string output;
+      {
+        std::lock_guard<std::mutex> lock(layouts_mutex);
+        const auto it = layouts.find(display_name);
+        if (it == layouts.end()) {
+          return;
+        }
+        output = it->second.virtual_output;
+      }
+      if (!safe_output_name(output) || classes.empty()) {
+        return;
+      }
+      const auto contents = platf::window_placement::kwin_script(output, classes, gamescope_pids);
+      if (contents.empty()) {
+        return;
+      }
+
+      const auto plugin = "hermes-place-" + output;
+      const auto directory = std::filesystem::path {"/run/user"} / std::to_string(::getuid()) / "hermes";
+      const auto script = directory / (plugin + ".js");
+      std::error_code ec;
+      std::filesystem::create_directories(directory, ec);
+      {
+        std::ofstream file {script, std::ios::trunc};
+        file << contents;
+        if (!file) {
+          BOOST_LOG(warning) << "[VDISPLAY/KScreen] Could not write " << script.string() << "; windows stay where KWin opens them.";
+          return;
+        }
+      }
+
+      sd_bus *bus = nullptr;
+      if (open_user_bus(&bus) < 0 || !bus) {
+        BOOST_LOG(warning) << "[VDISPLAY/KScreen] Could not reach KWin to place windows on " << output << '.';
+        return;
+      }
+      // A script of the same name from an earlier session would make loading fail.
+      call_kwin_scripting(bus, "/Scripting", "org.kde.kwin.Scripting", "unloadScript", nullptr, "s", plugin.c_str());
+      sd_bus_message *reply = nullptr;
+      int32_t id = -1;
+      if (call_kwin_scripting(bus, "/Scripting", "org.kde.kwin.Scripting", "loadScript", &reply, "ss", script.c_str(), plugin.c_str())) {
+        sd_bus_message_read(reply, "i", &id);
+        sd_bus_message_unref(reply);
+      }
+      bool running = false;
+      if (id >= 0) {
+        const auto path = "/Scripting/Script" + std::to_string(id);
+        // KWin 6 names it /Scripting/Script<id>; older ones /<id>.
+        running = call_kwin_scripting(bus, path.c_str(), "org.kde.kwin.Script", "run", nullptr, nullptr) ||
+                  call_kwin_scripting(bus, ("/" + std::to_string(id)).c_str(), "org.kde.kwin.Script", "run", nullptr, nullptr);
+      }
+      sd_bus_unref(bus);
+      if (!running) {
+        BOOST_LOG(warning) << "[VDISPLAY/KScreen] KWin did not run the window placement script; windows stay where KWin opens them.";
+        return;
+      }
+      std::lock_guard<std::mutex> lock(placements_mutex);
+      placements[display_name] = plugin;
+      BOOST_LOG(info) << "[VDISPLAY/KScreen] Application windows go to " << output << " for this session.";
+    }
+
+    static void unplace_windows(const std::string &display_name) {
+      std::string plugin;
+      {
+        std::lock_guard<std::mutex> lock(placements_mutex);
+        const auto it = placements.find(display_name);
+        if (it == placements.end()) {
+          return;
+        }
+        plugin = std::move(it->second);
+        placements.erase(it);
+      }
+      sd_bus *bus = nullptr;
+      if (open_user_bus(&bus) >= 0 && bus) {
+        call_kwin_scripting(bus, "/Scripting", "org.kde.kwin.Scripting", "unloadScript", nullptr, "s", plugin.c_str());
+        sd_bus_unref(bus);
+      }
+      std::error_code ec;
+      std::filesystem::remove(std::filesystem::path {"/run/user"} / std::to_string(::getuid()) / "hermes" / (plugin + ".js"), ec);
+    }
+#else
+    static void place_windows(const std::string &, const std::vector<std::string> &, const std::vector<std::uint32_t> &) {}
+    static void unplace_windows(const std::string &) {}
+#endif
   }  // namespace kscreen
 
   // GNOME / Mutter output management. Mutter does not speak kscreen-doctor or
@@ -5811,6 +5941,98 @@ namespace VDISPLAY {
     return false;
   }
 
+  /**
+   * The version DKMS installed for the running kernel, or empty.
+   *
+   * DKMS records the build it installed for a kernel as the link
+   * kernel-<release>-<arch> -> <version>/<release>/<arch> beside its builds,
+   * so this names what modprobe would load next, not merely something built.
+   */
+  static std::string dkms_version_for_running_kernel(const std::string &dkms_name) {
+    utsname system_info {};
+    if (uname(&system_info) != 0) {
+      return {};
+    }
+
+    std::error_code ec;
+    const auto target = fs::read_symlink(
+      fs::path("/var/lib/dkms") / dkms_name /
+        (std::string("kernel-") + system_info.release + '-' + system_info.machine),
+      ec
+    );
+    if (ec || target.empty()) {
+      return {};
+    }
+    // Relative in every DKMS release seen; an absolute link names the same
+    // three trailing components.
+    if (target.is_absolute()) {
+      return target.parent_path().parent_path().filename().string();
+    }
+    return target.begin()->string();
+  }
+
+  /**
+   * The release a version string names: "0.4.0.r12.gabc1234", as the git
+   * package writes it, and "0.4.0" from the driver both give "0.4.0". Two
+   * builds of one release cannot be told apart this way, so a comparison of
+   * the results only ever reports a real difference.
+   */
+  static std::string release_of(const std::string &version) {
+    std::string release;
+    int parts = 0;
+    std::size_t start = 0;
+    while (parts < 3 && start <= version.size()) {
+      const auto end = std::min(version.find('.', start), version.size());
+      const auto part = version.substr(start, end - start);
+      if (part.empty() || !std::all_of(part.begin(), part.end(), [](unsigned char c) { return std::isdigit(c); })) {
+        break;
+      }
+      release += (parts ? "." : "") + part;
+      ++parts;
+      start = end + 1;
+    }
+    return parts == 3 ? release : std::string {};
+  }
+
+  /**
+   * A Hermes-KMS render node meant for the desktop user that this process may
+   * not open, or empty.
+   *
+   * The probe opens render nodes and skips any it cannot, so a node the udev
+   * rules never granted looks exactly like no driver at all. Read the driver
+   * from sysfs instead, which needs no access to the node. Session cards are
+   * skipped: they belong to a private seat or to one client's uid, and
+   * refusing them to everyone else is the driver working as intended.
+   */
+  static std::string inaccessible_hermes_kms_render_node() {
+    std::error_code ec;
+    for (const auto &entry : fs::directory_iterator("/sys/class/drm", ec)) {
+      const auto name = entry.path().filename().string();
+      if (!name.starts_with("renderD")) {
+        continue;
+      }
+      std::error_code link_ec;
+      const auto driver = fs::read_symlink(entry.path() / "device" / "driver", link_ec);
+      if (link_ec || driver.filename() != "hermes-kms") {
+        continue;
+      }
+
+      std::string role;
+      std::string access_uid;
+      std::ifstream {entry.path() / "device" / "hermes_kms_role"} >> role;
+      std::ifstream {entry.path() / "device" / "hermes_kms_access_uid"} >> access_uid;
+      if (role == "session" || !access_uid.empty()) {
+        continue;
+      }
+
+      const auto node = fs::path("/dev/dri") / name;
+      if (::access(node.c_str(), R_OK) != 0 && errno == EACCES) {
+        return node.string();
+      }
+    }
+    return {};
+  }
+
   static bool dkms_build_failed(const std::string &dkms_name) {
     const fs::path dkms_root = fs::path("/var/lib/dkms") / dkms_name;
     std::error_code ec;
@@ -6006,8 +6228,11 @@ namespace VDISPLAY {
 
     // No usable hermes-kms device node. Distinguish why so the UI can point at
     // the right fix: module not built for this kernel, a DKMS build that
-    // failed, the module simply not loaded, or a loaded module that never
-    // created a device node.
+    // failed, the module simply not loaded, a loaded module that never
+    // created a device node, or one whose node this user may not open.
+    if (!inaccessible_hermes_kms_render_node().empty()) {
+      return HERMES_KMS_DIAGNOSTIC::NO_ACCESS;
+    }
     if (!kernel_module_loaded("hermes_kms")) {
       if (dkms_build_failed("hermes-kms")) {
         return HERMES_KMS_DIAGNOSTIC::DKMS_BUILD_FAILED;
@@ -6044,7 +6269,24 @@ namespace VDISPLAY {
       .running_kernel = running_kernel_release(),
       .dkms_kernels = dkms_kernels("hermes-kms"),
       .active_displays = {},
+      .inaccessible_node = {},
+      .installed_version = dkms_version_for_running_kernel("hermes-kms"),
+      .reload_needed = false,
+      .newest_known_uapi_version = hermes_kms::newest_known_uapi_version,
     };
+
+    if (status.diagnostic == HERMES_KMS_DIAGNOSTIC::NO_ACCESS) {
+      status.inaccessible_node = inaccessible_hermes_kms_render_node();
+    }
+
+    // A driver package updated while the old module stays loaded keeps
+    // serving the old driver until the module is reloaded, which for most
+    // people means a restart. Only a different release is reported: the
+    // loaded driver names no build, so two builds of one release look alike.
+    if (!probe.driver_version.empty()) {
+      const auto installed = release_of(status.installed_version);
+      status.reload_needed = !installed.empty() && installed != release_of(probe.driver_version);
+    }
 
     // device_count includes the seat0 HOST card; only session_device_count has
     // a matching private seatd instance.
@@ -7181,6 +7423,7 @@ namespace VDISPLAY {
         lock.unlock();
         kscreen::restore(vdinfo.name);
         kscreen::unmap_input_devices(vdinfo.name);
+        kscreen::unplace_windows(vdinfo.name);
         mutter::restore(vdinfo.name);
         mutter::unmap_input_devices();
         lock.lock();
@@ -7202,6 +7445,7 @@ namespace VDISPLAY {
     lock.unlock();
     kscreen::restore(vdinfo.name);
     kscreen::unmap_input_devices(vdinfo.name);
+    kscreen::unplace_windows(vdinfo.name);
     mutter::restore(vdinfo.name);
     mutter::unmap_input_devices();
 
@@ -7612,6 +7856,12 @@ namespace VDISPLAY {
     (void) connector;
     return false;
 #endif
+  }
+
+  void placeWindowsOnVirtualDisplay(const std::string &displayName, const std::vector<std::string> &windowClasses, const std::vector<std::uint32_t> &gamescopePids) {
+    if (kscreen::is_active(displayName)) {
+      kscreen::place_windows(displayName, windowClasses, gamescopePids);
+    }
   }
 
   bool activateVirtualDisplayOutput(const std::string &displayName) {
@@ -8600,3 +8850,4 @@ namespace VDISPLAY {
   }
 
 }  // namespace VDISPLAY
+
