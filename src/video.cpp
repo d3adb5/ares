@@ -3381,7 +3381,9 @@ namespace video {
       }
     }
     // Name what is captured as the user knows it: the output, and how.
-    const auto label = !stream.kwin_wayland_socket.empty() ?
+    const auto label = !stream.gamescope_stream_socket.empty() ?
+                         "the session via Gamescope's stream"s :
+                       !stream.kwin_wayland_socket.empty() ?
                          "the detached desktop via KWin screencast"s :
                          (name.empty() ? "the primary display"s : "display ["s + name + ']') +
                            (config::video.capture.empty() ? ""s : " via "s + config::video.capture);

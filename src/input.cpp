@@ -172,7 +172,12 @@ namespace input {
     button_state_e back_button_state;
   };
 
-  static std::shared_ptr<platf::input_t> platform_input_for(const std::string &tag, const std::string &socket) {
+  static std::shared_ptr<platf::input_t> platform_input_for(const std::string &tag, const std::string &socket, const std::string &stream_socket) {
+#ifdef __linux__
+    if (!stream_socket.empty()) {
+      return std::make_shared<platf::input_t>(platf::input_gamescope_stream(stream_socket, tag));
+    }
+#endif
     if (!socket.empty()) {
 #ifdef SUNSHINE_BUILD_KWIN_TRANSPORT
       return std::make_shared<platf::input_t>(platf::input_private_kwin(socket, tag));
@@ -196,11 +201,12 @@ namespace input {
       platf::feedback_queue_t feedback_queue,
       const std::string &session_tag,
       const std::string &wayland_socket,
+      const std::string &stream_socket,
       std::shared_ptr<platf::input_t> injected_platform = {},
       std::unique_ptr<platf::client_input_t> injected_client = {}
     ):
         platform_input {
-          injected_platform ? std::move(injected_platform) : platform_input_for(session_tag, wayland_socket)
+          injected_platform ? std::move(injected_platform) : platform_input_for(session_tag, wayland_socket, stream_socket)
         },
         shortcutFlags {},
         client_context {injected_client ? std::move(injected_client) : platf::allocate_client_input_context(*platform_input)},
@@ -1856,13 +1862,15 @@ namespace input {
     const std::string &session_tag,
     int launch_gamepads,
     const std::string &wayland_socket,
-    const std::string &client_id
+    const std::string &client_id,
+    const std::string &stream_socket
   ) {
     auto input = std::make_shared<input_t>(
       mail->event<input::touch_port_t>(mail::touch_port),
       mail->queue<platf::gamepad_feedback_msg_t>(mail::gamepad_feedback),
       session_tag,
-      wayland_socket
+      wayland_socket,
+      stream_socket
     );
     input->client_id = client_id;
 

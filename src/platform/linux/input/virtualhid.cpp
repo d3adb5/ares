@@ -3,6 +3,7 @@
  * @brief Linux platform input implementation backed exclusively by libvirtualhid.
  */
 #include "kwin_input.h"
+#include "stream_input.h"
 #include "src/config.h"
 #include "src/logging.h"
 #include "virtualhid_common.h"
@@ -109,6 +110,9 @@ namespace platf {
   }
 
   void move_mouse(input_t &input, int delta_x, int delta_y) {
+    if (auto *raw = static_cast<input_raw_t *>(input.get()); stream_input::active(raw)) {
+      return stream_input::move(raw, delta_x, delta_y);
+    }
     if (auto *raw = static_cast<input_raw_t *>(input.get()); kwin_input::active(raw)) {
       return kwin_input::move(raw, delta_x, delta_y);
     }
@@ -116,6 +120,9 @@ namespace platf {
   }
 
   void abs_mouse(input_t &input, const touch_port_t &touch_port, float x, float y) {
+    if (auto *raw = static_cast<input_raw_t *>(input.get()); stream_input::active(raw)) {
+      return stream_input::move_abs(raw, touch_port, x, y);
+    }
     if (auto *raw = static_cast<input_raw_t *>(input.get()); kwin_input::active(raw)) {
       return kwin_input::move_abs(raw, x, y);
     }
@@ -123,6 +130,9 @@ namespace platf {
   }
 
   void button_mouse(input_t &input, int button, bool release) {
+    if (auto *raw = static_cast<input_raw_t *>(input.get()); stream_input::active(raw)) {
+      return stream_input::button(raw, button, release);
+    }
     if (auto *raw = static_cast<input_raw_t *>(input.get()); kwin_input::active(raw)) {
       return kwin_input::button(raw, button, release);
     }
@@ -130,6 +140,9 @@ namespace platf {
   }
 
   void scroll(input_t &input, int high_resolution_distance) {
+    if (auto *raw = static_cast<input_raw_t *>(input.get()); stream_input::active(raw)) {
+      return stream_input::scroll(raw, high_resolution_distance, false);
+    }
     if (auto *raw = static_cast<input_raw_t *>(input.get()); kwin_input::active(raw)) {
       return kwin_input::scroll(raw, high_resolution_distance, false);
     }
@@ -137,6 +150,9 @@ namespace platf {
   }
 
   void hscroll(input_t &input, int high_resolution_distance) {
+    if (auto *raw = static_cast<input_raw_t *>(input.get()); stream_input::active(raw)) {
+      return stream_input::scroll(raw, high_resolution_distance, true);
+    }
     if (auto *raw = static_cast<input_raw_t *>(input.get()); kwin_input::active(raw)) {
       return kwin_input::scroll(raw, high_resolution_distance, true);
     }
@@ -144,6 +160,9 @@ namespace platf {
   }
 
   void keyboard_update(input_t &input, std::uint16_t key_code, bool release, std::uint8_t flags) {
+    if (auto *raw = static_cast<input_raw_t *>(input.get()); stream_input::active(raw)) {
+      return stream_input::key(raw, key_code, release);
+    }
     if (auto *raw = static_cast<input_raw_t *>(input.get()); kwin_input::active(raw)) {
       return kwin_input::key(raw, key_code, release);
     }
@@ -151,6 +170,9 @@ namespace platf {
   }
 
   void unicode(input_t &input, char *utf8, int size) {
+    if (auto *raw = static_cast<input_raw_t *>(input.get()); stream_input::active(raw)) {
+      return stream_input::unicode(raw, utf8, size);
+    }
     if (auto *raw = static_cast<input_raw_t *>(input.get()); kwin_input::active(raw)) {
       return kwin_input::unicode(raw, utf8, size);
     }
@@ -162,6 +184,9 @@ namespace platf {
       return;
     }
     auto *raw = static_cast<client_input_raw_t *>(input);
+    if (raw && stream_input::active(raw->global)) {
+      return stream_input::touch(raw->global, touch);
+    }
     if (raw && kwin_input::active(raw->global)) {
       return kwin_input::touch(raw, touch);
     }
@@ -181,10 +206,10 @@ namespace platf {
   }
 
   int alloc_gamepad(input_t &input, const gamepad_id_t &id, const gamepad_arrival_t &metadata, feedback_queue_t feedback_queue) {
-    if (auto *raw = static_cast<input_raw_t *>(input.get()); kwin_input::active(raw) && raw->session_tag.empty()) {
+    if (auto *raw = static_cast<input_raw_t *>(input.get()); (kwin_input::active(raw) || stream_input::active(raw)) && raw->session_tag.empty()) {
       // Without a private /dev of its own, a gamepad would belong to every
-      // desktop of the user, not this one.
-      BOOST_LOG(warning) << "The detached desktop has no private /dev; refusing a gamepad the host would also see";
+      // session of the user, not this one.
+      BOOST_LOG(warning) << "The session has no private /dev; refusing a gamepad the host would also see";
       return -1;
     }
     return gamepad::alloc(static_cast<input_raw_t *>(input.get()), id, metadata, feedback_queue);

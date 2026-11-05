@@ -2453,7 +2453,8 @@ namespace stream {
           session.isolated_session ? session.isolated_seat_id : std::string {},
           session.isolated_session ? session.config.gcmap.value_or(0) : 0,
           monitor.kwin_wayland_socket,
-          session.device_uuid
+          session.device_uuid,
+          monitor.gamescope_stream_socket
         );
       } catch (const std::exception &error) {
         BOOST_LOG(::error) << "Could not initialize session input: " << error.what();
@@ -2560,6 +2561,10 @@ namespace stream {
       session->config.monitor.kwin_pipewire_socket = launch_session.kwin_pipewire_socket;
       if (!launch_session.kwin_wayland_socket.empty()) {
         session->config.monitor.display_name = "kwin:" + launch_session.kwin_wayland_socket;
+      }
+      session->config.monitor.gamescope_stream_socket = launch_session.gamescope_stream_socket;
+      if (!launch_session.gamescope_stream_socket.empty()) {
+        session->config.monitor.display_name = "gamescope:" + launch_session.gamescope_stream_socket;
       }
       // Preserve the session-scoped marker for process-level cleanup decisions,
       // but move responsibility for releasing the output into session_t.

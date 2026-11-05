@@ -23,6 +23,9 @@ namespace platf {
   namespace kwin {
     class connection_t;
   }
+  namespace gamescope_stream {
+    class session_t;
+  }
 
   constexpr std::uint16_t VIRTUAL_INPUT_VENDOR_ID = 0xBEEF;
   constexpr std::uint16_t VIRTUAL_INPUT_PRODUCT_ID = 0xDEAD;
@@ -71,10 +74,13 @@ namespace platf {
      * gamepads only with a session tag, as devices of that session alone.
      */
     input_raw_t(std::shared_ptr<kwin::connection_t> private_kwin, std::string session_tag);
+    /** Input for a Gamescope stream session, on the same terms. */
+    input_raw_t(std::shared_ptr<gamescope_stream::session_t> stream_session, std::string session_tag);
     ~input_raw_t() = default;
 
     std::string session_tag;
     std::shared_ptr<kwin::connection_t> kwin;
+    std::shared_ptr<gamescope_stream::session_t> stream;
     std::shared_ptr<lvh::Runtime> runtime;
     std::unique_ptr<lvh::Mouse> mouse;
     std::unique_ptr<lvh::Keyboard> keyboard;
@@ -85,7 +91,7 @@ namespace platf {
   struct client_input_raw_t: public client_input_t {
     explicit client_input_raw_t(input_t &input, std::unique_ptr<lvh::Runtime> runtime = {}):
         global(static_cast<input_raw_t *>(input.get())),
-        virtualhid_devices(global->kwin ? nullptr : std::make_unique<virtualhid::client_devices_t>(global->session_tag, std::move(runtime))) {}
+        virtualhid_devices((global->kwin || global->stream) ? nullptr : std::make_unique<virtualhid::client_devices_t>(global->session_tag, std::move(runtime))) {}
 
     input_raw_t *global;
     std::unique_ptr<virtualhid::client_devices_t> virtualhid_devices;

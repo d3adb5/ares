@@ -45,6 +45,7 @@
 #include "clipboard_process.h"
 #include "graphics.h"
 #include "misc.h"
+#include "gamescope_stream.h"
 #include "process_group.h"
 #include "service_lifecycle.h"
 #include "session_attach.h"
@@ -1133,6 +1134,9 @@ std::string get_local_ip_for_gateway() {
   }
 
   std::shared_ptr<display_t> display(mem_type_e hwdevice_type, const std::string &display_name, const video::config_t &config) {
+    if (!config.gamescope_stream_socket.empty()) {
+      return gamescope_stream::display(hwdevice_type, config);
+    }
     if (!config.kwin_wayland_socket.empty() || !config.kwin_pipewire_socket.empty()) {
       if (config.kwin_wayland_socket.empty() || config.kwin_pipewire_socket.empty()) {
         BOOST_LOG(error) << "Incomplete private KWin endpoint; refusing host capture";

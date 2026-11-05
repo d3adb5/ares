@@ -43,6 +43,8 @@
     #include "platform/linux/bounded_command.h"
   #endif
   #include "platform/linux/gamescope_session.h"
+  #include "platform/linux/gamescope_stream.h"
+  #include "platform/linux/misc.h"
   #include "platform/linux/window_placement.h"
   // For the GBM allocation probe: picking the render node an isolated session
   // renders on is the same question the capture path answers, so it uses the
@@ -92,6 +94,7 @@
   #include "platform/linux/session_devices.h"
   #include "platform/linux/virtual_display.h"
   #include <sys/stat.h>
+  #include <sys/sysmacros.h>
   #include <unistd.h>
 #endif
 
@@ -140,7 +143,7 @@ namespace proc {
       return session_route_e::isolated_desktop;
     }
 
-    if (app.isolation_method == "gamescope") {
+    if (app.isolation_method == "gamescope" || app.isolation_method == "gamescope_stream") {
       return session_route_e::isolated_application;
     }
 
@@ -194,6 +197,8 @@ namespace proc {
       bool user_unit {false};
       std::string kwin_wayland_socket;
       std::string kwin_pipewire_socket;
+      // Set for a Gamescope that streams to Hermes: no card, seat or connector.
+      std::string gamescope_stream_socket;
       std::string audio_sink;
       std::string mic_source;  ///< Empty where the client's microphone is not streamed.
       std::unique_ptr<platf::session_audio::server_t> audio_server;  ///< Where the session has its own.
@@ -825,6 +830,56 @@ namespace proc {
     }
 
     /**
+     * The GPU Ares encodes on, as Gamescope's --prefer-vk-device takes it. A
+     * frame rendered elsewhere would have to cross devices before the encoder.
+     */
+    std::string encode_gpu_vk_device() {
+      ::file_t render {platf::open_encode_render_node()};
+      struct stat render_stat {};
+      if (render.el < 0 || ::fstat(render.el, &render_stat) != 0) {
+        return {};
+      }
+      const auto device_dir = std::filesystem::path {"/sys/dev/char"} /
+                              (std::to_string(major(render_stat.st_rdev)) + ":" + std::to_string(minor(render_stat.st_rdev))) / "device";
+      const auto read_id = [&](const char *name) {
+        std::string id;
+        std::ifstream {device_dir / name} >> id;
+        return id.starts_with("0x") ? id.substr(2, 4) : std::string {};
+      };
+      const auto vendor = read_id("vendor");
+      const auto device = read_id("device");
+      return vendor.empty() || device.empty() ? std::string {} : vendor + ':' + device;
+    }
+
+    /**
+     * Whether this launch runs a Gamescope that streams its frames to Ares. Each
+     * refusal has the session card to go back to; HDR and a session with a uid of
+     * its own are what the stream cannot do yet (the socket would be its user's).
+     */
+    bool use_gamescope_stream(const ctx_t &app, const rtsp_stream::launch_session_t &launch, const isolated_runtime_t &runtime) {
+      const auto &method = app.isolation_method == "default" ? config::video.isolation_method : app.isolation_method;
+      if (method != "gamescope_stream" || runtime.profile != "application") {
+        return false;
+      }
+      if (launch.enable_hdr) {
+        BOOST_LOG(info) << "[IsolatedSession] The Gamescope stream is SDR only; this HDR session uses a Hermes-KMS card.";
+        return false;
+      }
+      if (runtime.account) {
+        BOOST_LOG(info) << "[IsolatedSession] Sessions with their own account do not support the Gamescope stream yet; using a Hermes-KMS card.";
+        return false;
+      }
+      const auto binary = find_gamescope().binary;
+      const auto help = binary.empty() ? std::nullopt : gamescope_help_text(binary);
+      if (!help || !platf::gamescope::help_lists_option(*help, "--hermes-socket")) {
+        BOOST_LOG(warning) << "[IsolatedSession] " << (binary.empty() ? "gamescope" : binary)
+                           << " has no stream backend; using a Hermes-KMS card. Install Ares' Gamescope (scripts/install.sh).";
+        return false;
+      }
+      return true;
+    }
+
+    /**
      * @brief Start one command inside a session, wherever that session lives.
      *
      * Both halves used to be the same call, because everything ran as Hermes
@@ -1366,9 +1421,12 @@ namespace proc {
       } else if (!runtime->audio_sink.empty()) {
         audio::remove_session_sink(runtime->audio_sink);
       }
-      if (runtime->user_unit && !runtime->seat_id.empty()) {
+      if ((runtime->user_unit || !runtime->gamescope_stream_socket.empty()) && !runtime->seat_id.empty()) {
         // The desktop's gamepads, kept between its streams, go with it.
         platf::forget_kept_gamepads(runtime->seat_id);
+      }
+      if (!runtime->gamescope_stream_socket.empty()) {
+        platf::gamescope_stream::forget_session(runtime->gamescope_stream_socket);
       }
 #ifdef SUNSHINE_BUILD_KWIN_TRANSPORT
       if (runtime->user_unit && !runtime->kwin_wayland_socket.empty()) {
@@ -1766,8 +1824,7 @@ namespace proc {
     (void) launch_session;
     return -1;
 #else
-    if (!config::video.hermes_kms_isolated_sessions ||
-        config::video.virtual_display_backend != "hermes_kms") {
+    if (!config::video.hermes_kms_isolated_sessions) {
       launch_session->launch_error_message = "Independent-session capability is unavailable.";
       return 503;
     }
@@ -2251,64 +2308,85 @@ namespace proc {
       return 0;
     }
 
-    // The account was ensured above, before the display exists, so a card the
-    // broker creates here can be made for it: the session's compositor runs as
-    // that uid, and the card's device nodes follow its access_uid.
-    if (const int result = prepare_session_virtual_display(
-          launch_session,
-          true,
-          &app,
-          runtime->account ?
-            std::optional<uid_t> {runtime->account->uid} :
-            std::nullopt,
-          true
-        );
-        result != 0) {
-      return result;
-    }
-    if (launch_was_cancelled()) {
-      return 503;
-    }
+    const bool gamescope_stream = use_gamescope_stream(app, *launch_session, *runtime);
+    if (gamescope_stream) {
+      // No card and no seat: frames and input go over this socket. The tag is the
+      // detached desktop's, so its gamepads reach this session's /dev and no other.
+      runtime->gamescope_stream_socket = (std::filesystem::path {runtime->runtime_dir} / "gamescope-stream").string();
+      runtime->seat_id = "hermes-detached-" + runtime->runtime_id;
+      std::error_code stale_ec;
+      std::filesystem::remove(runtime->gamescope_stream_socket, stale_ec);
+      runtime->env = _env;
+      populate_session_environment(runtime->env, app, *launch_session, *runtime);
+      for (const auto *name : {"XDG_SEAT", "LIBSEAT_BACKEND", "SEATD_SOCK", "WLR_DRM_DEVICES", "WLR_LIBINPUT_NO_DEVICES", "HERMES_SEATD_SOCKET", "HERMES_DRM_DEVICE"}) {
+        runtime->env.erase(name);
+      }
+    } else {
+      if (config::video.virtual_display_backend != "hermes_kms") {
+        launch_session->launch_error_message = "This session needs a Hermes-KMS card, and the virtual display backend is not hermes_kms.";
+        BOOST_LOG(error) << "[IsolatedSession] " << launch_session->launch_error_message;
+        return 503;
+      }
+      // The account was ensured above, before the display exists, so a card the
+      // broker creates here can be made for it: the session's compositor runs as
+      // that uid, and the card's device nodes follow its access_uid.
+      if (const int result = prepare_session_virtual_display(
+            launch_session,
+            true,
+            &app,
+            runtime->account ?
+              std::optional<uid_t> {runtime->account->uid} :
+              std::nullopt,
+            true
+          );
+          result != 0) {
+        return result;
+      }
+      if (launch_was_cancelled()) {
+        return 503;
+      }
 
-    runtime->display_name = launch_session->display_name;
-    runtime->display_guid = launch_session->display_guid;
-    runtime->drm_device_path = launch_session->drm_device_path;
-    runtime->seat_id = VDISPLAY::getHermesKmsSeatName(runtime->display_name);
-    if (runtime->seat_id.empty()) {
-      BOOST_LOG(error) << "[IsolatedSession] Could not resolve the independent seat for "
-                       << runtime->display_name;
-      return 503;
-    }
-    constexpr std::string_view seat_prefix {"hermes-kms-"};
-    if (!runtime->seat_id.starts_with(seat_prefix) ||
-        runtime->seat_id.size() == seat_prefix.size()) {
-      BOOST_LOG(error) << "[IsolatedSession] Invalid Hermes-KMS seat name "
-                       << runtime->seat_id;
-      return 503;
-    }
-    const auto seat_instance = runtime->seat_id.substr(seat_prefix.size());
-    if (!std::ranges::all_of(seat_instance, [](unsigned char ch) {
-          return std::isdigit(ch);
-        })) {
-      BOOST_LOG(error) << "[IsolatedSession] Invalid Hermes-KMS seat instance "
-                       << runtime->seat_id;
-      return 503;
-    }
-    runtime->seatd_socket =
-      (std::filesystem::path {"/run/hermes-kms-seatd"} /
-       seat_instance /
-       "seatd.sock")
-        .string();
-    runtime->env = _env;
-    populate_session_environment(runtime->env, app, *launch_session, *runtime);
-    std::error_code socket_ec;
-    if (!std::filesystem::is_socket(runtime->seatd_socket, socket_ec) ||
-        ::access(runtime->seatd_socket.c_str(), R_OK | W_OK) != 0) {
-      BOOST_LOG(error) << "[IsolatedSession] Private seat broker is unavailable at "
-                       << runtime->seatd_socket
-                       << "; enable hermes-kms-seatd@" << seat_instance
-                       << ".service and grant this user access to the seat group.";
-      return 503;
+      runtime->display_name = launch_session->display_name;
+      runtime->display_guid = launch_session->display_guid;
+      runtime->drm_device_path = launch_session->drm_device_path;
+      runtime->seat_id = VDISPLAY::getHermesKmsSeatName(runtime->display_name);
+      if (runtime->seat_id.empty()) {
+        BOOST_LOG(error) << "[IsolatedSession] Could not resolve the independent seat for "
+                         << runtime->display_name;
+        return 503;
+      }
+      constexpr std::string_view seat_prefix {"hermes-kms-"};
+      if (!runtime->seat_id.starts_with(seat_prefix) ||
+          runtime->seat_id.size() == seat_prefix.size()) {
+        BOOST_LOG(error) << "[IsolatedSession] Invalid Hermes-KMS seat name "
+                         << runtime->seat_id;
+        return 503;
+      }
+      const auto seat_instance = runtime->seat_id.substr(seat_prefix.size());
+      if (!std::ranges::all_of(seat_instance, [](unsigned char ch) {
+            return std::isdigit(ch);
+          })) {
+        BOOST_LOG(error) << "[IsolatedSession] Invalid Hermes-KMS seat instance "
+                         << runtime->seat_id;
+        return 503;
+      }
+      runtime->seatd_socket =
+        (std::filesystem::path {"/run/hermes-kms-seatd"} /
+         seat_instance /
+         "seatd.sock")
+          .string();
+      runtime->env = _env;
+      populate_session_environment(runtime->env, app, *launch_session, *runtime);
+      std::error_code socket_ec;
+      if (!std::filesystem::is_socket(runtime->seatd_socket, socket_ec) ||
+          ::access(runtime->seatd_socket.c_str(), R_OK | W_OK) != 0) {
+        BOOST_LOG(error) << "[IsolatedSession] Private seat broker is unavailable at "
+                         << runtime->seatd_socket
+                         << "; enable hermes-kms-seatd@" << seat_instance
+                         << ".service and grant this user access to the seat group.";
+        return 503;
+      }
+
     }
 
     if (!app.output.empty() && app.output != "null") {
@@ -2360,7 +2438,7 @@ namespace proc {
     const int width = static_cast<int>(launch_session->width ? launch_session->width : 1920);
     const int height = static_cast<int>(launch_session->height ? launch_session->height : 1080);
     const int refresh_hz = std::max(1, (launch_session->fps ? launch_session->fps : 60000) / 1000);
-    const auto connector = VDISPLAY::getHermesKmsConnectorName(runtime->display_name);
+    const auto connector = gamescope_stream ? std::string {} : VDISPLAY::getHermesKmsConnectorName(runtime->display_name);
     std::string launch_command;
 
     // Erased, not emptied: wlroots and gamescope try to nest whenever these are
@@ -2406,59 +2484,62 @@ namespace proc {
       }
       BOOST_LOG(info) << "[IsolatedSession] Using " << gamescope_binary;
 
-      // Gamescope scans out on this session's own Hermes-KMS card and renders
-      // on the real GPU. Upstream cannot be told the two apart: it opens the
-      // primary node of the GPU it renders with, which is the card the host's
-      // desktop is on, and either fails to become DRM master there or fights
-      // the desktop for it. So the card goes to Gamescope explicitly, and a
-      // build that cannot take it is refused rather than let loose on the
-      // host's display.
-      //
-      // The card is this session's, never a process-wide setting: two
-      // sessions are two cards.
-      if (const char *legacy_device = std::getenv("HERMES_ISOLATED_GAMESCOPE_DRM_DEVICE");
-          legacy_device && *legacy_device) {
-        BOOST_LOG(warning) << "[IsolatedSession] HERMES_ISOLATED_GAMESCOPE_DRM_DEVICE is no longer read; "
-                           << "each session scans out on its own card, here "
-                           << runtime->drm_device_path << '.';
-      }
-      if (!platf::gamescope::is_primary_card_path(runtime->drm_device_path)) {
-        BOOST_LOG(error) << "[IsolatedSession] Session card " << runtime->drm_device_path
-                         << " is not a DRM primary node; Gamescope cannot scan out on it.";
-        return 503;
-      }
-
-      std::optional<platf::gamescope::drm_selector_e> selector;
-      if (const char *forced = std::getenv("HERMES_ISOLATED_GAMESCOPE_DRM_FLAG");
-          forced && *forced) {
-        selector = platf::gamescope::drm_selector_from_override(forced);
-        if (!selector) {
-          BOOST_LOG(warning) << "[IsolatedSession] Ignoring HERMES_ISOLATED_GAMESCOPE_DRM_FLAG=" << forced
-                             << "; expected --prefer-drm, --drm-device or none.";
+      std::optional<platf::gamescope::drm_selector_e> selector = platf::gamescope::drm_selector_e::none;
+      if (!gamescope_stream) {
+        selector.reset();
+        // Gamescope scans out on this session's own Hermes-KMS card and renders
+        // on the real GPU. Upstream cannot be told the two apart: it opens the
+        // primary node of the GPU it renders with, which is the card the host's
+        // desktop is on, and either fails to become DRM master there or fights
+        // the desktop for it. So the card goes to Gamescope explicitly, and a
+        // build that cannot take it is refused rather than let loose on the
+        // host's display.
+        //
+        // The card is this session's, never a process-wide setting: two
+        // sessions are two cards.
+        if (const char *legacy_device = std::getenv("HERMES_ISOLATED_GAMESCOPE_DRM_DEVICE");
+            legacy_device && *legacy_device) {
+          BOOST_LOG(warning) << "[IsolatedSession] HERMES_ISOLATED_GAMESCOPE_DRM_DEVICE is no longer read; "
+                             << "each session scans out on its own card, here "
+                             << runtime->drm_device_path << '.';
         }
-      }
-      if (!selector) {
-        selector = gamescope_drm_selector(gamescope_binary);
-      }
-      if (!selector) {
-        BOOST_LOG(error) << "[IsolatedSession] " << gamescope_binary
-                         << " cannot scan out on a different device than it renders with, so it "
-                            "would open the host GPU's display instead of this session's card. Install "
-                            "Ares' Gamescope (scripts/install.sh), use one with --prefer-drm "
-                            "(ValveSoftware/gamescope#2220), or set "
-                            "HERMES_ISOLATED_GAMESCOPE_DRM_FLAG for a build whose --help does not "
-                            "list the option it accepts.";
-        return 503;
-      }
-      if (*selector == platf::gamescope::drm_selector_e::none) {
-        BOOST_LOG(warning) << "[IsolatedSession] Launching Gamescope without a scanout device "
-                              "(HERMES_ISOLATED_GAMESCOPE_DRM_FLAG=none); it will pick the GPU it "
-                              "renders with, not " << runtime->drm_device_path << '.';
-      } else {
-        // Also read by #2220 when the flag is absent. Setting both costs
-        // nothing and keeps the device in the session's environment, where a
-        // Gamescope started by a script inside the session finds it too.
-        runtime->env["GAMESCOPE_PREFER_DRM"] = runtime->drm_device_path;
+        if (!platf::gamescope::is_primary_card_path(runtime->drm_device_path)) {
+          BOOST_LOG(error) << "[IsolatedSession] Session card " << runtime->drm_device_path
+                           << " is not a DRM primary node; Gamescope cannot scan out on it.";
+          return 503;
+        }
+
+        if (const char *forced = std::getenv("HERMES_ISOLATED_GAMESCOPE_DRM_FLAG");
+            forced && *forced) {
+          selector = platf::gamescope::drm_selector_from_override(forced);
+          if (!selector) {
+            BOOST_LOG(warning) << "[IsolatedSession] Ignoring HERMES_ISOLATED_GAMESCOPE_DRM_FLAG=" << forced
+                               << "; expected --prefer-drm, --drm-device or none.";
+          }
+        }
+        if (!selector) {
+          selector = gamescope_drm_selector(gamescope_binary);
+        }
+        if (!selector) {
+          BOOST_LOG(error) << "[IsolatedSession] " << gamescope_binary
+                           << " cannot scan out on a different device than it renders with, so it "
+                              "would open the host GPU's display instead of this session's card. Install "
+                              "Ares' Gamescope (scripts/install.sh), use one with --prefer-drm "
+                              "(ValveSoftware/gamescope#2220), or set "
+                              "HERMES_ISOLATED_GAMESCOPE_DRM_FLAG for a build whose --help does not "
+                              "list the option it accepts.";
+          return 503;
+        }
+        if (*selector == platf::gamescope::drm_selector_e::none) {
+          BOOST_LOG(warning) << "[IsolatedSession] Launching Gamescope without a scanout device "
+                                "(HERMES_ISOLATED_GAMESCOPE_DRM_FLAG=none); it will pick the GPU it "
+                                "renders with, not " << runtime->drm_device_path << '.';
+        } else {
+          // Also read by #2220 when the flag is absent. Setting both costs
+          // nothing and keeps the device in the session's environment, where a
+          // Gamescope started by a script inside the session finds it too.
+          runtime->env["GAMESCOPE_PREFER_DRM"] = runtime->drm_device_path;
+        }
       }
 
       // Steam picks the visible app and shows its overlay only in gamescope's
@@ -2502,6 +2583,8 @@ namespace proc {
         .connector = connector,
         .selector = *selector,
         .scanout_card = runtime->drm_device_path,
+        .stream_socket = runtime->gamescope_stream_socket,
+        .vk_device = gamescope_stream ? encode_gpu_vk_device() : std::string {},
         .steam_mode = steam_mode,
         .args = app.gamescope_args,
         .command = app.cmd,
@@ -2633,8 +2716,8 @@ namespace proc {
     BOOST_LOG(info) << "[IsolatedSession] Starting " << runtime->profile
                     << " runtime " << runtime->runtime_id
                     << " on seat " << runtime->seat_id
-                    << " on " << runtime->drm_device_path
-                    << " for " << runtime->display_name;
+                    << " on " << (gamescope_stream ? runtime->gamescope_stream_socket : runtime->drm_device_path)
+                    << " for " << (gamescope_stream ? std::string {"its stream"} : runtime->display_name);
     if (runtime->account) {
       // The session cannot be a child of Hermes, because it runs as a uid
       // Hermes may not assume. The broker asks systemd for a transient unit
@@ -2697,6 +2780,11 @@ namespace proc {
                         << (devices->devices ? "hidden" : "visible") << ", sound devices "
                         << (devices->sound ? "hidden" : "visible") << '.';
       }
+      if (gamescope_stream && !devices->devices) {
+        // Without a private /dev, a tagged gamepad would reach nobody.
+        BOOST_LOG(warning) << "[IsolatedSession] Session " << runtime->runtime_id << " gets no gamepads: it has no private /dev.";
+        runtime->seat_id.clear();
+      }
       if (devices->devices) {
         // Before any of the seat's devices, which come with the stream. For
         // 60-ares.rules: the session's mount namespace and Hermes' pid, to
@@ -2746,6 +2834,19 @@ namespace proc {
                            << " (code=" << runtime->process.native_exit_code() << ").";
         }
         return 503;
+      }
+
+      if (gamescope_stream) {
+        // The stream needs nothing drawn yet: capture asks for its first frame.
+        std::error_code socket_ec;
+        scanout_ready = std::filesystem::is_socket(runtime->gamescope_stream_socket, socket_ec);
+        active_width = width;
+        active_height = height;
+        if (scanout_ready) {
+          break;
+        }
+        std::this_thread::sleep_for(50ms);
+        continue;
       }
 
       const int capture_fd = VDISPLAY::hermesKmsOpenCapture(runtime->display_name);
@@ -2867,8 +2968,10 @@ namespace proc {
       auto restore_output = util::fail_guard([&]() {
         config::video.output_name = previous_output;
       });
-      if (rtsp_stream::session_count() == 0 && video::probe_encoders() &&
-          !config::video.ignore_encoder_probe_failure) {
+      const auto probe_failed = gamescope_stream ?
+                                  rtsp_stream::session_count() == 0 && video::probe_encoders_without_display() :
+                                  rtsp_stream::session_count() == 0 && video::probe_encoders();
+      if (probe_failed && !config::video.ignore_encoder_probe_failure) {
         return 503;
       }
     }
@@ -2882,6 +2985,7 @@ namespace proc {
     launch_session->isolated_runtime_id = runtime->runtime_id;
     launch_session->isolated_seat_id = runtime->seat_id;
     launch_session->wayland_display = runtime->wayland_display;
+    launch_session->gamescope_stream_socket = runtime->gamescope_stream_socket;
     launch_session->virtual_display = true;
 
     {
@@ -3300,6 +3404,7 @@ namespace proc {
     launch_session->wayland_display = runtime->wayland_display;
     launch_session->kwin_wayland_socket = runtime->kwin_wayland_socket;
     launch_session->kwin_pipewire_socket = runtime->kwin_pipewire_socket;
+    launch_session->gamescope_stream_socket = runtime->gamescope_stream_socket;
     if (!runtime->app.allow_client_commands) {
       launch_session->client_do_cmds.clear();
       launch_session->client_undo_cmds.clear();
@@ -4997,6 +5102,7 @@ namespace proc {
           ctx.isolation_method = app_node.value("isolation-method", "default");
           if (ctx.isolation_method != "default" &&
               ctx.isolation_method != "gamescope" &&
+              ctx.isolation_method != "gamescope_stream" &&
               ctx.isolation_method != "kwin_virtual") {
             BOOST_LOG(warning) << "Unknown isolation-method '" << ctx.isolation_method
                                << "' for app " << name << "; using the global setting.";

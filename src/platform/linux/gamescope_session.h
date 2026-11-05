@@ -152,6 +152,7 @@ namespace platf::gamescope {
   inline std::optional<std::string> session_option_override(std::span<const std::string> arguments) {
     constexpr std::string_view reserved[] {
       "--backend",
+      "--hermes-socket",
       "--prefer-drm",
       "--drm-device",
       "--output-width",
@@ -197,6 +198,8 @@ namespace platf::gamescope {
     std::string connector;  ///< The session card's connector, e.g. Virtual-2.
     drm_selector_e selector = drm_selector_e::none;
     std::string scanout_card;  ///< The session card's primary node.
+    std::string stream_socket;  ///< Stream frames over this socket instead: no card, no connector.
+    std::string vk_device;  ///< The GPU to render on, as vendor:device; empty lets Gamescope pick.
     bool steam_mode = false;
     std::string args;  ///< The app's gamescope-args; empty means default_args.
     std::string command;  ///< What runs inside Gamescope, after --.
@@ -223,14 +226,18 @@ namespace platf::gamescope {
    */
   inline std::string launch_command(const launch_t &launch) {
     auto command = std::format(
-      "{} --backend=drm -W {} -H {} -w {} -h {} -r {}",
+      "{} {} -W {} -H {} -w {} -h {} -r {}",
       launch.binary.empty() ? std::string {"gamescope"} : launch.binary,
+      launch.stream_socket.empty() ? std::string {"--backend=drm"} : "--backend=hermes --hermes-socket " + launch.stream_socket,
       launch.width,
       launch.height,
       launch.width,
       launch.height,
       launch.refresh_hz
     );
+    if (!launch.vk_device.empty()) {
+      command += " --prefer-vk-device " + launch.vk_device;
+    }
     if (launch.selector != drm_selector_e::none && !launch.scanout_card.empty()) {
       command += std::format(" {} {}", drm_selector_flag(launch.selector), launch.scanout_card);
     }

@@ -70,6 +70,8 @@ namespace video {
     // Explicit native detached endpoints; empty preserves existing capture.
     std::string kwin_wayland_socket;
     std::string kwin_pipewire_socket;
+    // Capture from a Gamescope running --backend hermes; no display behind it.
+    std::string gamescope_stream_socket;
   };
 
   platf::mem_type_e map_base_dev_type(AVHWDeviceType type);

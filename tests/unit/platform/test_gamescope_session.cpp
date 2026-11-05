@@ -186,3 +186,27 @@ namespace {
     EXPECT_FALSE(session_option_override(arguments));
   }
 }  // namespace
+
+TEST(GamescopeSession, StreamHasNoCardOrConnector) {
+  const auto command = platf::gamescope::launch_command({
+    .binary = "/usr/bin/gamescope",
+    .width = 1920,
+    .height = 1080,
+    .refresh_hz = 120,
+    .stream_socket = "/run/user/1000/hermes/sessions/s1/gamescope-stream",
+    .vk_device = "1002:744c",
+    .command = "game",
+  });
+
+  EXPECT_EQ(
+    command,
+    "/usr/bin/gamescope --backend=hermes --hermes-socket /run/user/1000/hermes/sessions/s1/gamescope-stream "
+    "-W 1920 -H 1080 -w 1920 -h 1080 -r 120 --prefer-vk-device 1002:744c --xwayland-count 1 "
+    "--expose-wayland --force-windows-fullscreen -- game"
+  );
+}
+
+TEST(GamescopeSession, AppCannotRedirectTheStreamSocket) {
+  const std::vector<std::string> arguments {"--hermes-socket=/tmp/other"};
+  EXPECT_TRUE(platf::gamescope::session_option_override(arguments).has_value());
+}

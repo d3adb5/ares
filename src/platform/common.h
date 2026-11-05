@@ -843,6 +843,12 @@ namespace platf {
    * uinput phys/uniq metadata so a compositor seat can select only its client.
    */
   input_t input(const std::string &session_tag = {});
+  /**
+   * Input for a Gamescope stream session. Keyboard, mouse and touch go over its
+   * socket; gamepads are virtual devices tagged session_tag, and only exist when
+   * the tag is not empty (the session has a private /dev that receives them).
+   */
+  input_t input_gamescope_stream(const std::string &socket, const std::string &session_tag = {});
 #ifdef SUNSHINE_BUILD_KWIN_TRANSPORT
   /**
    * Input for a private KWin desktop. Keyboard, mouse and touch go through

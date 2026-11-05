@@ -53,6 +53,16 @@ TEST(ProcessSessionRoute, AutoWithoutVirtualDisplayRequestUsesHost) {
   );
 }
 
+TEST(ProcessSessionRoute, ExplicitGamescopeStreamIsAnIsolatedApplication) {
+  proc::ctx_t app {};
+  app.isolation_method = "gamescope_stream";
+
+  EXPECT_EQ(
+    proc::resolve_session_route(app, true, false),
+    proc::session_route_e::isolated_application
+  );
+}
+
 TEST(ProcessSessionRoute, ExplicitDesktopForcesIsolatedDesktop) {
   proc::ctx_t app {};
   app.isolation_method = "kwin_virtual";
