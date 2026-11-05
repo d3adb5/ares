@@ -500,10 +500,10 @@ namespace config {
     {},  // output_name
     "evdi"s,  // virtual_display_backend
     false,  // hermes_kms_multi_output
-    false,  // hermes_kms_isolated_sessions
+    true,  // hermes_kms_isolated_sessions
     "auto"s,  // gamescope_backend
     "plasma"s,  // hermes_kms_session_compositor
-    "gamescope"s,  // isolation_method
+    "gamescope_stream"s,  // isolation_method
 
     {
       video_t::dd_t::config_option_e::disabled,  // configuration_option

@@ -6,29 +6,12 @@
 
 #include <src/process.h>
 
-TEST(ProcessSessionRoute, VirtualDisplayRequestIsExplicitPolicy) {
-  proc::ctx_t app {};
-  rtsp_stream::launch_session_t launch {};
-
-  EXPECT_FALSE(proc::launch_requests_virtual_display(app, launch, false));
-
-  app.virtual_display = true;
-  EXPECT_TRUE(proc::launch_requests_virtual_display(app, launch, false));
-
-  app.virtual_display = false;
-  launch.virtual_display = true;
-  EXPECT_TRUE(proc::launch_requests_virtual_display(app, launch, false));
-
-  launch.virtual_display = false;
-  EXPECT_TRUE(proc::launch_requests_virtual_display(app, launch, true));
-}
-
 TEST(ProcessSessionRoute, DisabledCapabilityAlwaysUsesHost) {
   proc::ctx_t app {};
   app.isolation_method = "kwin_virtual";
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, false, true),
+    proc::resolve_session_route(app, false),
     proc::session_route_e::shared
   );
 }
@@ -38,18 +21,19 @@ TEST(ProcessSessionRoute, SharedAlwaysUsesHost) {
   app.host_session = true;
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, true),
+    proc::resolve_session_route(app, true),
     proc::session_route_e::shared
   );
 }
 
-TEST(ProcessSessionRoute, AutoWithoutVirtualDisplayRequestUsesHost) {
+TEST(ProcessSessionRoute, EveryLaunchIsIsolatedByDefault) {
   proc::ctx_t app {};
   app.isolation_method = "default";
+  app.cmd = "game";
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, false),
-    proc::session_route_e::shared
+    proc::resolve_session_route(app, true),
+    proc::session_route_e::isolated_application
   );
 }
 
@@ -58,7 +42,7 @@ TEST(ProcessSessionRoute, ExplicitGamescopeStreamIsAnIsolatedApplication) {
   app.isolation_method = "gamescope_stream";
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, false),
+    proc::resolve_session_route(app, true),
     proc::session_route_e::isolated_application
   );
 }
@@ -68,7 +52,7 @@ TEST(ProcessSessionRoute, ExplicitDesktopForcesIsolatedDesktop) {
   app.isolation_method = "kwin_virtual";
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, false),
+    proc::resolve_session_route(app, true),
     proc::session_route_e::isolated_desktop
   );
 }
@@ -78,7 +62,7 @@ TEST(ProcessSessionRoute, ExplicitDesktopWithVirtualDisplayIsIsolated) {
   app.isolation_method = "kwin_virtual";
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, true),
+    proc::resolve_session_route(app, true),
     proc::session_route_e::isolated_desktop
   );
 }
@@ -89,7 +73,7 @@ TEST(ProcessSessionRoute, ExplicitApplicationWithVirtualDisplayIsIsolated) {
   app.cmd = "game";
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, true),
+    proc::resolve_session_route(app, true),
     proc::session_route_e::isolated_application
   );
 }
@@ -100,7 +84,7 @@ TEST(ProcessSessionRoute, DetachedLayoutFollowsGlobalMethod) {
   desktop.virtual_display_layout = "detached";
 
   EXPECT_EQ(
-    proc::resolve_session_route(desktop, true, true),
+    proc::resolve_session_route(desktop, true),
     proc::session_route_e::isolated_desktop
   );
 
@@ -110,7 +94,7 @@ TEST(ProcessSessionRoute, DetachedLayoutFollowsGlobalMethod) {
   application.cmd = "game";
 
   EXPECT_EQ(
-    proc::resolve_session_route(application, true, true),
+    proc::resolve_session_route(application, true),
     proc::session_route_e::isolated_application
   );
 }
@@ -121,7 +105,7 @@ TEST(ProcessSessionRoute, GlobalGamescopeRunsCommandsAndLeavesDesktopsToKWin) {
   game.cmd = "game";
 
   EXPECT_EQ(
-    proc::resolve_session_route(game, true, true, "gamescope"),
+    proc::resolve_session_route(game, true, "gamescope"),
     proc::session_route_e::isolated_application
   );
 
@@ -129,7 +113,7 @@ TEST(ProcessSessionRoute, GlobalGamescopeRunsCommandsAndLeavesDesktopsToKWin) {
   desktop.isolation_method = "default";
 
   EXPECT_EQ(
-    proc::resolve_session_route(desktop, true, true, "gamescope"),
+    proc::resolve_session_route(desktop, true, "gamescope"),
     proc::session_route_e::isolated_desktop
   );
 }
@@ -141,7 +125,7 @@ TEST(ProcessSessionRoute, GlobalKWinRunsCommandsInTheDesktop) {
   game.cmd = "game";
 
   EXPECT_EQ(
-    proc::resolve_session_route(game, true, true, "kwin_virtual"),
+    proc::resolve_session_route(game, true, "kwin_virtual"),
     proc::session_route_e::isolated_desktop
   );
 }
@@ -152,7 +136,7 @@ TEST(ProcessSessionRoute, GlobalMethodNeedsAVirtualDisplayRequest) {
   app.cmd = "game";
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, false, "gamescope"),
+    proc::resolve_session_route(app, true, "gamescope"),
     proc::session_route_e::shared
   );
 }
@@ -165,7 +149,7 @@ TEST(ProcessSessionRoute, GlobalMethodLeavesHostLayoutsOnTheHost) {
     app.cmd = "game";
 
     EXPECT_EQ(
-      proc::resolve_session_route(app, true, true, "gamescope"),
+      proc::resolve_session_route(app, true, "gamescope"),
       proc::session_route_e::shared
     ) << layout;
   }
@@ -177,13 +161,13 @@ TEST(ProcessSessionRoute, AppMethodOverridesGlobalMethod) {
 
   app.isolation_method = "kwin_virtual";
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, true, "gamescope"),
+    proc::resolve_session_route(app, true, "gamescope"),
     proc::session_route_e::isolated_desktop
   );
 
   app.isolation_method = "gamescope";
   EXPECT_EQ(
-    proc::resolve_session_route(app, true, true, "kwin_virtual"),
+    proc::resolve_session_route(app, true, "kwin_virtual"),
     proc::session_route_e::isolated_application
   );
 }
@@ -196,7 +180,7 @@ TEST(ProcessSessionRoute, HostSessionOverridesEveryMethod) {
   for (const char *method : {"default", "gamescope", "kwin_virtual"}) {
     app.isolation_method = method;
     EXPECT_EQ(
-      proc::resolve_session_route(app, true, true, "kwin_virtual"),
+      proc::resolve_session_route(app, true, "kwin_virtual"),
       proc::session_route_e::shared
     ) << method;
   }
@@ -208,7 +192,7 @@ TEST(ProcessSessionRoute, GlobalMethodNeedsIsolatedSessionsEnabled) {
   app.cmd = "game";
 
   EXPECT_EQ(
-    proc::resolve_session_route(app, false, true, "gamescope"),
+    proc::resolve_session_route(app, false, "gamescope"),
     proc::session_route_e::shared
   );
 }

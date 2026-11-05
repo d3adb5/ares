@@ -474,9 +474,10 @@ const validateFallbackMode = (event) => {
         </select>
         <div class="form-text">{{ $t('config.virtual_display_backend_desc') }}</div>
       </div>
-      <div class="col-md" v-if="config.virtual_display_backend === 'hermes_kms' && hermesKmsIsolatedSessionsEnabled">
+      <div class="col-md" v-if="platform === 'linux' && hermesKmsIsolatedSessionsEnabled">
         <label for="isolation_method" class="form-label">{{ $t('config.isolation_method') }}</label>
         <select id="isolation_method" class="form-select" v-model="config.isolation_method">
+          <option value="gamescope_stream">{{ $t('config.isolation_method_gamescope_stream') }}</option>
           <option value="gamescope">{{ $t('config.isolation_method_gamescope') }}</option>
           <option value="kwin_virtual">{{ $t('config.isolation_method_kwin_virtual') }}</option>
         </select>
@@ -488,12 +489,12 @@ const validateFallbackMode = (event) => {
               id="hermes_kms_isolated_sessions"
               locale-prefix="config"
               v-model="config.hermes_kms_isolated_sessions"
-              default="false"
-              v-if="platform === 'linux' && config.virtual_display_backend === 'hermes_kms'"
+              default="true"
+              v-if="platform === 'linux'"
     ></Checkbox>
 
-    <div class="alert alert-danger small"
-         v-if="platform === 'linux' && config.virtual_display_backend === 'hermes_kms' && hermesKmsIsolatedSessionsEnabled">
+    <div class="alert alert-warning small"
+         v-if="platform === 'linux' && hermesKmsIsolatedSessionsEnabled">
       {{ $t('config.hermes_kms_isolated_sessions_warning') }}
     </div>
 

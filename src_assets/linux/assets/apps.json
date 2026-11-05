@@ -9,8 +9,15 @@
       "allow-client-commands": false
     },
     {
+      "name": "Host Desktop (troubleshooting)",
+      "image-path": "desktop-alt.png",
+      "host-session": true,
+      "allow-client-commands": false
+    },
+    {
       "name": "Low Res Desktop",
       "image-path": "desktop-low-res.png",
+      "host-session": true,
       "allow-client-commands": false,
       "prep-cmd": [
         {

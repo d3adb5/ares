@@ -57,8 +57,7 @@ namespace nvhttp {
 
   bool experimental_isolated_sessions_enabled() {
 #ifdef __linux__
-    return config::video.virtual_display_backend == "hermes_kms" &&
-           config::video.hermes_kms_isolated_sessions;
+    return config::video.hermes_kms_isolated_sessions;
 #else
     return false;
 #endif
@@ -1372,7 +1371,6 @@ namespace nvhttp {
         proc::resolve_session_route(
           *requested_app,
           isolated_sessions,
-          true,
           config::video.isolation_method
         ) != proc::session_route_e::shared;
     }
@@ -1469,16 +1467,9 @@ namespace nvhttp {
 
     auto session_route = proc::session_route_e::shared;
     if (requested_app) {
-      const bool virtual_display_requested =
-        proc::launch_requests_virtual_display(
-          *requested_app,
-          *launch_session,
-          config::video.headless_mode
-        );
       session_route = proc::resolve_session_route(
         *requested_app,
         isolated_sessions,
-        virtual_display_requested,
         config::video.isolation_method
       );
     }

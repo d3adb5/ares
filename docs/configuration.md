@@ -1502,9 +1502,11 @@ alias; new configurations should use the key above.
     <tr>
         <td>Description</td>
         <td colspan="2">
-            @warning{Experimental and not recommended for production yet. Independent-session support now coexists with the shared host session rather than replacing it. Resource limits, GPU compositor support, per-account audio isolation, and full Plasma-session validation remain unfinished.}
-
-            Enables the experimental independent-session capability. It does not switch the entire Ares server into an isolated mode. Eligible launches may use independent sessions while ordinary Host Desktop, Remote Input, and other shared routes continue to use the existing host compositor.
+            Runs every launch apart from the host desktop, with the method chosen by
+            <code>isolation_method</code> or the app's <code>isolation-method</code>.
+            Turn it off, or set <code>host-session</code> on one app, only to
+            troubleshoot from the host desktop. A launch that cannot be isolated fails;
+            it never falls back to the host.
 
             <b>What every isolated session gets.</b> The Plasma
             desktop (<code>hermes_kms_session_compositor = plasma</code>) runs
@@ -1758,10 +1760,15 @@ alias; new configurations should use the key above.
     <tr>
         <td>Description</td>
         <td colspan="2">
-            How a session is isolated when a client requests a virtual display,
-            with <code>hermes_kms_isolated_sessions</code> enabled. An app's
-            <code>isolation-method</code> overrides it.
+            How a session is isolated, with <code>hermes_kms_isolated_sessions</code>
+            enabled. An app's <code>isolation-method</code> overrides it.
             <ul>
+                <li><code>gamescope_stream</code>: Gamescope hands each frame straight
+                to Ares over a socket and takes keyboard, mouse and touch from it. It
+                needs no virtual display, and paints as soon as the game's frame is
+                ready, which makes it the lowest-latency method. HDR sessions and
+                sessions with their own account use <code>gamescope</code> instead. An
+                app with no command gets the <code>kwin_virtual</code> desktop.</li>
                 <li><code>gamescope</code>: Gamescope with a virtual display. The
                 app runs alone on its own Hermes-KMS card and private DRM seat. An
                 app with no command gets the <code>kwin_virtual</code> desktop.</li>
@@ -1778,7 +1785,7 @@ alias; new configurations should use the key above.
     <tr>
         <td>Default</td>
         <td colspan="2">@code{}
-            gamescope
+            gamescope_stream
             @endcode</td>
     </tr>
     <tr>

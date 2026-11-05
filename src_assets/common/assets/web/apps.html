@@ -403,6 +403,7 @@
           <label for="isolationMethod" class="form-label">{{ $t('apps.isolation_method') }}</label>
           <select id="isolationMethod" class="form-select" v-model="editForm['isolation-method']">
             <option value="default">{{ $t('apps.isolation_method_default') }}</option>
+            <option value="gamescope_stream">{{ $t('apps.isolation_method_gamescope_stream') }}</option>
             <option value="gamescope">{{ $t('apps.isolation_method_gamescope') }}</option>
             <option value="kwin_virtual">{{ $t('apps.isolation_method_kwin_virtual') }}</option>
           </select>

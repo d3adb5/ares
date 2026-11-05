@@ -114,8 +114,8 @@ namespace proc {
     bool allow_client_commands;
     bool terminate_on_pause;
     bool unlock_host_session;
-    // default: follow the global isolation_method when a virtual display is requested.
-    // gamescope/kwin_virtual: always run in that isolated session.
+    // default: follow the global isolation_method.
+    // gamescope_stream/gamescope/kwin_virtual: always run in that isolated session.
     std::string isolation_method;
     // Never isolate, whatever is requested.
     bool host_session {false};
@@ -146,30 +146,16 @@ namespace proc {
   };
 
   /**
-   * Return whether policy explicitly requests a virtual display for this launch.
-   *
-   * This is intentionally narrower than the legacy execute() fallback that may
-   * create a display merely because no active display is available. Losing a
-   * monitor must not by itself change session ownership.
-   */
-  bool launch_requests_virtual_display(
-    const ctx_t &app,
-    const rtsp_stream::launch_session_t &launch_session,
-    bool headless_mode
-  );
-
-  /**
    * Resolve a launch to the host session or an independent private session.
    *
    * An app's own isolation method always applies. An app on the default follows
-   * global_method when a virtual display is requested, unless its layout places
-   * that display on the host desktop. host-session apps always stay on the host.
+   * global_method, unless its layout places it on the host desktop. host-session
+   * apps always stay on the host.
    */
   session_route_e resolve_session_route(
     const ctx_t &app,
     bool isolated_sessions_enabled,
-    bool virtual_display_requested,
-    std::string_view global_method = "gamescope"
+    std::string_view global_method = "gamescope_stream"
   );
 
   /** Rename session-type to isolation-method in a parsed apps.json. */

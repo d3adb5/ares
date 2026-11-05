@@ -119,20 +119,9 @@ namespace proc {
     std::chrono::seconds exit_timeout
   );
 
-  bool launch_requests_virtual_display(
-    const ctx_t &app,
-    const rtsp_stream::launch_session_t &launch_session,
-    bool headless_mode
-  ) {
-    return headless_mode ||
-           launch_session.virtual_display ||
-           app.virtual_display;
-  }
-
   session_route_e resolve_session_route(
     const ctx_t &app,
     bool isolated_sessions_enabled,
-    bool virtual_display_requested,
     std::string_view global_method
   ) {
     if (!isolated_sessions_enabled || app.host_session) {
@@ -145,10 +134,6 @@ namespace proc {
 
     if (app.isolation_method == "gamescope" || app.isolation_method == "gamescope_stream") {
       return session_route_e::isolated_application;
-    }
-
-    if (!virtual_display_requested) {
-      return session_route_e::shared;
     }
 
     const auto &layout = app.virtual_display_layout;
@@ -934,7 +919,7 @@ namespace proc {
     }
 
     std::string choose_isolated_profile(const ctx_t &app) {
-      const auto route = resolve_session_route(app, true, true, config::video.isolation_method);
+      const auto route = resolve_session_route(app, true, config::video.isolation_method);
       return route == session_route_e::isolated_desktop ? "desktop" : "application";
     }
 
@@ -5003,7 +4988,7 @@ namespace proc {
           // Hermes' own detached entries exist only with independent sessions,
           // which are what makes a desktop detached.
           if ((ctx.uuid == DETACHED_DESKTOP_UUID || ctx.uuid == DETACHED_STEAM_UUID) &&
-              (!config::video.hermes_kms_isolated_sessions || config::video.virtual_display_backend != "hermes_kms")) {
+              !config::video.hermes_kms_isolated_sessions) {
             continue;
           }
 
