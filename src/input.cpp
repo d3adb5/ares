@@ -1912,6 +1912,7 @@ namespace input {
       mail->queue<platf::gamepad_feedback_msg_t>(mail::gamepad_feedback),
       std::string {},
       std::string {},
+      std::string {},
       std::move(platform),
       std::move(client)
     );

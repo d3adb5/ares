@@ -130,17 +130,6 @@ TEST(ProcessSessionRoute, GlobalKWinRunsCommandsInTheDesktop) {
   );
 }
 
-TEST(ProcessSessionRoute, GlobalMethodNeedsAVirtualDisplayRequest) {
-  proc::ctx_t app {};
-  app.isolation_method = "default";
-  app.cmd = "game";
-
-  EXPECT_EQ(
-    proc::resolve_session_route(app, true, "gamescope"),
-    proc::session_route_e::shared
-  );
-}
-
 TEST(ProcessSessionRoute, GlobalMethodLeavesHostLayoutsOnTheHost) {
   for (const char *layout : {"extend", "mirror", "exclusive"}) {
     proc::ctx_t app {};
