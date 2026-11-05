@@ -6,7 +6,7 @@ pkgver=0.7.0
 pkgrel=1
 pkgdesc="Self-hosted game streaming server with virtual display support"
 arch=('x86_64')
-url='https://github.com/MrOz59/Hermes'
+url='https://github.com/d3adb5/ares'
 license=('GPL-3.0-only')
 install=hermes.install
 

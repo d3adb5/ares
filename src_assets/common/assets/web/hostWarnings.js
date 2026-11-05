@@ -49,7 +49,7 @@ export function hostWarnings(config) {
       id: 'evdi-' + evdiInfo.diagnostic,
       level: 'warning',
       title: 'Virtual display is not ready',
-      message: `EVDI diagnostic: ${evdiInfo.diagnostic}. Hermes virtual-display sessions may fail until this is fixed. The Audio/Video tab has a step-by-step install guide.`,
+      message: `EVDI diagnostic: ${evdiInfo.diagnostic}. Ares virtual-display sessions may fail until this is fixed. The Audio/Video tab has a step-by-step install guide.`,
       href: './config#Audio/Video',
       action: 'Open Audio/Video settings',
     });
@@ -88,7 +88,7 @@ export function hostWarnings(config) {
       id: 'prelogin-not-ready',
       level: 'warning',
       title: 'This host cannot be reached before login yet',
-      message: 'Hermes starts at boot, but after a reboot with nobody logged in a client would not get to the login screen. '
+      message: 'Ares starts at boot, but after a reboot with nobody logged in a client would not get to the login screen. '
         + preloginBlockers
           .map(check => `${check.title}: ${check.detail}${check.fix ? ' ' + check.fix : ''}`)
           .join(' '),
@@ -102,9 +102,9 @@ export function hostWarnings(config) {
     warnings.push({
       id: 'stream-port-in-use',
       level: 'danger',
-      title: 'A port Hermes needs to stream is already taken',
+      title: 'A port Ares needs to stream is already taken',
       message: `${busyPorts.map(port => `${port.name} (${port.port})`).join(', ')} cannot be bound. `
-        + 'Streams will fail the moment a client connects. Another Hermes may still be running, or '
+        + 'Streams will fail the moment a client connects. Another Ares may still be running, or '
         + 'another program has taken the port; changing the base port moves all of them at once.',
       href: './config#Network',
       action: 'Open network settings',
@@ -116,7 +116,7 @@ export function hostWarnings(config) {
       id: 'evdi-cpu-buffer',
       level: 'warning',
       title: 'Virtual display uses a CPU capture copy',
-      message: 'EVDI has no render node for direct VAAPI import. Hermes can still use hardware encoding, but the virtual-display capture path copies frames through system memory and may add latency.',
+      message: 'EVDI has no render node for direct VAAPI import. Ares can still use hardware encoding, but the virtual-display capture path copies frames through system memory and may add latency.',
       href: './config#Audio/Video',
       action: 'Open EVDI diagnostics',
     });
@@ -127,7 +127,7 @@ export function hostWarnings(config) {
       id: 'evdi-exclusive-layout',
       level: 'warning',
       title: 'Exclusive virtual-display layout is unavailable',
-      message: 'Hermes cannot currently control this compositor output layout automatically. Physical monitors may remain enabled during virtual-display sessions.',
+      message: 'Ares cannot currently control this compositor output layout automatically. Physical monitors may remain enabled during virtual-display sessions.',
       href: './config#Audio/Video',
       action: 'Open Audio/Video settings',
     });

@@ -9,9 +9,9 @@ cmake_minimum_required(VERSION 3.20)
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" HERMES_VERSION)
 string(STRIP "${HERMES_VERSION}" HERMES_VERSION)
 
-project(Hermes VERSION ${HERMES_VERSION}
+project(Ares VERSION ${HERMES_VERSION}
         DESCRIPTION "Self-hosted game stream host for Hestia and Artemis"
-        HOMEPAGE_URL "https://github.com/MrOz59/Hermes")
+        HOMEPAGE_URL "https://github.com/d3adb5/ares")
 
 set(PROJECT_LICENSE "GPL-3.0-only")
 

@@ -26,7 +26,7 @@
     <!-- Version -->
     <div class="card p-2 my-4">
       <div class="card-body" v-if="config">
-        <h2>Hermes {{ config.version }}</h2>
+        <h2>Ares {{ config.version }}</h2>
         <div v-if="updateLoading" class="text-body-secondary">
           {{ $t('index.loading_latest') }}
         </div>
@@ -76,14 +76,14 @@
     <div class="card p-2 my-4">
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-between mb-3">
-          <h2 class="h4 mb-0">Hermes host readiness</h2>
+          <h2 class="h4 mb-0">Ares host readiness</h2>
           <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="loading || updateLoading" @click="refresh">
             <i class="fa-solid fa-arrows-rotate" :class="{'fa-spin': loading || updateLoading}"></i>
           </button>
         </div>
         <div v-if="loading" class="text-body-secondary">Checking local status…</div>
         <div v-else-if="hostWarnings.length === 0" class="alert alert-success mb-0">
-          No local Hermes configuration warnings detected.
+          No local Ares configuration warnings detected.
         </div>
         <div v-else class="d-grid gap-2">
           <div v-for="warning in hostWarnings" :key="warning.id" class="alert mb-0" :class="warning.level === 'danger' ? 'alert-danger' : 'alert-warning'">
@@ -112,7 +112,7 @@
   import HermesVersion from './hermes_version'
   import { hostWarnings as computeHostWarnings } from './hostWarnings'
 
-  console.log("Hello, Hermes!")
+  console.log("Hello, Ares!")
   const hermesApi = "https://api.github.com/repos/MrOz59/Hermes";
   let app = createApp({
     components: {

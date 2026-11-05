@@ -4,7 +4,7 @@
 # Desktop Mode - Game Mode has no way to add a shortcut to itself - after which
 # it lives in the Steam library like any other title.
 Categories=RemoteAccess;Network;
-Comment=Pair a device or restart Hermes from Game Mode, with a controller
+Comment=Pair a device or restart Ares from Game Mode, with a controller
 Exec=/usr/bin/hermes-gamemode
 Icon=@SUNSHINE_DESKTOP_ICON@
 Keywords=gamestream;stream;moonlight;remote play;gamescope;steam deck;

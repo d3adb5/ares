@@ -1,4 +1,14 @@
-# Hermes
+<img src="apollo.svg" alt="" width="128" align="right">
+
+# Ares
+
+Ares is [d3adb5](https://github.com/d3adb5)'s fork of
+[Hermes](https://github.com/MrOz59/Hermes). Work happens on `master`; changes may
+go to Hermes, and Hermes' changes may be merged or cherry-picked here, so what
+clients, packages and configuration rely on keeps its Hermes name: the wire
+protocol and `server_name`, the `hermes` binary and service, `hermes.conf`, option
+names and the Hermes-KMS driver. The rest of this document comes from Hermes and
+describes it under that name.
 
 Hermes is an Apollo-derived Linux game-streaming host focused on making
 Moonlight/Hestia streaming less manual and more reliable on CachyOS/Arch,
