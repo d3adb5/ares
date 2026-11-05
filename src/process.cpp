@@ -854,6 +854,10 @@ namespace proc {
         BOOST_LOG(info) << "[IsolatedSession] Sessions with their own account do not support the Gamescope stream yet; using a Hermes-KMS card.";
         return false;
       }
+      if (encode_gpu_vk_device().starts_with("10de:")) {
+        BOOST_LOG(info) << "[IsolatedSession] The Gamescope stream encodes through VA-API only; using a Hermes-KMS card.";
+        return false;
+      }
       const auto binary = find_gamescope().binary;
       const auto help = binary.empty() ? std::nullopt : gamescope_help_text(binary);
       if (!help || !platf::gamescope::help_lists_option(*help, "--hermes-socket")) {

@@ -4,16 +4,24 @@
  */
 // standard includes
 #include <algorithm>
+#include <atomic>
 #include <fcntl.h>
 #include <format>
+#include <map>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/pixdesc.h>
 #include <va/va.h>
+#include <va/va_backend.h>
 #include <va/va_drm.h>
+#include <va/va_drmcommon.h>
+#include <va/va_vpp.h>
 #if !VA_CHECK_VERSION(1, 9, 0)
   // vaSyncBuffer stub allows Sunshine built against libva <2.9.0 to link against ffmpeg on libva 2.9.0 or later
   VAStatus
@@ -464,6 +472,180 @@ namespace va {
   };
 
   /**
+   * For frames that stay in dma-bufs of known layout (Gamescope's stream). The VCN reads the
+   * RGB buffer and converts it itself (Mesa's EFC), so conversion never queues behind a game on
+   * the graphics ring. FFmpeg cannot ask for that: it has to come with the picture, so this
+   * hooks vaBeginPicture on the driver of this encoder's own VA display. Anything EFC refuses
+   * (other than BT.709 or BT.2020, say) falls back to a shader inside Mesa.
+   */
+  class va_efc_t: public va_vram_t {
+  public:
+    explicit va_efc_t(std::shared_ptr<std::atomic_uint64_t> converted):
+        converted {std::move(converted)} {
+    }
+
+    ~va_efc_t() override {
+      if (driver) {
+        std::lock_guard lock {hooks_mutex};
+        driver->vtable->vaBeginPicture = begin_picture;
+        hooks.erase(driver);
+      }
+      if (frame) {
+        frame->data[3] = reinterpret_cast<std::uint8_t *>(static_cast<std::uintptr_t>(nv12_surface));
+      }
+      for (auto &[inode, surface] : surfaces) {
+        vaDestroySurfaces(va_display, &surface, 1);
+      }
+    }
+
+    int set_frame(AVFrame *new_frame, AVBufferRef *hw_frames_ctx_buf) override {
+      if (va_vram_t::set_frame(new_frame, hw_frames_ctx_buf)) {
+        return -1;
+      }
+      nv12_surface = static_cast<VASurfaceID>(reinterpret_cast<std::uintptr_t>(frame->data[3]));
+
+      const auto *vendor = vaQueryVendorString(va_display);
+      usable = vendor && std::string_view {vendor}.find("radeonsi") != std::string_view::npos &&
+               width == frame->width && height == frame->height && !std::getenv("HERMES_STREAM_NO_EFC");
+      if (!usable) {
+        BOOST_LOG(info) << "Gamescope stream: converting with a shader, not on the encoder"sv;
+        return 0;
+      }
+
+      if (driver) {
+        return 0;
+      }
+      driver = reinterpret_cast<VADisplayContextP>(va_display)->pDriverContext;
+      std::lock_guard lock {hooks_mutex};
+      begin_picture = driver->vtable->vaBeginPicture;
+      driver->vtable->vaBeginPicture = begin_picture_hook;
+      hooks[driver] = this;
+      BOOST_LOG(info) << "Gamescope stream: converting on the encoder"sv;
+      return 0;
+    }
+
+    int convert(platf::img_t &img) override {
+      auto &descriptor = (egl::img_descriptor_t &) img;
+      converted->store(descriptor.sequence);
+
+      if (usable && descriptor.sequence != 0) {
+        if (const auto surface = surface_for(descriptor.sd)) {
+          current_rgb = *surface;
+          frame->data[3] = reinterpret_cast<std::uint8_t *>(static_cast<std::uintptr_t>(*surface));
+          return 0;
+        }
+        usable = false;
+      }
+
+      // The first frames' blank image, or EFC turned out not to work.
+      current_rgb = VA_INVALID_SURFACE;
+      frame->data[3] = reinterpret_cast<std::uint8_t *>(static_cast<std::uintptr_t>(nv12_surface));
+      return va_vram_t::convert(img);
+    }
+
+  private:
+    std::optional<VASurfaceID> surface_for(const egl::surface_descriptor_t &sd) {
+      struct stat buffer {};
+      if (fstat(sd.fds[0], &buffer) != 0) {
+        return std::nullopt;
+      }
+      if (const auto found = surfaces.find(buffer.st_ino); found != surfaces.end()) {
+        return found->second;
+      }
+
+      VADRMPRIMESurfaceDescriptor prime {};
+      prime.fourcc = VA_FOURCC_BGRX;
+      prime.width = frame->width;
+      prime.height = frame->height;
+      prime.num_objects = 1;
+      prime.objects[0].fd = sd.fds[0];
+      prime.objects[0].size = static_cast<uint32_t>(lseek(sd.fds[0], 0, SEEK_END));
+      prime.objects[0].drm_format_modifier = sd.modifier;
+      prime.num_layers = 1;
+      prime.layers[0].drm_format = sd.fourcc;
+      prime.layers[0].num_planes = 1;
+      prime.layers[0].offset[0] = sd.offsets[0];
+      prime.layers[0].pitch[0] = sd.pitches[0];
+
+      VASurfaceAttrib attributes[2] {};
+      attributes[0].type = VASurfaceAttribMemoryType;
+      attributes[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
+      attributes[0].value.type = VAGenericValueTypeInteger;
+      attributes[0].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2;
+      attributes[1].type = VASurfaceAttribExternalBufferDescriptor;
+      attributes[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
+      attributes[1].value.type = VAGenericValueTypePointer;
+      attributes[1].value.value.p = &prime;
+
+      VASurfaceID surface;
+      const auto status = vaCreateSurfaces(va_display, VA_RT_FORMAT_RGB32, frame->width, frame->height, &surface, 1, attributes, 2);
+      if (status != VA_STATUS_SUCCESS) {
+        BOOST_LOG(warning) << "Gamescope stream: the encoder cannot read its buffers, converting with a shader: "sv << vaErrorStr(status);
+        return std::nullopt;
+      }
+      surfaces[buffer.st_ino] = surface;
+      return surface;
+    }
+
+    VAProcColorStandardType color_standard() const {
+      switch (colorspace.colorspace) {
+        case video::colorspace_e::rec601:
+          return VAProcColorStandardBT601;
+        case video::colorspace_e::bt2020sdr:
+        case video::colorspace_e::bt2020:
+          return VAProcColorStandardBT2020;
+        default:
+          return VAProcColorStandardBT709;
+      }
+    }
+
+    static VAStatus begin_picture_hook(VADriverContextP context, VAContextID va_context, VASurfaceID target) {
+      va_efc_t *self;
+      {
+        std::lock_guard lock {hooks_mutex};
+        self = hooks.at(context);
+      }
+      const auto status = self->begin_picture(context, va_context, target);
+      if (status != VA_STATUS_SUCCESS || target != self->current_rgb) {
+        return status;
+      }
+
+      // Primaries and transfer match, as EFC requires: the same conversion as the shader's.
+      const VARectangle region {0, 0, static_cast<uint16_t>(self->frame->width), static_cast<uint16_t>(self->frame->height)};
+      VASurfaceID output = self->nv12_surface;
+      VAProcPipelineParameterBuffer parameters {};
+      parameters.surface = target;
+      parameters.surface_region = &region;
+      parameters.output_region = &region;
+      parameters.surface_color_standard = self->color_standard();
+      parameters.output_color_standard = self->color_standard();
+      parameters.input_color_properties.color_range = VA_SOURCE_RANGE_FULL;
+      parameters.output_color_properties.color_range = self->colorspace.full_range ? VA_SOURCE_RANGE_FULL : VA_SOURCE_RANGE_REDUCED;
+      parameters.additional_outputs = &output;
+      parameters.num_additional_outputs = 1;
+
+      VABufferID buffer;
+      auto render = context->vtable->vaCreateBuffer(context, va_context, VAProcPipelineParameterBufferType, sizeof(parameters), 1, &parameters, &buffer);
+      if (render == VA_STATUS_SUCCESS) {
+        render = context->vtable->vaRenderPicture(context, va_context, &buffer, 1);
+        context->vtable->vaDestroyBuffer(context, buffer);
+      }
+      return render;
+    }
+
+    static inline std::mutex hooks_mutex;
+    static inline std::map<VADriverContextP, va_efc_t *> hooks;
+
+    std::shared_ptr<std::atomic_uint64_t> converted;
+    VADriverContextP driver {nullptr};
+    decltype(VADriverVTable::vaBeginPicture) begin_picture {nullptr};
+    std::map<ino_t, VASurfaceID> surfaces;
+    VASurfaceID nv12_surface {VA_INVALID_SURFACE};
+    VASurfaceID current_rgb {VA_INVALID_SURFACE};
+    bool usable {false};
+  };
+
+  /**
    * This is a private structure of FFmpeg, I need this to manually create
    * a VAAPI hardware context
    *
@@ -682,6 +864,14 @@ namespace va {
 
       return egl;
     }
+  }
+
+  std::unique_ptr<platf::avcodec_encode_device_t> make_stream_encode_device(int width, int height, file_t &&card, std::shared_ptr<std::atomic_uint64_t> converted) {
+    auto device = std::make_unique<va_efc_t>(std::move(converted));
+    if (device->init(width, height, std::move(card), 0, 0)) {
+      return nullptr;
+    }
+    return device;
   }
 
   std::unique_ptr<platf::avcodec_encode_device_t> make_avcodec_encode_device(int width, int height, int offset_x, int offset_y, bool vram) {

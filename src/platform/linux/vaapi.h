@@ -4,6 +4,9 @@
  */
 #pragma once
 
+#include <atomic>
+#include <memory>
+
 // local includes
 #include "misc.h"
 #include "src/platform/common.h"
@@ -23,6 +26,11 @@ namespace va {
   std::unique_ptr<platf::avcodec_encode_device_t> make_avcodec_encode_device(int width, int height, bool vram);
   std::unique_ptr<platf::avcodec_encode_device_t> make_avcodec_encode_device(int width, int height, int offset_x, int offset_y, bool vram);
   std::unique_ptr<platf::avcodec_encode_device_t> make_avcodec_encode_device(int width, int height, file_t &&card, int offset_x, int offset_y, bool vram);
+  /**
+   * For Gamescope's stream, whose frames stay in dma-bufs the encoder reads as they are.
+   * converted --> The sequence number of the image the encoder went on to last.
+   */
+  std::unique_ptr<platf::avcodec_encode_device_t> make_stream_encode_device(int width, int height, file_t &&card, std::shared_ptr<std::atomic_uint64_t> converted);
 
   // Ensure the render device pointed to by fd is capable of encoding h264 with the hevc_mode configured
   bool validate(int fd);

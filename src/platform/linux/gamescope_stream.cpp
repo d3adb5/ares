@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <cstring>
@@ -68,6 +69,7 @@ namespace platf::gamescope_stream {
     /** A slot the client owns until the image reading it is done with. */
     struct lease_t {
       std::shared_ptr<img_t> image;
+      std::uint64_t sequence;
       std::uint32_t pool_id;
       std::uint32_t slot;
     };
@@ -133,7 +135,7 @@ namespace platf::gamescope_stream {
       }
 
       std::unique_ptr<avcodec_encode_device_t> make_avcodec_encode_device(pix_fmt_e) override {
-        return va::make_avcodec_encode_device(width, height, dup(encode_render_fd.el), 0, 0, true);
+        return va::make_stream_encode_device(width, height, dup(encode_render_fd.el), converted);
       }
 
       capture_e capture(const push_captured_image_cb_t &push, const pull_free_image_cb_t &pull, bool *) override {
@@ -151,8 +153,12 @@ namespace platf::gamescope_stream {
         for (;;) {
           release_finished();
 
-          // The next release is near while a slot is out; nothing wakes this otherwise.
-          if (!poll_fd(connection.el, POLLIN, leases.empty() ? 100 : 1)) {
+          // The next release is near once the encoder is past a slot; nothing wakes this otherwise.
+          const auto reading = converted->load();
+          const bool releasing = std::ranges::any_of(leases, [&](const lease_t &lease) {
+            return lease.sequence != reading;
+          });
+          if (!poll_fd(connection.el, POLLIN, releasing ? 1 : 100)) {
             if (!push(nullptr, false)) {
               return capture_e::ok;
             }
@@ -359,7 +365,7 @@ namespace platf::gamescope_stream {
         // Both clocks are CLOCK_MONOTONIC. It counts the composite as host time.
         descriptor->frame_timestamp = std::chrono::steady_clock::time_point {std::chrono::nanoseconds {frame.submit_time_ns}};
 
-        leases.push_back({image, frame.pool_id, frame.slot});
+        leases.push_back({image, sequence, frame.pool_id, frame.slot});
         if (!push(std::move(image), true)) {
           return capture_e::ok;
         }
@@ -373,11 +379,14 @@ namespace platf::gamescope_stream {
         send_message(&message, sizeof(message));
       }
 
-      // A slot goes back once the encoder dropped its image and the GPU finished
-      // reading: a dma-buf polls writable when all its fences have signalled.
+      // A slot goes back once the encoder is past it: its image is free and is not the one it
+      // last started on, which it reads until the next begins (the VCN reads the buffer directly,
+      // and the last picture is encoded again when nothing new comes). A dma-buf polls writable
+      // when all its fences have signalled.
       void release_finished() {
-        std::erase_if(leases, [this](const lease_t &lease) {
-          if (lease.image.use_count() > 2) {
+        const auto reading = converted->load();
+        std::erase_if(leases, [&](const lease_t &lease) {
+          if (lease.image.use_count() > 2 || lease.sequence == reading) {
             return false;
           }
           if (lease.pool_id == current_pool && lease.slot < slots.size() &&
@@ -402,6 +411,7 @@ namespace platf::gamescope_stream {
       std::vector<slot_t> slots;
       std::deque<lease_t> leases;
       std::uint64_t sequence {};
+      std::shared_ptr<std::atomic_uint64_t> converted {std::make_shared<std::atomic_uint64_t>(0)};
     };
   }  // namespace
 
