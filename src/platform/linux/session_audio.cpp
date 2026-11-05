@@ -91,7 +91,7 @@ context.objects = [
     { factory = adapter args = {
         factory.name = support.null-audio-sink
         node.name = )" + sink + R"(
-        node.description = "Hermes session"
+        node.description = "Ares session"
         media.class = Audio/Sink
         audio.position = [ )" + positions(channels) + R"( ]
         monitor.channel-volumes = true
@@ -332,7 +332,7 @@ wireplumber.profiles = {
         return false;
       }
       util::safe_ptr<pa_context, pa_context_unref> context {
-        pa_context_new(pa_mainloop_get_api(loop.get()), "Hermes session readiness")
+        pa_context_new(pa_mainloop_get_api(loop.get()), "Ares session readiness")
       };
       if (!context || pa_context_connect(context.get(), server.pulse_server().c_str(), PA_CONTEXT_NOAUTOSPAWN, nullptr) < 0) {
         return false;

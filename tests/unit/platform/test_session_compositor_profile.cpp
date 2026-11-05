@@ -168,7 +168,7 @@ TEST(SessionCompositorProfile, WestonStillTakesTheSocketItIsGiven) {
   expansion_t weston;
   ASSERT_TRUE(expand("weston", weston));
 
-  EXPECT_FALSE(weston.discover_socket) << "Hermes names weston's socket";
+  EXPECT_FALSE(weston.discover_socket) << "Ares names weston's socket";
   EXPECT_EQ(weston.required_binary, "weston");
   EXPECT_NE(weston.command.find("--socket=hermes-session-1"), std::string::npos);
   EXPECT_NE(weston.command.find("--drm-device=card4"), std::string::npos);

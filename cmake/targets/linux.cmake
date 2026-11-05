@@ -7,11 +7,11 @@ include("${CMAKE_SOURCE_DIR}/cmake/kwin_session.cmake")
 # links: a few hundred lines over one socket, with none of Hermes' dependencies
 # and no reason to grow any.
 if(SUNSHINE_BUILD_CARD_BROKER)
-    add_executable(hermes-kms-card-broker "${CMAKE_SOURCE_DIR}/tools/hermes-kms-card-broker.cpp")
-    set_target_properties(hermes-kms-card-broker PROPERTIES
+    add_executable(ares-kms-card-broker "${CMAKE_SOURCE_DIR}/tools/ares-kms-card-broker.cpp")
+    set_target_properties(ares-kms-card-broker PROPERTIES
             CXX_STANDARD 20
             CXX_STANDARD_REQUIRED ON)
-    target_compile_options(hermes-kms-card-broker PRIVATE ${SUNSHINE_COMPILE_OPTIONS})
+    target_compile_options(ares-kms-card-broker PRIVATE ${SUNSHINE_COMPILE_OPTIONS})
 endif()
 
 # The session broker creates the Unix account a client's isolated session runs
@@ -26,12 +26,12 @@ if(SUNSHINE_BUILD_SESSION_BROKER)
     target_link_libraries(hermes-session-input PUBLIC "${HERMES_ACL_LIBRARY}")
     set_target_properties(hermes-session-input PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
     target_compile_options(hermes-session-input PRIVATE ${SUNSHINE_COMPILE_OPTIONS})
-    add_executable(hermes-session-broker "${CMAKE_SOURCE_DIR}/tools/hermes-session-broker.cpp")
-    target_link_libraries(hermes-session-broker PRIVATE hermes-session-input)
-    set_target_properties(hermes-session-broker PROPERTIES
+    add_executable(ares-session-broker "${CMAKE_SOURCE_DIR}/tools/ares-session-broker.cpp")
+    target_link_libraries(ares-session-broker PRIVATE hermes-session-input)
+    set_target_properties(ares-session-broker PROPERTIES
             CXX_STANDARD 20
             CXX_STANDARD_REQUIRED ON)
-    target_compile_options(hermes-session-broker PRIVATE ${SUNSHINE_COMPILE_OPTIONS})
+    target_compile_options(ares-session-broker PRIVATE ${SUNSHINE_COMPILE_OPTIONS})
 endif()
 
 # The Game Mode console is a window, and the streaming host is a service: a
@@ -58,20 +58,20 @@ if(SUNSHINE_BUILD_GAMEMODE_CONSOLE)
     unset(_hermes_saved_module_path)
 
     if(Qt6_FOUND OR Qt5_FOUND)
-        add_executable(hermes-gamemode "${CMAKE_SOURCE_DIR}/tools/hermes-gamemode.cpp")
-        set_target_properties(hermes-gamemode PROPERTIES
+        add_executable(ares-gamemode "${CMAKE_SOURCE_DIR}/tools/ares-gamemode.cpp")
+        set_target_properties(ares-gamemode PROPERTIES
                 CXX_STANDARD 20
                 CXX_STANDARD_REQUIRED ON
                 POSITION_INDEPENDENT_CODE ON)
-        target_compile_options(hermes-gamemode PRIVATE ${SUNSHINE_COMPILE_OPTIONS})
-        target_include_directories(hermes-gamemode SYSTEM PRIVATE ${CURL_INCLUDE_DIRS})
-        target_link_directories(hermes-gamemode PRIVATE ${CURL_LIBRARY_DIRS})
+        target_compile_options(ares-gamemode PRIVATE ${SUNSHINE_COMPILE_OPTIONS})
+        target_include_directories(ares-gamemode SYSTEM PRIVATE ${CURL_INCLUDE_DIRS})
+        target_link_directories(ares-gamemode PRIVATE ${CURL_LIBRARY_DIRS})
         if(Qt6_FOUND)
-            target_link_libraries(hermes-gamemode PRIVATE Qt6::Widgets Qt6::Concurrent)
+            target_link_libraries(ares-gamemode PRIVATE Qt6::Widgets Qt6::Concurrent)
         else()
-            target_link_libraries(hermes-gamemode PRIVATE Qt5::Widgets Qt5::Concurrent)
+            target_link_libraries(ares-gamemode PRIVATE Qt5::Widgets Qt5::Concurrent)
         endif()
-        target_link_libraries(hermes-gamemode PRIVATE
+        target_link_libraries(ares-gamemode PRIVATE
                 nlohmann_json::nlohmann_json
                 ${CURL_LIBRARIES})
     else()

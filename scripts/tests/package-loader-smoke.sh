@@ -2,7 +2,7 @@
 # Run inside a disposable package CI container, after installing the real package.
 set -euo pipefail
 libdir=${1:?usage: package-loader-smoke.sh /absolute/private/library/directory}
-binary=/usr/bin/hermes
+binary=/usr/bin/ares-streaming
 [[ $EUID == 0 && $libdir == /* ]]
 test -f "$libdir/libpyrowave-shared.so.0"
 # A capability-bearing host must never load a foreign-owned or writable codec.

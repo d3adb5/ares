@@ -34,7 +34,7 @@ namespace platf::window_placement {
   }
 
   inline bool launches_gamescope(const std::vector<std::string> &arguments) {
-    return names_program(arguments, "gamescope") || names_program(arguments, "hermes-gamescope-launch");
+    return names_program(arguments, "gamescope") || names_program(arguments, "ares-gamescope-launch");
   }
 
   inline std::string kwin_script(const std::string &output, const std::vector<std::string> &classes, const std::vector<std::uint32_t> &gamescope_pids) {
@@ -60,7 +60,7 @@ namespace platf::window_placement {
       }
     }
 
-    return "// Hermes: position only the streamed application's windows.\n"
+    return "// Ares: position only the streamed application's windows.\n"
            "const output = workspace.screens.find(screen => screen.name === \"" + output + "\");\n"
            "const classes = [" + class_list + "];\n"
            "const gamescopePids = [" + pid_list + "];\n"
@@ -69,7 +69,7 @@ namespace platf::window_placement {
            "    return;\n"
            "  }\n"
            "  // Other Gamescope instances belong to the local desktop. The shipped\n"
-           "  // launcher execs Gamescope, preserving the PID Hermes started. Custom\n"
+           "  // launcher execs Gamescope, preserving the PID Ares started. Custom\n"
            "  // launchers that fork it instead are left alone, never matched by class.\n"
            "  if (window.resourceClass === \"gamescope\" && !gamescopePids.includes(window.pid)) {\n"
            "    return;\n"

@@ -333,6 +333,6 @@ TEST(PyroWaveGpu, SystemMemoryCaptureFallsBackToTheCpuWithoutAGpu) {
 }
 #else
 TEST(PyroWaveGpu, CapturedFrameIsEncodedWithoutLeavingTheGpu) {
-  GTEST_SKIP() << "Hermes was built without PyroWave";
+  GTEST_SKIP() << "Ares was built without PyroWave";
 }
 #endif

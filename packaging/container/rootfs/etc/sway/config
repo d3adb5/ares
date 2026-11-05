@@ -1,7 +1,7 @@
 ### Hermes streaming Wayland session (sway / wlroots) ###
 #
 # This is a template. The entrypoint substitutes the __PLACEHOLDERS__ (currently
-# only ENABLE_XWAYLAND) and writes the effective config to /run/hermes/sway.config
+# only ENABLE_XWAYLAND) and writes the effective config to /run/ares/sway.config
 # before launching sway.
 #
 # The virtual output is provided by the Hermes-KMS kernel module loaded on the

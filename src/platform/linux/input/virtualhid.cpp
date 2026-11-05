@@ -69,7 +69,7 @@ namespace platf {
     mouse_options.profile = virtualhid::with_hermes_identity(
       lvh::profiles::mouse(),
       session_tag,
-      session_tag.empty() ? "Mouse passthrough" : "Hermes Session Mouse"
+      session_tag.empty() ? "Mouse passthrough" : "Ares Session Mouse"
     );
     mouse_options.stable_id = session_tag + "-mouse";
     auto created_mouse = runtime->create_mouse(mouse_options);
@@ -83,7 +83,7 @@ namespace platf {
     keyboard_options.profile = virtualhid::with_hermes_identity(
       lvh::profiles::keyboard(),
       session_tag,
-      session_tag.empty() ? "Keyboard passthrough" : "Hermes Session Keyboard"
+      session_tag.empty() ? "Keyboard passthrough" : "Ares Session Keyboard"
     );
     keyboard_options.stable_id = session_tag + "-keyboard";
     // Hermes owns repeat timing so the backend must only emit explicit events.

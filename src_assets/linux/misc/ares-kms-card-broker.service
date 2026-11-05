@@ -1,14 +1,14 @@
 [Unit]
 Description=Hermes-KMS card broker
 Documentation=https://github.com/MrOz59/Hermes
-Requires=hermes-kms-card-broker.socket
-After=hermes-kms-card-broker.socket
+Requires=ares-kms-card-broker.socket
+After=ares-kms-card-broker.socket
 
 [Service]
 Type=simple
 User=root
 Group=root
-ExecStart=/usr/bin/hermes-kms-card-broker
+ExecStart=/usr/bin/ares-kms-card-broker
 Restart=on-failure
 RestartSec=1s
 UMask=0077
@@ -27,7 +27,7 @@ ProtectKernelLogs=yes
 ProtectKernelModules=yes
 # configfs is a kernel tunable filesystem, so it has to be writable here.
 ProtectKernelTunables=no
-ReadWritePaths=/sys/kernel/config/hermes-kms /run/hermes
+ReadWritePaths=/sys/kernel/config/hermes-kms /run/ares
 RestrictAddressFamilies=AF_UNIX
 RestrictNamespaces=yes
 RestrictRealtime=yes

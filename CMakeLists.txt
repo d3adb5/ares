@@ -10,14 +10,14 @@ file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" HERMES_VERSION)
 string(STRIP "${HERMES_VERSION}" HERMES_VERSION)
 
 project(Ares VERSION ${HERMES_VERSION}
-        DESCRIPTION "Self-hosted game stream host for Hestia and Artemis"
+        DESCRIPTION "Self-hosted game stream host for Athena, Hestia and Artemis"
         HOMEPAGE_URL "https://github.com/d3adb5/ares")
 
 set(PROJECT_LICENSE "GPL-3.0-only")
 
 # Hermes ships its own app ID so the .desktop, metainfo and flatpak-prefixed
 # icon files do not collide with an installed sunshine or apollo package.
-set(PROJECT_FQDN "io.github.mroz59.Hermes")
+set(PROJECT_FQDN "io.github.d3adb5.Ares")
 
 set(PROJECT_BRIEF_DESCRIPTION "GameStream host for Hestia")  # must be <= 35 characters
 

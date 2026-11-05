@@ -602,5 +602,5 @@ TEST(KWinInputBinding, BindsOnlyHermesTouchAndPenDevices) {
   EXPECT_FALSE(VDISPLAY::isHermesKWinInputDevice("ELAN Touchscreen", 0xBEEF, 0xDEAD));
   // An isolated session's devices live on their own seat, which is not this
   // KWin's.
-  EXPECT_FALSE(VDISPLAY::isHermesKWinInputDevice("Hermes Session Touch", 0xBEEF, 0xDEAD));
+  EXPECT_FALSE(VDISPLAY::isHermesKWinInputDevice("Ares Session Touch", 0xBEEF, 0xDEAD));
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
- * @file tools/hermes-session-broker.cpp
+ * @file tools/ares-session-broker.cpp
  * @brief Provision one Unix account per streaming client for an unprivileged Hermes.
  *
  * An isolated session is meant to be a machine of its own: its own desktop,
@@ -113,7 +113,7 @@ namespace {
   constexpr const char *default_allow_file = "/etc/hermes/session-broker.allow";
   constexpr const char *default_state_file = "/var/lib/hermes/session-users.map";
   constexpr const char *default_home_root = "/var/lib/hermes/sessions";
-  constexpr const char *default_lock_file = "/run/hermes/session-broker.lock";
+  constexpr const char *default_lock_file = "/run/ares/session-broker.lock";
   constexpr const char *session_group = "hermes-session";
   constexpr const char *nologin_shell = "/usr/bin/nologin";
 
@@ -325,7 +325,7 @@ namespace {
       if (!stream) {
         return false;
       }
-      stream << "# Managed by hermes-session-broker. <client-id> <account>\n";
+      stream << "# Managed by ares-session-broker. <client-id> <account>\n";
       for (const auto &mapping : mappings) {
         stream << mapping.client_id << ' ' << mapping.account << '\n';
       }
@@ -491,7 +491,7 @@ namespace {
     // the others, and each home below it is the account's own 0700.
     ::chmod(options.home_root.c_str(), S_IRWXU | S_IXGRP | S_IXOTH);
 
-    if (!run({useradd, "--create-home", "--home-dir", home.string(), "--shell", shell, "--groups", session_group, "--comment", "Hermes isolated session", name})) {
+    if (!run({useradd, "--create-home", "--home-dir", home.string(), "--shell", shell, "--groups", session_group, "--comment", "Ares isolated session", name})) {
       return "useradd failed";
     }
 
@@ -766,7 +766,7 @@ namespace {
       "--collect",
       "--unit=" + unit,
       "--uid=" + existing->account,
-      "--description=Hermes isolated session for " + existing->account,
+      "--description=Ares isolated session for " + existing->account,
       "--property=WorkingDirectory=" + std::string {account->pw_dir},
     };
     if (!scope.empty()) {

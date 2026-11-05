@@ -483,17 +483,17 @@ namespace confighttp {
         return "The Hermes-KMS driver is installed but not loaded.";
       case UAPI_TOO_OLD:
         return "The loaded Hermes-KMS driver (" + status.driver_version + ", interface " +
-               std::to_string(status.uapi_version) + ") is older than this Hermes needs (interface " +
+               std::to_string(status.uapi_version) + ") is older than this Ares needs (interface " +
                std::to_string(status.required_uapi_version) + "). Update the driver.";
       case MISSING_CAPABILITIES:
         return "The loaded Hermes-KMS driver (" + status.driver_version +
-               ") lacks features this Hermes needs. Update the driver.";
+               ") lacks features this Ares needs. Update the driver.";
       case DEVICE_NODE_MISSING:
         return "The Hermes-KMS driver is loaded but created no device.";
       case NO_ACCESS:
-        return "The Hermes-KMS driver is loaded, but Hermes may not open " + status.inaccessible_node +
+        return "The Hermes-KMS driver is loaded, but Ares may not open " + status.inaccessible_node +
                ". The driver's udev rules give that node to the user logged in at the PC: check that "
-               "they are installed and that Hermes runs as that user.";
+               "they are installed and that Ares runs as that user.";
     }
     return {};
   }
@@ -513,8 +513,8 @@ namespace confighttp {
       return {};
     }
     return "This driver (interface " + std::to_string(status.uapi_version) +
-           ") is newer than this Hermes (interface " + std::to_string(status.newest_known_uapi_version) +
-           "). That usually works; if virtual displays misbehave, update Hermes.";
+           ") is newer than this Ares (interface " + std::to_string(status.newest_known_uapi_version) +
+           "). That usually works; if virtual displays misbehave, update Ares.";
   }
 
   static nlohmann::json hermes_kms_status_json() {
@@ -867,11 +867,11 @@ namespace confighttp {
     const std::string content = file_handler::read_file(path.c_str());
     if (content.empty()) {
       BOOST_LOG(error) << "Web UI asset missing or empty: ["sv << path << ']';
-      BOOST_LOG(error) << "Hermes was built with assets in ["sv << SUNSHINE_ASSETS_DIR
+      BOOST_LOG(error) << "Ares was built with assets in ["sv << SUNSHINE_ASSETS_DIR
                        << "]; reinstall the package or rebuild with a matching SUNSHINE_ASSETS_DIR."sv;
       response->write(
         SimpleWeb::StatusCode::server_error_internal_server_error,
-        "Web UI assets are missing on the server. See the Hermes log for the expected path."
+        "Web UI assets are missing on the server. See the Ares log for the expected path."
       );
       return;
     }
@@ -2288,9 +2288,9 @@ namespace confighttp {
         !VDISPLAY::displayServerReachable(env("WAYLAND_DISPLAY"), env("DISPLAY"), env("XDG_RUNTIME_DIR"))) {
       add("virtual_display", "warn",
           *session_present ?
-            "A desktop session has started; Hermes joins it as soon as no client is connected. Until then the "
+            "A desktop session has started; Ares joins it as soon as no client is connected. Until then the "
             "virtual-display layout cannot be managed." :
-            "Nobody is logged in to a desktop yet, so the virtual-display layout cannot be managed. Hermes joins "
+            "Nobody is logged in to a desktop yet, so the virtual-display layout cannot be managed. Ares joins "
             "the desktop after login.");
     } else if (evdi.session_type == "wayland" || evdi.session_type == "x11") {
       if (evdi.exclusive_layout_supported) {
@@ -2298,7 +2298,7 @@ namespace confighttp {
             "Virtual-display layout management available via " + evdi.output_layout_backend + ".");
       } else if (evdi.output_layout_backend.rfind("mutter", 0) == 0) {
         add("virtual_display", "warn",
-            "GNOME/Mutter session: Hermes can only verify (not configure) the virtual output. "
+            "GNOME/Mutter session: Ares can only verify (not configure) the virtual output. "
             "Isolated virtual display is unavailable.");
       } else {
         add("virtual_display", "warn",
@@ -2848,7 +2848,7 @@ namespace confighttp {
         out << "  None.\n";
       }
 
-      out << "\n== Hermes sessions ==\n";
+      out << "\n== Ares sessions ==\n";
       const auto sessions = proc::proc.list_isolated();
       for (const auto &session : sessions) {
         std::string details = session.profile;
@@ -2950,9 +2950,9 @@ namespace confighttp {
   std::string diagnostic_report() {
     std::ostringstream out;
     const auto now = std::chrono::system_clock::now();
-    out << "Hermes diagnostic report\n"
+    out << "Ares diagnostic report\n"
         << "Generated: " << local_time(now, "%Y-%m-%d %H:%M:%S %Z") << '\n'
-        << "Hermes " << PROJECT_VERSION << " (" << PROJECT_VERSION_COMMIT << ")\n"
+        << "Ares " << PROJECT_VERSION << " (" << PROJECT_VERSION_COMMIT << ")\n"
         << "Review before posting publicly: the log names clients and their addresses.\n";
 
     out << "\n== Machine ==\n";
@@ -2996,7 +2996,7 @@ namespace confighttp {
     out << "\n== Last capture-path check ==\n";
     const auto readiness = video::last_capture_readiness();
     if (!readiness.checked) {
-      out << "None since Hermes started.\n";
+      out << "None since Ares started.\n";
     } else {
       out << "When: " << local_time(std::chrono::system_clock::from_time_t(readiness.checked_at), "%Y-%m-%d %H:%M:%S") << '\n'
           << "Result: " << (readiness.ok ? readiness.frame_seen ? "passed" : "passed; no new frame in time" : "FAILED: " + readiness.failure) << '\n'
@@ -3021,7 +3021,7 @@ namespace confighttp {
     out << "\n== Stream timeline (every 5 s while streaming, and for a minute after) ==\n";
     const auto samples = report_timeline::snapshot();
     if (samples.empty()) {
-      out << "No stream since Hermes started.\n";
+      out << "No stream since Ares started.\n";
     } else {
       const auto value = [](double v, const char *format) -> std::string {
         return v < 0 ? "-"s : std::vformat(format, std::make_format_args(v));
@@ -3142,7 +3142,7 @@ namespace confighttp {
   void send_diagnostic_report(resp_https_t response) {
     SimpleWeb::CaseInsensitiveMultimap headers;
     headers.emplace("Content-Type", "text/plain; charset=utf-8");
-    headers.emplace("Content-Disposition", "attachment; filename=\"hermes-report-" +
+    headers.emplace("Content-Disposition", "attachment; filename=\"ares-report-" +
                                              local_time(std::chrono::system_clock::now(), "%Y%m%d-%H%M%S") + ".txt\"");
     headers.emplace("X-Frame-Options", "DENY");
     response->write(SimpleWeb::StatusCode::success_ok, diagnostic_report(), headers);
@@ -3360,7 +3360,7 @@ namespace confighttp {
       // install the module into the container, where it would match no kernel
       // and drive no display: the module belongs to the host.
       if (running_in_container()) {
-        bad_request(response, request, "Hermes is running in a container. Install EVDI on the host - a module installed in the container matches no kernel and drives no display.");
+        bad_request(response, request, "Ares is running in a container. Install EVDI on the host - a module installed in the container matches no kernel and drives no display.");
         return;
       }
 
@@ -4292,7 +4292,7 @@ fi')CLIP";
         if (shutdown_event->peek())
           return;
         BOOST_LOG(fatal) << "Couldn't start Configuration HTTPS server on port ["sv << port_https << "]: "sv << err.what();
-        BOOST_LOG(fatal) << "Another host is most likely already bound to it. Hermes, Apollo and Sunshine all use this port, so only one of them can run at a time."sv;
+        BOOST_LOG(fatal) << "Another host is most likely already bound to it. Ares, Apollo and Sunshine all use this port, so only one of them can run at a time."sv;
         shutdown_event->raise(true);
         return;
       }

@@ -20,13 +20,13 @@ if(NOT IS_SYMLINK "${CMAKE_BINARY_DIR}/assets/shaders")
             "${CMAKE_BINARY_DIR}/assets/shaders" COPY_ON_ERROR SYMBOLIC)
 endif()
 
-install(PROGRAMS "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-gamescope-launch"
+install(PROGRAMS "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-gamescope-launch"
         DESTINATION "bin")
-install(PROGRAMS "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-monitor-recovery"
+install(PROGRAMS "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-monitor-recovery"
         DESTINATION "bin")
 
 if(SUNSHINE_BUILD_CARD_BROKER)
-    install(TARGETS hermes-kms-card-broker DESTINATION "bin")
+    install(TARGETS ares-kms-card-broker DESTINATION "bin")
     # The allow file is the administrator's, so it ships as an example rather
     # than as a configuration file a package upgrade would argue with.
     install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/card-broker.allow"
@@ -34,12 +34,12 @@ if(SUNSHINE_BUILD_CARD_BROKER)
             RENAME "card-broker.allow.example")
 endif()
 
-if(TARGET hermes-detached-session)
-    install(TARGETS hermes-detached-session DESTINATION "bin")
+if(TARGET ares-detached-session)
+    install(TARGETS ares-detached-session DESTINATION "bin")
 endif()
 
 if(SUNSHINE_BUILD_SESSION_BROKER)
-    install(TARGETS hermes-session-broker DESTINATION "bin")
+    install(TARGETS ares-session-broker DESTINATION "bin")
     # Same reasoning as the card broker's: shipping this as a live config file
     # would let a package update widen who may ask for accounts.
     install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/session-broker.allow"
@@ -54,32 +54,32 @@ endif()
 # purpose - the group must exist before the rule that references it is live.
 # Session compositor profiles. weston is the one Hermes ships and tests; the
 # example alongside it documents the format for anyone swapping in another.
-# A profile of the same name under ~/.config/hermes/session-compositors/ wins,
+# A profile of the same name under ~/.config/ares-streaming/session-compositors/ wins,
 # so trying one out never needs root.
 install(DIRECTORY "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/session-compositors/"
         DESTINATION "${SUNSHINE_ASSETS_DIR}/session-compositors")
 
 if(${SUNSHINE_BUILD_APPIMAGE} OR ${SUNSHINE_BUILD_FLATPAK})
-    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-hermes.rules"
-            "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/74-hermes-session-acl.rules"
-            "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/99-hermes-session-input.rules"
+    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-ares.rules"
+            "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/74-ares-session-acl.rules"
+            "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/99-ares-session-input.rules"
             DESTINATION "${SUNSHINE_ASSETS_DIR}/udev/rules.d")
-    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-hermes.conf"
+    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-ares.conf"
             DESTINATION "${SUNSHINE_ASSETS_DIR}/modules-load.d")
-    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/10-hermes-session-deny.rules"
+    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/10-ares-session-deny.rules"
             DESTINATION "${SUNSHINE_ASSETS_DIR}/polkit-1/rules.d")
-    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-sysusers.conf"
-            DESTINATION "${SUNSHINE_ASSETS_DIR}/sysusers.d" RENAME "hermes.conf")
+    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-sysusers.conf"
+            DESTINATION "${SUNSHINE_ASSETS_DIR}/sysusers.d" RENAME "ares.conf")
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/sunshine.service"
             DESTINATION "${SUNSHINE_ASSETS_DIR}/systemd/user")
     if(SUNSHINE_BUILD_CARD_BROKER)
-        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-kms-card-broker.socket"
-                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-kms-card-broker.service"
+        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-kms-card-broker.socket"
+                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-kms-card-broker.service"
                 DESTINATION "${SUNSHINE_ASSETS_DIR}/systemd/system")
     endif()
     if(SUNSHINE_BUILD_SESSION_BROKER)
-        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-session-broker.socket"
-                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-session-broker.service"
+        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-session-broker.socket"
+                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-session-broker.service"
                 DESTINATION "${SUNSHINE_ASSETS_DIR}/systemd/system")
     endif()
 else()
@@ -87,45 +87,45 @@ else()
     find_package(Udev)
 
     if(UDEV_FOUND)
-        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-hermes.rules"
-                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/74-hermes-session-acl.rules"
-                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/99-hermes-session-input.rules"
+        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-ares.rules"
+                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/74-ares-session-acl.rules"
+                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/99-ares-session-input.rules"
                 DESTINATION "${UDEV_RULES_INSTALL_DIR}")
     endif()
     # polkit has no pkg-config variable for its rules directory; unlike the
     # actions directory it is always <datadir>/polkit-1/rules.d.
-    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/10-hermes-session-deny.rules"
+    install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/10-ares-session-deny.rules"
             DESTINATION "${CMAKE_INSTALL_DATADIR}/polkit-1/rules.d")
 
     if(SYSTEMD_FOUND)
         if(SYSTEMD_SYSUSERS_DIR)
-            install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-sysusers.conf"
-                    DESTINATION "${SYSTEMD_SYSUSERS_DIR}" RENAME "hermes.conf")
+            install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-sysusers.conf"
+                    DESTINATION "${SYSTEMD_SYSUSERS_DIR}" RENAME "ares.conf")
         endif()
         install(FILES "${CMAKE_CURRENT_BINARY_DIR}/sunshine.service"
                 DESTINATION "${SYSTEMD_USER_UNIT_INSTALL_DIR}")
-        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-hermes.conf"
-                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/61-hermes-evdi.conf"
+        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-ares.conf"
+                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/61-ares-evdi.conf"
                 DESTINATION "${SYSTEMD_MODULES_LOAD_DIR}")
         # modprobe.d has no pkg-config variable. It sits beside modules-load.d
         # (/usr/lib on every distribution, lib64 or not), where kmod reads it
         # whatever prefix Hermes itself was built with.
         get_filename_component(HERMES_MODULES_CONFIG_DIR "${SYSTEMD_MODULES_LOAD_DIR}" DIRECTORY)
-        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-evdi-modprobe.conf"
-                DESTINATION "${HERMES_MODULES_CONFIG_DIR}/modprobe.d" RENAME "hermes-evdi.conf")
+        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-evdi-modprobe.conf"
+                DESTINATION "${HERMES_MODULES_CONFIG_DIR}/modprobe.d" RENAME "ares-evdi.conf")
         # A system unit, unlike sunshine.service: it runs as root because
         # configfs is root's, and is socket-activated so it is not running
         # while nobody is asking for a card.
         if(SUNSHINE_BUILD_CARD_BROKER)
-            install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-kms-card-broker.socket"
-                    "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-kms-card-broker.service"
+            install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-kms-card-broker.socket"
+                    "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-kms-card-broker.service"
                     DESTINATION "${SYSTEMD_SYSTEM_UNIT_INSTALL_DIR}")
         endif()
         # Also root, also socket-activated, and for the same reason: the
         # account databases are root's.
         if(SUNSHINE_BUILD_SESSION_BROKER)
-            install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-session-broker.socket"
-                    "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/hermes-session-broker.service"
+            install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-session-broker.socket"
+                    "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-session-broker.service"
                     DESTINATION "${SYSTEMD_SYSTEM_UNIT_INSTALL_DIR}")
         endif()
     endif()
@@ -223,12 +223,12 @@ if(SUNSHINE_BUILD_SESSION_BROKER)
 endif()
 
 # application icon
-# Installed as hermes.svg rather than apollo.svg so the package does not claim a
+# Installed as ares-streaming.svg rather than apollo.svg so the package does not claim a
 # path already owned by the apollo package.
 if(NOT ${SUNSHINE_BUILD_FLATPAK})
     install(FILES "${CMAKE_SOURCE_DIR}/apollo.svg"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps"
-            RENAME "hermes.svg")
+            RENAME "ares-streaming.svg")
 else()
     install(FILES "${CMAKE_SOURCE_DIR}/apollo.svg"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps"
@@ -240,16 +240,16 @@ if(${SUNSHINE_TRAY} STREQUAL 1)
     if(NOT ${SUNSHINE_BUILD_FLATPAK})
         install(FILES "${CMAKE_SOURCE_DIR}/apollo.svg"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status"
-                RENAME "hermes-tray.svg")
+                RENAME "ares-streaming-tray.svg")
         install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/common/assets/web/public/images/apollo-playing.svg"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status"
-                RENAME "hermes-playing.svg")
+                RENAME "ares-streaming-playing.svg")
         install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/common/assets/web/public/images/apollo-pausing.svg"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status"
-                RENAME "hermes-pausing.svg")
+                RENAME "ares-streaming-pausing.svg")
         install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/common/assets/web/public/images/apollo-locked.svg"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status"
-                RENAME "hermes-locked.svg")
+                RENAME "ares-streaming-locked.svg")
     else()
         # flatpak icons must be prefixed with the app id or they will not be included in the flatpak
         install(FILES "${CMAKE_SOURCE_DIR}/apollo.svg"
@@ -286,7 +286,7 @@ if(NOT ${SUNSHINE_BUILD_APPIMAGE} AND NOT ${SUNSHINE_BUILD_FLATPAK})
     # in an application list is the whole path by which it reaches Steam: a
     # non-Steam shortcut is added by browsing for it once from Desktop Mode.
     if(SUNSHINE_BUILD_GAMEMODE_CONSOLE)
-        install(TARGETS hermes-gamemode DESTINATION "bin")
+        install(TARGETS ares-gamemode DESTINATION "bin")
         install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_FQDN}.GameMode.desktop"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
     endif()

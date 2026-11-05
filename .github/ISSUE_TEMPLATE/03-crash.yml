@@ -1,5 +1,5 @@
 name: Crash or freeze
-description: Hermes exits by itself, is killed by a signal such as SIGSEGV, stops responding, or takes the session down with it.
+description: Ares exits by itself, is killed by a signal such as SIGSEGV, stops responding, or takes the session down with it.
 title: "[Crash] "
 labels: ["bug"]
 body:
@@ -29,7 +29,7 @@ body:
         - When a game or app is launched
         - During streaming
         - When the session ends or the client disconnects
-        - When Hermes is stopped or restarted
+        - When Ares is stopped or restarted
         - At no particular moment
     validations:
       required: true
@@ -58,7 +58,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Hermes version
+      label: Ares version
       description: "Output of `hermes --version`. If a previous version did not crash, name it here too."
       placeholder: 0.5.1+4f39c9e commit 4f39c9eaab73d71362554ec916aac96293634176
     validations:
@@ -68,7 +68,7 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
-      description: What has to happen for the crash to occur, starting from a freshly started Hermes.
+      description: What has to happen for the crash to occur, starting from a freshly started Ares.
     validations:
       required: true
 
@@ -77,12 +77,12 @@ body:
       value: |
         ### How to get a backtrace that can be read
 
-        1. Install the debug symbols that match the version you are running. The `hermes-streaming-debug` package is
+        1. Install the debug symbols that match the version you are running. The `ares-streaming-debug` package is
            built next to the normal package: it is in the same CI artifact as the nightly build, and a local
            `makepkg` produces it when `debug` is in `OPTIONS` in `/etc/makepkg.conf`.
 
            ```bash
-           sudo pacman -U hermes-streaming-debug-<same-version>-x86_64.pkg.tar.zst
+           sudo pacman -U ares-streaming-debug-<same-version>-x86_64.pkg.tar.zst
            ```
 
         2. Check that the crash was captured:
@@ -128,18 +128,18 @@ body:
   - type: markdown
     attributes:
       value: |
-        ### Hermes log
+        ### Ares log
 
         1. Set the log level to `debug`: Web UI -> **Configuration** -> **General** -> **Log Level** -> `debug`,
-           or `min_log_level = debug` in `~/.config/hermes/hermes.conf`.
-        2. Restart Hermes: `systemctl --user restart hermes` (or restart the process you started by hand).
+           or `min_log_level = debug` in `~/.config/ares-streaming/ares.conf`.
+        2. Restart Ares: `systemctl --user restart ares` (or restart the process you started by hand).
         3. Reproduce the problem.
         4. Take the log from any of these:
            - Web UI -> **Troubleshooting** -> **Logs** (there is a copy button)
-           - the file `~/.config/hermes/hermes.log`
-           - `journalctl --user -u hermes -b --no-pager`
+           - the file `~/.config/ares-streaming/ares.log`
+           - `journalctl --user -u ares -b --no-pager`
 
-        Paste the part that covers the whole attempt - from Hermes starting the session to the failure - and not only
+        Paste the part that covers the whole attempt - from Ares starting the session to the failure - and not only
         the last few lines. Keep the first lines of the log: they contain the version and the commit.
 
         If the log is long, attach it as a file instead (drag and drop it into the text box). Rename it to `.txt`
@@ -151,7 +151,7 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: Hermes log up to the crash (debug level)
+      label: Ares log up to the crash (debug level)
       description: The last lines before the process died are the ones that matter, together with the start of the log.
       render: shell
     validations:
@@ -162,7 +162,7 @@ body:
       value: |
         ### Host information
 
-        Run this in a terminal **on the machine that runs Hermes**, then paste the whole output below.
+        Run this in a terminal **on the machine that runs Ares**, then paste the whole output below.
         Nothing is uploaded anywhere - it only prints text for you to copy.
 
         ```bash
@@ -178,11 +178,11 @@ body:
           echo "== kms ==";      grep -H . /sys/module/hermes_kms/parameters/* 2>/dev/null
           echo "== drm ==";      ls -l /dev/dri/ /dev/dri/by-path/ 2>/dev/null
           echo "== user ==";     id -nG
-          echo "== service ==";  systemctl --user is-enabled hermes; systemctl --user is-active hermes
+          echo "== service ==";  systemctl --user is-enabled ares; systemctl --user is-active ares
         } 2>&1
         ```
 
-        If you run Hermes from the container image, run the block inside the container and add the output of
+        If you run Ares from the container image, run the block inside the container and add the output of
         `podman --version` or `docker --version` from the host.
 
   - type: textarea

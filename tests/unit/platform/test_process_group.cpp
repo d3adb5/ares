@@ -198,14 +198,14 @@ TEST(ProcessGroupTest, RejectsBroadcastAndOwnGroupHandles) {
 
 TEST(ServiceLifecycleTest, RecognizesOnlyInstalledHermesUserService) {
   EXPECT_TRUE(platf::is_hermes_user_service_cgroup(
-    "0::/user.slice/user-1000.slice/user@1000.service/app.slice/hermes.service"));
+    "0::/user.slice/user-1000.slice/user@1000.service/app.slice/ares.service"));
   EXPECT_TRUE(platf::is_hermes_user_service_cgroup(
-    "1:name=systemd:/user.slice/user-1000.slice/user@1000.service/hermes.service"));
-  for (const auto entry : {"0::/system.slice/hermes.service",
+    "1:name=systemd:/user.slice/user-1000.slice/user@1000.service/ares.service"));
+  for (const auto entry : {"0::/system.slice/ares.service",
                            "0::/user.slice/user@1000.service/app.slice/konsole.service",
-                           "0::/user.slice/user@1000.service/hermes.service/child",
-                           "0::/user.slice/user@1000.service/other-hermes.service",
-                           "0::/", "", "hermes.service"}) {
+                           "0::/user.slice/user@1000.service/ares.service/child",
+                           "0::/user.slice/user@1000.service/other-ares.service",
+                           "0::/", "", "ares.service"}) {
     EXPECT_FALSE(platf::is_hermes_user_service_cgroup(entry)) << entry;
   }
 }

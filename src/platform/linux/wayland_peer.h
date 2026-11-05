@@ -15,7 +15,7 @@
 #include <sys/wait.h>
 
 namespace platf::kwin {
-  // Internal mode of hermes-detached-session, entered before desktop startup.
+  // Internal mode of ares-detached-session, entered before desktop startup.
   // This is a fresh exec: making the helper dumpable must never expose a forked
   // copy of the capability-bearing Hermes process's address space.
   inline int serve_wayland_peer(const char *path) {
@@ -101,10 +101,10 @@ namespace platf::kwin {
       std::error_code ec;
       auto executable = std::filesystem::read_symlink("/proc/self/exe", ec);
       if (ec) {
-        error = "Could not locate Hermes's private Wayland connection helper: " + ec.message();
+        error = "Could not locate Ares's private Wayland connection helper: " + ec.message();
         return -1;
       }
-      return open_with_helper(path, (executable.parent_path() / "hermes-detached-session").string(), error);
+      return open_with_helper(path, (executable.parent_path() / "ares-detached-session").string(), error);
     }
 
     int open_with_helper(const std::string &path, const std::string &helper, std::string &error) {
@@ -173,7 +173,7 @@ namespace platf::kwin {
         result = ::poll(&event, 1, static_cast<int>(std::max<std::int64_t>(0, left)));
       } while (result < 0 && errno == EINTR && std::chrono::steady_clock::now() < deadline);
       if (result <= 0 || !(event.revents & POLLIN)) {
-        error = "Private Wayland connection helper failed or timed out; check hermes-detached-session beside Hermes";
+        error = "Private Wayland connection helper failed or timed out; check ares-detached-session beside Ares";
         return -1;
       }
       char success = 0;

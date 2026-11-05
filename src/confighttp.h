@@ -49,12 +49,12 @@ namespace confighttp {
    *        host status, platform and version. Never configuration.
    *
    * Every key here must also be in config::server_computed_keys(), which is
-   * what keeps a hermes.conf from overwriting one of them; a test asserts it.
+   * what keeps a ares.conf from overwriting one of them; a test asserts it.
    */
   nlohmann::json computed_config_json();
 
   /**
-   * @brief Overlay a parsed hermes.conf onto @p response, in place.
+   * @brief Overlay a parsed ares.conf onto @p response, in place.
    *
    * A key the response already carries is left alone. The Web UI posts the
    * whole config response back and saveConfig() persists it, so a read-only

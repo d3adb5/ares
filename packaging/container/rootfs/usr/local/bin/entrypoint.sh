@@ -10,12 +10,12 @@ warn() { printf '\033[0;33m[hermes][warn]\033[0m %s\n' "$*" >&2; }
 # ~/.config/sunshine with Apollo and Sunshine, and HOME is /config here. The
 # config file is handed to hermes explicitly, so it stays flat in the volume;
 # apps.json is resolved by Hermes itself and so has to match its default.
-HERMES_CONFIG="${HERMES_CONFIG:-/config/hermes.conf}"
-APPS_JSON="${APPS_JSON:-/config/.config/hermes/apps.json}"
+HERMES_CONFIG="${HERMES_CONFIG:-/config/ares.conf}"
+APPS_JSON="${APPS_JSON:-/config/.config/ares-streaming/apps.json}"
 LEGACY_HERMES_CONFIG="/config/sunshine.conf"
 STEAM_SESSION_CMD="/usr/local/bin/hermes-steam-session"
 SWAY_TEMPLATE="/etc/sway/config"
-SWAY_CONFIG="/run/hermes/sway.config"
+SWAY_CONFIG="/run/ares/sway.config"
 PIDS=()
 
 cleanup() {
@@ -45,7 +45,7 @@ else
 fi
 
 # --- base directories -------------------------------------------------------
-mkdir -p /config /config/sway.d /run/hermes "${XDG_RUNTIME_DIR}"
+mkdir -p /config /config/sway.d /run/ares "${XDG_RUNTIME_DIR}"
 chmod 700 "${XDG_RUNTIME_DIR}"
 
 # --- capabilities -----------------------------------------------------------
@@ -70,7 +70,7 @@ reconcile_file_capabilities() {
 
     log "SYS_ADMIN is not in this container's bounding set; dropping the file capabilities that need it"
     local dropped=0
-    for binary in /usr/bin/sway /usr/bin/hermes; do
+    for binary in /usr/bin/sway /usr/bin/ares-streaming; do
         [ -e "${binary}" ] || continue
         if setcap -r "${binary}" 2>/dev/null; then
             dropped=1
@@ -374,7 +374,7 @@ start_compositor() {
     if [ "${compositor_kind}" = "kms" ]; then
         # sway is on a drm,headless multi-backend: the DRM backend adopts the
         # per-session "Virtual-1" connector Hermes hotplugs on this card (enabled
-        # by headless_mode in hermes.conf) and Hermes reads that connector
+        # by headless_mode in ares.conf) and Hermes reads that connector
         # zero-copy; the headless backend contributes one idle placeholder output.
         # The placeholder is what lets Hermes' virtual-output activation succeed:
         # it bails instantly on an empty output layout and only waits for the
@@ -692,20 +692,20 @@ seed_config() {
 #     just a duplicate of "Desktop". We drop the whole entry.
 #   • "Steam Big Picture" runs `setsid steam steam://...` as the Hermes process
 #     user (root here); Steam refuses to run as root, so it silently no-ops.
-#   • "Gamescope Steam Session" runs `hermes-gamescope-launch`, which likewise
+#   • "Gamescope Steam Session" runs `ares-gamescope-launch`, which likewise
 #     starts Steam as root and cannot work here.
 # We instead register our own per-session launcher as the
 # "Steam Big Picture" cmd (see configure_steam_app), so streaming that app brings
 # Steam up correctly at the client's resolution. Strip the broken commands, drop
 # the redundant "Low Res Desktop" and gamescope-launch apps in place, idempotently,
 # so existing configs get fixed too. Fresh configs get the cleaned
-# /usr/share/hermes/apps.json template.
+# /usr/share/ares-streaming/apps.json template.
 sanitize_apps() {
     [ -f "${APPS_JSON}" ] || return 0
-    grep -Eq 'xrandr|steam://|hermes-gamescope-launch|Low Res Desktop' "${APPS_JSON}" 2>/dev/null || return 0
+    grep -Eq 'xrandr|steam://|ares-gamescope-launch|Low Res Desktop' "${APPS_JSON}" 2>/dev/null || return 0
     command -v jq >/dev/null 2>&1 || { warn "jq missing; leaving apps.json unchanged"; return 0; }
     local tmp; tmp="$(mktemp)"
-    # Step 1: Remove apps with hermes-gamescope-launch command or "Low Res Desktop" name
+    # Step 1: Remove apps with ares-gamescope-launch command or "Low Res Desktop" name
     # Step 2: Clean prep-cmd (remove xrandr commands, clean up empty entries)
     # Step 3: Clean detached (remove steam:// commands)
     if jq '
@@ -730,7 +730,7 @@ sanitize_apps() {
 
           .apps |= [
             .[] |
-            select((.cmd // "") != "hermes-gamescope-launch") |
+            select((.cmd // "") != "ares-gamescope-launch") |
             select(.name != "Low Res Desktop") |
             clean_prep_cmd |
             clean_detached
@@ -809,4 +809,4 @@ configure_steam_app
 log "launching hermes with config: ${HERMES_CONFIG}"
 log "web UI will be available at https://<host>:47990"
 cd /config
-exec /usr/bin/hermes "${HERMES_CONFIG}" "$@"
+exec /usr/bin/ares-streaming "${HERMES_CONFIG}" "$@"

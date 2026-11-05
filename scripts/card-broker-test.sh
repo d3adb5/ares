@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exercise hermes-kms-card-broker against a fake configfs and sysfs tree.
+# Exercise ares-kms-card-broker against a fake configfs and sysfs tree.
 #
 # Everything except the final CREATE runs without root and without the driver:
 # authorization, the allow file, request parsing, ownership of a card name, seat
@@ -10,11 +10,11 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BROKER="${1:-$REPO/build/hermes-kms-card-broker}"
+BROKER="${1:-$REPO/build/ares-kms-card-broker}"
 
 if [ ! -x "$BROKER" ]; then
 	printf 'broker binary not found: %s\n' "$BROKER" >&2
-	printf 'build it with: cmake --build build --target hermes-kms-card-broker\n' >&2
+	printf 'build it with: cmake --build build --target ares-kms-card-broker\n' >&2
 	exit 2
 fi
 

@@ -7,7 +7,7 @@ Documentation=https://github.com/MrOz59/Hermes
 After=systemd-udevd.service
 
 [Socket]
-ListenStream=/run/hermes/card-broker.sock
+ListenStream=/run/ares/card-broker.sock
 # Anyone may connect; the broker answers only uids listed in
 # /etc/hermes/card-broker.allow, which only root can write. Authorization has
 # to be the peer's uid rather than the socket's mode, because that is what the

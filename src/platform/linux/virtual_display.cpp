@@ -825,7 +825,7 @@ namespace VDISPLAY {
     static void log_unreachable(bool fatal) {
       BOOST_LOG(fatal ? error : warning)
         << "[VDISPLAY] The session is Hyprland but its control socket is not reachable. "
-           "Hermes reads HYPRLAND_INSTANCE_SIGNATURE from its own environment, so a "
+           "Ares reads HYPRLAND_INSTANCE_SIGNATURE from its own environment, so a "
            "service started outside the session will not find it.";
     }
 
@@ -1740,7 +1740,7 @@ namespace VDISPLAY {
      * "no device is free", and with one it is a new card on a private seat.
      * The wait afterwards is real work, not politeness - the card exists the
      * moment configfs says so, but its render node belongs to root until udev
-     * runs 92-hermes-kms-access.rules over the card's access_uid. Re-enumerating
+     * runs 92-ares-kms-access.rules over the card's access_uid. Re-enumerating
      * is that wait: open_devices() only reports nodes it could open.
      *
      * `card_owner_uid` is who the card must belong to: the session account
@@ -1780,7 +1780,7 @@ namespace VDISPLAY {
 
       BOOST_LOG(error) << "[VDISPLAY/Hermes-KMS] The broker created " << card->name
                        << " but its render node never became usable; check that the driver's "
-                          "92-hermes-kms-access.rules is installed.";
+                          "92-ares-kms-access.rules is installed.";
       card_broker::remove(card->name);
       return false;
     }
@@ -2156,7 +2156,7 @@ namespace VDISPLAY {
           feature,
           readiness_e::unknown,
           "No window system is attached to this process, so nothing about the session can be observed.",
-          "Run Hermes from inside the graphical session you intend to stream."
+          "Run Ares from inside the graphical session you intend to stream."
         );
       }
       return reports;
@@ -2180,7 +2180,7 @@ namespace VDISPLAY {
         display_readiness,
         facts.mutter ? "GNOME, driven through org.gnome.Mutter.DisplayConfig." :
                        "GNOME is running but org.gnome.Mutter.DisplayConfig did not answer.",
-        facts.mutter ? "" : "Check that gnome-shell is running and that Hermes may reach the session bus."
+        facts.mutter ? "" : "Check that gnome-shell is running and that Ares may reach the session bus."
       );
     } else if (facts.compositor == compositor_e::hyprland) {
       // Hyprland renders a headless output itself, on the primary GPU. That is
@@ -2196,14 +2196,14 @@ namespace VDISPLAY {
         facts.hyprland_control ?
           "Hyprland creates a headless output on request and renders it on the primary GPU, "
           "so no virtual DRM device is involved." :
-          "The session is Hyprland, but its control socket is not reachable, so Hermes cannot "
+          "The session is Hyprland, but its control socket is not reachable, so Ares cannot "
           "ask it for a headless output. Hermes-KMS and EVDI are not an alternative here: "
           "aquamarine wants every GPU owning an output to host a GL renderer, which a "
           "display-only device cannot, and the builds that import directly stall on the "
           "page-flip handshake against the driver's software vblank.",
         facts.hyprland_control ?
           "" :
-          "Hermes reads HYPRLAND_INSTANCE_SIGNATURE from its own environment; start it inside "
+          "Ares reads HYPRLAND_INSTANCE_SIGNATURE from its own environment; start it inside "
           "the Hyprland session, or import that variable into the service."
       );
     } else if (facts.output_management) {
@@ -2213,14 +2213,14 @@ namespace VDISPLAY {
         feature_e::virtual_display,
         display_readiness,
         verified ? compositorName(facts.compositor) + ", driven through wlr-output-management." :
-                   "This compositor is not one Hermes has verified, but it advertises "
+                   "This compositor is not one Ares has verified, but it advertises "
                    "wlr-output-management, so the generic path applies."
       );
     } else {
       add(
         feature_e::virtual_display,
         readiness_e::unavailable,
-        "The session advertises none of the protocols Hermes can drive an output with.",
+        "The session advertises none of the protocols Ares can drive an output with.",
         "A KDE, GNOME or wlroots session is required for automatic virtual-display activation."
       );
     }
@@ -2256,7 +2256,7 @@ namespace VDISPLAY {
         facts.mutter ?
           "GNOME, through ApplyMonitorsConfig: a config naming only the virtual output disables the rest." :
           "GNOME is running but org.gnome.Mutter.DisplayConfig did not answer.",
-        facts.mutter ? "" : "Check that gnome-shell is running and that Hermes may reach the session bus."
+        facts.mutter ? "" : "Check that gnome-shell is running and that Ares may reach the session bus."
       );
     } else if (!exclusive_mechanism) {
       add(feature_e::exclusive_mode, readiness_e::unavailable, "No protocol in this session can disable a physical output.");
@@ -2289,7 +2289,7 @@ namespace VDISPLAY {
           "Hyprland's control socket is not reachable, so no headless output can be created at all.",
         facts.hyprland_control ?
           "" :
-          "Start Hermes inside the Hyprland session, or import HYPRLAND_INSTANCE_SIGNATURE into the service."
+          "Start Ares inside the Hyprland session, or import HYPRLAND_INSTANCE_SIGNATURE into the service."
       );
     } else if (!facts.hermes_kms_present) {
       add(
@@ -2328,7 +2328,7 @@ namespace VDISPLAY {
         "cards and a session would share the host's screen. Input isolation is installed "
         "separately and may already be working, which is what makes this failure quiet.",
         "Install the driver's session-seat rule with 'make install-udev' - it lands as "
-        "72-hermes-kms-session-seats.rules, 70- in driver builds before it moved - then reload "
+        "72-ares-kms-session-seats.rules, 70- in driver builds before it moved - then reload "
         "udev and re-plug or reload the hermes-kms module."
       );
     } else {
@@ -2346,7 +2346,7 @@ namespace VDISPLAY {
       add(
         feature_e::zero_copy_capture,
         readiness_e::unavailable,
-        "The session advertises no screen-capture protocol Hermes can use."
+        "The session advertises no screen-capture protocol Ares can use."
       );
     } else {
       add(
@@ -3728,7 +3728,7 @@ namespace VDISPLAY {
         // replaced for good.
         if (!previous.empty() && !uuid_like(previous)) {
           BOOST_LOG(warning) << "[VDISPLAY/KScreen] " << bound_device_names[i]
-                             << " already has an output binding Hermes could not put back after the session, "
+                             << " already has an output binding Ares could not put back after the session, "
                                 "so touch and pen input are left where KWin places them.";
           return;
         }
@@ -6781,7 +6781,7 @@ namespace VDISPLAY {
     if (backend == VirtualDisplayBackend::NONE) {
       evdi_available = false;
       unload_evdi_library();
-      BOOST_LOG(info) << "[VDISPLAY] No virtual-display backend is configured; Hermes will only "
+      BOOST_LOG(info) << "[VDISPLAY] No virtual-display backend is configured; Ares will only "
                          "stream outputs the session already has.";
       driver_status = DRIVER_STATUS::NOT_SUPPORTED;
       return driver_status;
@@ -6893,7 +6893,7 @@ namespace VDISPLAY {
     std::lock_guard<std::mutex> lifecycle_lock(vdisplay_lifecycle_mutex);
     std::unique_lock<std::mutex> lock(vdisplay_mutex);
 
-    release_parked_locked("Hermes is shutting down.");
+    release_parked_locked("Ares is shutting down.");
     while (!virtual_displays.empty()) {
       const auto guid = virtual_displays.begin()->first;
       remove_virtual_display_locked(guid, lock, true);
@@ -8363,7 +8363,7 @@ namespace VDISPLAY {
       if (vdinfo.name == displayName &&
           vdinfo.using_hermes_kms &&
           vdinfo.session_index > 0) {
-        // Must match Hermes-KMS' 72-hermes-kms-session-seats.rules (70- in
+        // Must match Hermes-KMS' 72-ares-kms-session-seats.rules (70- in
         // driver builds before the rule moved after systemd's uaccess tagging).
         //
         // The name deliberately does not start with "seat". systemd-logind

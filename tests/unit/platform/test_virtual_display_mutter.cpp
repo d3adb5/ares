@@ -30,13 +30,13 @@ namespace {
     "('2560x1080@59.896', 2560, 1080, 59.896186828613281, 1.0, [1.0, 2.0], "
     "{'is-current': <true>, 'is-preferred': <true>})], "
     "{'is-builtin': <false>, 'display-name': <'ViewSonic 29\\\"'>}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('2560x1600@59.987', 2560, 1600, 59.986587524414062, 1.0, [1.0, 2.0], {}), "
     "('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0, 2.0], "
     "{'is-current': <true>, 'is-preferred': <true>})], "
     "{'is-builtin': <false>, 'display-name': <'HRM'>})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], @a{sv} {}), "
-    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>, 'supports-changing-layout-mode': <true>})";
 
   /** The same reply with the virtual output holding the primary flag. */
@@ -44,10 +44,10 @@ namespace {
     "(uint32 7, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('2560x1080@59.896', 2560, 1080, 59.896186828613281, 1.0, [1.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {})], "
     "[(0, 0, 1.0, uint32 0, false, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {}), "
-    "(2560, 0, 1.0, uint32 0, true, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(2560, 0, 1.0, uint32 0, true, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /** One logical monitor mirroring the physical and the virtual output. */
@@ -55,18 +55,18 @@ namespace {
     "(uint32 3, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
-    "('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /** Nothing but the virtual output - repairing this would black out the host. */
   constexpr const char *kCurrentStateVirtualOnly =
     "(uint32 4, "
-    "[(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "[(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {})], "
-    "[(0, 0, 1.0, uint32 0, true, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "[(0, 0, 1.0, uint32 0, true, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /**
@@ -79,12 +79,12 @@ namespace {
     "(uint32 2, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('2560x1080@59.896', 2560, 1080, 59.896186828613281, 1.0, [1.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0, 2.0], {}), "
     "('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0, 2.0], "
     "{'is-current': <true>, 'is-preferred': <true>})], {'display-name': <'HRM'>})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], @a{sv} {}), "
-    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /** Mutter probed the connector but has not placed it in the layout yet. */
@@ -92,7 +92,7 @@ namespace {
     "(uint32 9, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('2560x1080@59.896', 2560, 1080, 59.896186828613281, 1.0, [1.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0], {})], {})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], @a{sv} {})], "
     "{'layout-mode': <uint32 1>})";
@@ -102,13 +102,13 @@ namespace {
     "(uint32 4, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('2560x1080@59.896', 2560, 1080, 59.896186828613281, 1.0, [1.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@59.990', 1600, 1068, 59.99, 1.0, [1.0], {}), "
     "('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0], {}), "
     "('1600x1068@119.982', 1600, 1068, 119.982, 1.0, [1.0], {}), "
     "('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], @a{sv} {}), "
-    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /**
@@ -121,10 +121,10 @@ namespace {
     "(uint32 11, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('3840x2160@60.000', 3840, 2160, 60.0, 2.0, [1.0, 2.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0], {'is-current': <true>})], {})], "
     "[(0, 0, 2.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {}), "
-    "(1920, 0, 1.0, uint32 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(1920, 0, 1.0, uint32 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /** The same desktop with the virtual output itself scaled to 200%. */
@@ -132,10 +132,10 @@ namespace {
     "(uint32 12, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('3840x2160@60.000', 3840, 2160, 60.0, 2.0, [1.0, 2.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('3200x2160@60.000', 3200, 2160, 60.0, 2.0, [1.0, 2.0], {'is-current': <true>})], {})], "
     "[(0, 0, 2.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {}), "
-    "(1920, 0, 2.0, uint32 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(1920, 0, 2.0, uint32 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /** A monitor rotated 90 degrees: its layout rectangle has the axes swapped. */
@@ -143,10 +143,10 @@ namespace {
     "(uint32 13, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0], {'is-current': <true>})], {})], "
     "[(0, 0, 1.0, uint32 1, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {}), "
-    "(1080, 0, 1.0, uint32 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(1080, 0, 1.0, uint32 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /**
@@ -157,10 +157,10 @@ namespace {
     "(uint32 14, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('3840x2160@60.000', 3840, 2160, 60.0, 2.0, [1.0, 2.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 2.0, [1.0, 2.0], {'is-current': <true>})], {})], "
     "[(0, 0, 2.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {}), "
-    "(3840, 0, 2.0, uint32 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(3840, 0, 2.0, uint32 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 2>})";
 
   /** A scaled desktop where Mutter has not placed the connector yet. */
@@ -168,7 +168,7 @@ namespace {
     "(uint32 15, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('3840x2160@60.000', 3840, 2160, 60.0, 2.0, [1.0, 2.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0], {})], {})], "
     "[(0, 0, 2.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {})], "
     "{'layout-mode': <uint32 1>})";
@@ -178,7 +178,7 @@ namespace {
     "(uint32 16, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('3840x2160@60.000', 3840, 2160, 60.0, 2.0, [1.0, 2.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0], {})], {})], "
     "[(0, 0, 2.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {})], "
     "{'layout-mode': <uint32 1>, 'global-scale-required': <true>})";
@@ -198,11 +198,11 @@ namespace {
     "('2560x1080@59.896', 2560, 1080, 59.896186828613281, 1.0, [1.0, 2.0], "
     "{'is-current': <true>, 'is-preferred': <true>})], "
     "{'is-builtin': <false>}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0, 2.0], "
     "{'is-current': <true>, 'is-preferred': <true>})], {'display-name': <'HRM'>})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], @a{sv} {}), "
-    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>, 'supports-changing-layout-mode': <true>})";
 
   /**
@@ -215,11 +215,11 @@ namespace {
     "(uint32 21, "
     "[(('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1920x1080@59.950', 1920, 1080, 59.95, 1.0, [1.0], {}), "
     "('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0], {'is-current': <true>})], {})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {}), "
-    "(1920, 0, 1.0, uint32 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(1920, 0, 1.0, uint32 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   /** A monitor carrying no EDID identity at all, which binds nothing. */
@@ -236,9 +236,9 @@ namespace {
   /** A monitor whose EDID carries characters a shell would act on. */
   constexpr const char *kCurrentStateHostileEdid =
     "(uint32 32, "
-    "[(('Virtual-1', 'HRM$(id)', 'Hermes KMS', '0x00000001'), "
+    "[(('Virtual-1', 'HRM$(id)', 'Ares KMS', '0x00000001'), "
     "[('1600x1068@89.991', 1600, 1068, 89.990867614746094, 1.0, [1.0], {'is-current': <true>})], {})], "
-    "[(0, 0, 1.0, uint32 0, true, [('Virtual-1', 'HRM$(id)', 'Hermes KMS', '0x00000001')], {})], "
+    "[(0, 0, 1.0, uint32 0, true, [('Virtual-1', 'HRM$(id)', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
 }  // namespace
@@ -311,10 +311,10 @@ TEST(MutterLayoutRepair, RefusesConnectorNamesThatCouldEscapeTheShell) {
     "(uint32 5, "
     "[(('DP-2; touch /tmp/pwned', 'VSC', 'VA2932 SERIES', 'WL5242501007'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0], {'is-current': <true>})], {})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2; touch /tmp/pwned', 'VSC', 'VA2932 SERIES', 'WL5242501007')], {}), "
-    "(1920, 0, 1.0, uint32 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(1920, 0, 1.0, uint32 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>})";
 
   std::string serial;
@@ -718,7 +718,7 @@ TEST(MutterInputMapping, BindsADeviceToTheVirtualMonitorsIdentity) {
   // appended, which Mutter uses when two monitors share an EDID.
   EXPECT_EQ(
     VDISPLAY::mutterInputDeviceOutputValue(kCurrentState, "Virtual-1"),
-    "['HRM', 'Hermes KMS', '0x00000001', 'Virtual-1']"
+    "['HRM', 'Ares KMS', '0x00000001', 'Virtual-1']"
   );
 }
 
@@ -787,13 +787,13 @@ TEST(MutterLayoutWatch, TheRestoreConfigIgnoresWhatDoesNotMoveAnOutput) {
     "('2560x1080@59.896', 2560, 1080, 59.896186828613281, 1.0, [1.0, 2.0], "
     "{'is-current': <true>, 'is-preferred': <true>})], "
     "{'is-builtin': <false>, 'privacy-screen-state': <(false, false)>}), "
-    "(('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001'), "
+    "(('Virtual-1', 'HRM', 'Ares KMS', '0x00000001'), "
     "[('2560x1600@59.987', 2560, 1600, 59.986587524414062, 1.0, [1.0, 2.0], {}), "
     "('1920x1080@60.000', 1920, 1080, 60.0, 1.0, [1.0, 2.0], "
     "{'is-current': <true>, 'is-preferred': <true>})], "
     "{'is-builtin': <false>, 'display-name': <'HRM'>})], "
     "[(0, 0, 1.0, uint32 0, true, [('DP-2', 'VSC', 'VA2932 SERIES', 'WL5242501007')], @a{sv} {}), "
-    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Hermes KMS', '0x00000001')], {})], "
+    "(2560, 0, 1.0, 0, false, [('Virtual-1', 'HRM', 'Ares KMS', '0x00000001')], {})], "
     "{'layout-mode': <uint32 1>, 'supports-changing-layout-mode': <true>})";
 
   std::string serial;

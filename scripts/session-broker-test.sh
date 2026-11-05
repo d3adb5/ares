@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exercise hermes-session-broker end to end, the way it is actually shipped.
+# Exercise ares-session-broker end to end, the way it is actually shipped.
 #
 # This one cannot be faked the way the card broker's test fakes configfs: the
 # broker's whole job is to create real accounts and ask systemd for real units,
@@ -15,10 +15,10 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BROKER="${1:-$REPO/build/hermes-session-broker}"
+BROKER="${1:-$REPO/build/ares-session-broker}"
 CLIENT_A="5f3ab1c2-0000-4000-8000-000000000001"
 CLIENT_B="5f3ab1c2-0000-4000-8000-000000000002"
-SOCKET="/run/hermes/session-broker.sock"
+SOCKET="/run/ares/session-broker.sock"
 STATE="/var/lib/hermes/session-users.map"
 HOMES="/var/lib/hermes/sessions"
 INPUT_PROBE_PID=""
@@ -29,7 +29,7 @@ INPUT_TEST_ROOT=""
 BROKER_FROZEN=0
 
 cleanup_input_probe() {
-	if [ "$BROKER_FROZEN" -eq 1 ]; then systemctl thaw hermes-session-broker.service 2>/dev/null || true; fi
+	if [ "$BROKER_FROZEN" -eq 1 ]; then systemctl thaw ares-session-broker.service 2>/dev/null || true; fi
 	for pid in "$SDL_A_PID" "$SDL_B_PID"; do
 		[ -z "$pid" ] || kill -TERM "$pid" 2>/dev/null || true
 	done
@@ -47,7 +47,7 @@ trap cleanup_input_probe EXIT
 
 [ "$(id -u)" -eq 0 ] || { printf 'must run as root; this creates accounts\n' >&2; exit 2; }
 systemd-detect-virt --vm --quiet || { printf 'must run inside a disposable VM; this installs system units and creates accounts\n' >&2; exit 2; }
-[ -x "$BROKER" ] || { printf 'broker not found: %s\n  build: cmake --build build --target hermes-session-broker\n' "$BROKER" >&2; exit 2; }
+[ -x "$BROKER" ] || { printf 'broker not found: %s\n  build: cmake --build build --target ares-session-broker\n' "$BROKER" >&2; exit 2; }
 
 # virtme-ng shares the host's filesystem as the host user and bind-mounts a few
 # files over the overlay, so /etc/shadow, /etc/gshadow and the passwd lock are
@@ -109,16 +109,16 @@ expect() {
 }
 
 # ---------------------------------------------------------------- install ----
-install -Dm755 "$BROKER" /usr/bin/hermes-session-broker
-install -Dm644 "$REPO/src_assets/linux/misc/hermes-session-broker.service" \
-	/etc/systemd/system/hermes-session-broker.service
-install -Dm644 "$REPO/src_assets/linux/misc/hermes-session-broker.socket" \
-	/etc/systemd/system/hermes-session-broker.socket
-install -Dm644 "$REPO/src_assets/linux/misc/hermes-sysusers.conf" /usr/lib/sysusers.d/hermes.conf
-install -Dm644 "$REPO/src_assets/linux/misc/10-hermes-session-deny.rules" \
-	/usr/share/polkit-1/rules.d/10-hermes-session-deny.rules
-install -Dm644 "$REPO/src_assets/linux/misc/60-hermes.rules" /run/udev/rules.d/60-hermes.rules
-install -Dm644 "$REPO/src_assets/linux/misc/99-hermes-session-input.rules" /run/udev/rules.d/99-hermes-session-input.rules
+install -Dm755 "$BROKER" /usr/bin/ares-session-broker
+install -Dm644 "$REPO/src_assets/linux/misc/ares-session-broker.service" \
+	/etc/systemd/system/ares-session-broker.service
+install -Dm644 "$REPO/src_assets/linux/misc/ares-session-broker.socket" \
+	/etc/systemd/system/ares-session-broker.socket
+install -Dm644 "$REPO/src_assets/linux/misc/ares-sysusers.conf" /usr/lib/sysusers.d/ares.conf
+install -Dm644 "$REPO/src_assets/linux/misc/10-ares-session-deny.rules" \
+	/usr/share/polkit-1/rules.d/10-ares-session-deny.rules
+install -Dm644 "$REPO/src_assets/linux/misc/60-ares.rules" /run/udev/rules.d/60-ares.rules
+install -Dm644 "$REPO/src_assets/linux/misc/99-ares-session-input.rules" /run/udev/rules.d/99-ares-session-input.rules
 udevadm control --reload-rules
 # The unit lists this under ReadWritePaths, and systemd refuses to start a unit
 # whose ReadWritePaths does not exist.
@@ -133,8 +133,8 @@ printf '# the test runs as root\n0\n' >/etc/hermes/session-broker.allow 2>/dev/n
 chmod 644 /etc/hermes/session-broker.allow
 
 systemctl daemon-reload
-systemctl start hermes-session-broker.socket
-[ -S "$SOCKET" ] || fail 'the broker socket was not created' "$(systemctl status hermes-session-broker.socket --no-pager 2>&1 | tail -5)"
+systemctl start ares-session-broker.socket
+[ -S "$SOCKET" ] || fail 'the broker socket was not created' "$(systemctl status ares-session-broker.socket --no-pager 2>&1 | tail -5)"
 ok 'the packaged socket unit starts and creates the socket'
 
 # ---------------------------------------------------------------- protocol ---
@@ -223,7 +223,7 @@ SECOND_ACCOUNT="$(python3 - "$SOCKET" "$CLIENT_A" "$CLIENT_B" <<-'PY'
 	        assert chunk, 'broker closed before replying'
 	        text += chunk
 	    return text.decode().strip()
-	with open('/run/hermes/session-broker.lock', 'r+') as lock:
+	with open('/run/ares/session-broker.lock', 'r+') as lock:
 	    fcntl.flock(lock, fcntl.LOCK_EX)
 	    with connect('ENSURE ' + sys.argv[3] + '\n', 180) as pending:
 	        assert not select.select([pending], [], [], 0.05)[0], 'ENSURE did not queue behind the mutation lock'
@@ -352,24 +352,24 @@ wait_input_access() {
 		   can_open_input hermes-s01 "$HID_A" && can_open_input hermes-s02 "$HID_B"; then return; fi
 		sleep 0.1
 	done
-	fail 'the broker did not grant the two accounts their own input nodes' "$(journalctl -u hermes-session-broker --no-pager -n 30)"
+	fail 'the broker did not grant the two accounts their own input nodes' "$(journalctl -u ares-session-broker --no-pager -n 30)"
 }
 
 udevadm control --log-level=debug
 # The asynchronous reconciliation loop cannot rescue these add events. The
 # production udev helper must grant access before already-running SDL sees them.
-systemctl is-active --quiet hermes-session-broker.service || fail 'the broker is not active'
+systemctl is-active --quiet ares-session-broker.service || fail 'the broker is not active'
 BROKER_FROZEN=1
 # Freeze every worker, not just MainPID. The udev helper runs in udev's unit
 # and must independently authorize the new nodes before their add broadcasts.
-flock --exclusive --timeout 5 /run/hermes/session-broker.lock.input systemctl freeze hermes-session-broker.service
+flock --exclusive --timeout 5 /run/ares/session-broker.lock.input systemctl freeze ares-session-broker.service
 start_sdl_probes
 start_input_probe
 start_hid_probe
 udevadm settle --timeout=10
 wait_input_access
 wait_sdl_probes
-systemctl thaw hermes-session-broker.service
+systemctl thaw ares-session-broker.service
 BROKER_FROZEN=0
 ok 'udev grants hotplug access while broker reconciliation is paused'
 ! can_open_input hermes-s01 "$NODE_B" || fail 'client A can open client B input'
@@ -398,7 +398,7 @@ ok 'hotplugged replacement devices receive their account ACLs'
 
 setfacl -x "u:$UID_A" "$NODE_A"
 setfacl -x "u:$UID_A" "$HID_A"
-systemctl restart hermes-session-broker.service
+systemctl restart ares-session-broker.service
 wait_input_access
 ! can_open_input hermes-s01 "$NODE_B" || fail 'a broker restart crossed input seats'
 ok 'persisted leases recover correct access after a broker restart'

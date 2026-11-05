@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
   // even when someone runs it by hand in their regular desktop environment.
   const std::string socket = argv[1];
   if (!socket.starts_with("/run/hermes-plasma-probe-") || socket.find("/../") != std::string::npos) {
-    std::cerr << "Refusing to capture outside a temporary Hermes Plasma probe\n";
+    std::cerr << "Refusing to capture outside a temporary Ares Plasma probe\n";
     return 2;
   }
   std::string error;

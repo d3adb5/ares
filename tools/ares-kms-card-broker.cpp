@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
- * @file tools/hermes-kms-card-broker.cpp
+ * @file tools/ares-kms-card-broker.cpp
  * @brief Create and remove Hermes-KMS cards for an unprivileged Hermes.
  *
  * Hermes-KMS gained runtime card creation through configfs, which lives under
@@ -68,11 +68,11 @@ namespace {
 
   namespace fs = std::filesystem;
 
-  constexpr const char *default_socket_path = "/run/hermes/card-broker.sock";
+  constexpr const char *default_socket_path = "/run/ares/card-broker.sock";
   constexpr const char *default_allow_file = "/etc/hermes/card-broker.allow";
   constexpr const char *default_configfs_root = "/sys/kernel/config/hermes-kms";
   constexpr const char *default_platform_root = "/sys/devices/platform";
-  constexpr const char *default_lock_file = "/run/hermes/card-broker.lock";
+  constexpr const char *default_lock_file = "/run/ares/card-broker.lock";
 
   // The group every isolated session account is created in, by the sysusers
   // file that creates the group. `CREATE <uid>` may only name an account in
@@ -322,7 +322,7 @@ namespace {
     }
 
     // The node names come from the driver, not from udev, so there is no wait
-    // for a rule to run here. The consumer still has to wait for 92-hermes-kms-
+    // for a rule to run here. The consumer still has to wait for 92-ares-kms-
     // access.rules to hand it the render node, which is its own business.
     return "OK " + name + " /dev/dri/" + *card + " /dev/dri/" + *render_node;
   }
@@ -364,7 +364,7 @@ namespace {
           return "ERR request no account has that uid";
         }
         if (!is_session_account(static_cast<uid_t>(value))) {
-          return "ERR denied that uid is not a Hermes session account";
+          return "ERR denied that uid is not a Ares session account";
         }
         access_uid = static_cast<uid_t>(value);
       }
@@ -537,9 +537,9 @@ namespace {
 
   void print_usage() {
     std::puts(
-      "usage: hermes-kms-card-broker [options]\n"
+      "usage: ares-kms-card-broker [options]\n"
       "\n"
-      "Create and remove Hermes-KMS cards for an unprivileged Hermes.\n"
+      "Create and remove Hermes-KMS cards for an unprivileged Ares.\n"
       "\n"
       "  --socket PATH        listen here when not socket-activated\n"
       "  --allow-file PATH    uids and user names permitted to ask\n"

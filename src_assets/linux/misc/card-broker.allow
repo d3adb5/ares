@@ -1,4 +1,4 @@
-# Users allowed to ask hermes-kms-card-broker for a virtual display card.
+# Users allowed to ask ares-kms-card-broker for a virtual display card.
 #
 # One user name or numeric uid per line; '#' starts a comment. The file is read
 # on every request, so adding or removing a line takes effect immediately - no

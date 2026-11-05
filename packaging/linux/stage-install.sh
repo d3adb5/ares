@@ -21,26 +21,26 @@ DESTDIR="$root" cmake --install "$build_dir"
 # CMake installs the versioned binary plus a `sunshine` symlink beside it; a
 # package ships one binary, named after this fork.
 rm -f "$root/usr/bin/sunshine"
-mv "$root"/usr/bin/sunshine-* "$root/usr/bin/hermes"
+mv "$root"/usr/bin/sunshine-* "$root/usr/bin/ares-streaming"
 
 # Same for the unit, whose upstream name would collide with an apollo or
 # sunshine install on the same machine.
 if [ -f "$root/usr/lib/systemd/user/sunshine.service" ]; then
-  mv "$root/usr/lib/systemd/user/sunshine.service" "$root/usr/lib/systemd/user/hermes.service"
+  mv "$root/usr/lib/systemd/user/sunshine.service" "$root/usr/lib/systemd/user/ares.service"
 fi
 
 # What the user sees if it is missing: no entry in the application menu, a
 # generic icon in the tray, or a package that installs and then cannot be
 # started at all.
 required=(
-  usr/bin/hermes
-  usr/lib/systemd/user/hermes.service
-  usr/share/applications/io.github.mroz59.Hermes.desktop
-  usr/share/applications/io.github.mroz59.Hermes.terminal.desktop
+  usr/bin/ares-streaming
+  usr/lib/systemd/user/ares.service
+  usr/share/applications/io.github.d3adb5.Ares.desktop
+  usr/share/applications/io.github.d3adb5.Ares.terminal.desktop
   usr/share/icons/hicolor/scalable/apps/hermes.svg
-  usr/share/metainfo/io.github.mroz59.Hermes.metainfo.xml
-  usr/share/hermes/apps.json
-  usr/share/hermes/web/index.html
+  usr/share/metainfo/io.github.d3adb5.Ares.metainfo.xml
+  usr/share/ares-streaming/apps.json
+  usr/share/ares-streaming/web/index.html
 )
 missing=()
 for path in "${required[@]}"; do
@@ -58,8 +58,8 @@ fi
 # Built only when their dependencies were found, so their absence is reported
 # rather than fatal - it still changes what the package offers.
 for path in \
-  usr/bin/hermes-gamemode \
-  usr/share/applications/io.github.mroz59.Hermes.GameMode.desktop \
+  usr/bin/ares-gamemode \
+  usr/share/applications/io.github.d3adb5.Ares.GameMode.desktop \
   usr/share/icons/hicolor/scalable/status/hermes-tray.svg
 do
   [ -e "$root/$path" ] || printf 'stage-install: note: %s was not built\n' "$path" >&2

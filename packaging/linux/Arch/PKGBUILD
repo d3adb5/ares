@@ -153,10 +153,10 @@ build() {
 
     cmake "${_cmake_options[@]}"
 
-    appstreamcli validate "build/io.github.mroz59.Hermes.metainfo.xml"
-    appstream-util validate "build/io.github.mroz59.Hermes.metainfo.xml"
-    desktop-file-validate "build/io.github.mroz59.Hermes.desktop"
-    desktop-file-validate "build/io.github.mroz59.Hermes.terminal.desktop"
+    appstreamcli validate "build/io.github.d3adb5.Ares.metainfo.xml"
+    appstream-util validate "build/io.github.d3adb5.Ares.metainfo.xml"
+    desktop-file-validate "build/io.github.d3adb5.Ares.desktop"
+    desktop-file-validate "build/io.github.d3adb5.Ares.terminal.desktop"
 
     make -C build
 }

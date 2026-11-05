@@ -8,7 +8,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_ROOT="$(mktemp -d /tmp/hermes-input-seats.XXXXXX)"
-RULE_PATH="/run/udev/rules.d/60-hermes.rules"
+RULE_PATH="/run/udev/rules.d/60-ares.rules"
 PROBE_PID=""
 RULE_INSTALLED=0
 RULE_BACKUP=0
@@ -51,7 +51,7 @@ if [ -e "$RULE_PATH" ]; then
 	cp "$RULE_PATH" "$TEST_ROOT/previous.rules"
 	RULE_BACKUP=1
 fi
-cp "$REPO/src_assets/linux/misc/60-hermes.rules" "$RULE_PATH"
+cp "$REPO/src_assets/linux/misc/60-ares.rules" "$RULE_PATH"
 RULE_INSTALLED=1
 udevadm control --reload-rules
 

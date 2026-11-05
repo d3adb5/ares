@@ -590,11 +590,11 @@ function run_step_validation() {
   echo "Running step: Validation"
 
   # Run appstream validation, etc.
-  appstreamcli validate "build/io.github.mroz59.Hermes.metainfo.xml"
-  appstream-util validate "build/io.github.mroz59.Hermes.metainfo.xml"
-  desktop-file-validate "build/io.github.mroz59.Hermes.desktop"
+  appstreamcli validate "build/io.github.d3adb5.Ares.metainfo.xml"
+  appstream-util validate "build/io.github.d3adb5.Ares.metainfo.xml"
+  desktop-file-validate "build/io.github.d3adb5.Ares.desktop"
   if [ "$appimage_build" == 0 ]; then
-    desktop-file-validate "build/io.github.mroz59.Hermes.terminal.desktop"
+    desktop-file-validate "build/io.github.d3adb5.Ares.terminal.desktop"
   fi
 }
 

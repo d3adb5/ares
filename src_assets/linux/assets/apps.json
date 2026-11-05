@@ -41,7 +41,7 @@
       "wait-all": true,
       "exit-timeout": 5,
       "scale-factor": 100,
-      "cmd": "hermes-gamescope-launch"
+      "cmd": "ares-gamescope-launch"
     }
   ]
 }

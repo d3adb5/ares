@@ -2308,7 +2308,7 @@ namespace platf {
 
 #ifndef SUNSHINE_BUILD_CUDA
         if (mem_type == mem_type_e::cuda) {
-          BOOST_LOG(warning) << "Hermes-KMS NVENC path requested but Hermes was built without CUDA support."sv;
+          BOOST_LOG(warning) << "Hermes-KMS NVENC path requested but Ares was built without CUDA support."sv;
           return -1;
         }
 #endif
@@ -3171,7 +3171,7 @@ namespace platf {
           BOOST_LOG((window_system != window_system_e::X11 || config::video.capture == "kms") ? fatal : error)
             << "You must run [sudo setcap cap_sys_admin+p $(readlink -f $(which hermes))] for KMS display capture to work!\n"sv
             << "The packages set this in their post-install script; a binary you built yourself needs it applied by hand.\n"sv
-            << "See https://github.com/MrOz59/Hermes/blob/main/docs/troubleshooting.md"sv;
+            << "See https://github.com/d3adb5/ares/blob/master/docs/troubleshooting.md"sv;
           break;
         }
 

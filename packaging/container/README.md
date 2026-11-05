@@ -1,11 +1,11 @@
-# Hermes in a container
+# Ares in a container
 
-A runtime image that runs Hermes on a headless Wayland session (sway), with
+A runtime image that runs Ares on a headless Wayland session (sway), with
 audio, XWayland and an optional Steam Big Picture session. This is distinct from
 `docker/` at the repository root, which holds *build* images inherited from
 Sunshine and produces no runnable host.
 
-It is the practical way to run Hermes on a distribution that cannot install it
+It is the practical way to run Ares on a distribution that cannot install it
 normally — Bazzite, Silverblue, SteamOS and other image-based systems — because
 the userspace lives in the container and only the kernel module has to exist on
 the host.
@@ -14,11 +14,11 @@ the host.
 
 Adapted from [SOVLOOKUP/hermes-sunshine](https://github.com/SOVLOOKUP/hermes-sunshine),
 offered for upstreaming by its author in
-[#6](https://github.com/MrOz59/Hermes/issues/6). That repository carries no
+[#6](https://github.com/d3adb5/ares/issues/6). That repository carries no
 license file; it is included here with the author's stated permission. If you
 are redistributing this, get that permission in writing first.
 
-Changes made on import: the config paths follow Hermes' own directory instead of
+Changes made on import: the config paths follow Ares' own directory instead of
 the old shared Sunshine one (with a migration for volumes created before that),
 the Chinese package mirrors default to off, and the compose file builds locally
 rather than pulling a published image.
@@ -91,7 +91,7 @@ A working rootless unit, `~/.config/containers/systemd/hermes.container`:
 
 ```ini
 [Unit]
-Description=Hermes game streaming host
+Description=Ares game streaming host
 
 [Container]
 ContainerName=hermes
@@ -100,7 +100,7 @@ Network=host
 Environment=AUTOSTART_STEAM=false
 AddDevice=/dev/uinput
 AddDevice=/dev/uhid
-Volume=%h/.local/share/hermes:/config:Z
+Volume=%h/.local/share/ares-streaming:/config:Z
 Volume=/dev/dri:/dev/dri
 Volume=/dev/input:/dev/input
 SecurityLabelDisable=true
@@ -132,14 +132,14 @@ decide everything:
 
   ```
   /etc/modules-load.d/uhid.conf          ->  uhid
-  /etc/udev/rules.d/85-hermes-uhid.rules ->  KERNEL=="uhid", TAG+="uaccess"
+  /etc/udev/rules.d/85-ares-uhid.rules ->  KERNEL=="uhid", TAG+="uaccess"
   ```
 
 ### Hybrid-GPU hosts
 
 On a machine with two GPUs the render node numbers follow module load order, so
 the first node is not reliably the GPU the compositor renders on. The entrypoint
-detects the encode GPU and writes it to `adapter_name` in `hermes.conf`, which is
+detects the encode GPU and writes it to `adapter_name` in `ares.conf`, which is
 what both the capture path and VAAPI read. The boot log's `render/encode GPU
 node:` line says which one it chose; if that is wrong, set `adapter_name`
 yourself and it will be left alone.

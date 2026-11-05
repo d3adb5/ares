@@ -31,9 +31,9 @@ Wants=graphical-session.target
 [Service]
 # Give the compositor a moment to finish coming up before we launch.
 ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/hermes
+ExecStart=/usr/bin/ares-streaming
 
-ExecStopPost=-/usr/bin/hermes-monitor-recovery
+ExecStopPost=-/usr/bin/ares-monitor-recovery
 Restart=on-failure
 RestartSec=5s
 
@@ -50,7 +50,7 @@ WantedBy=graphical-session.target xdg-desktop-autostart.target
   facts_t ready_host() {
     facts_t facts;
     facts.user = "ana";
-    facts.unit_name = "hermes.service";
+    facts.unit_name = "ares.service";
     facts.unit_from_boot = true;
     facts.unit_generated = true;
     facts.unit_enabled = true;
@@ -74,11 +74,11 @@ WantedBy=graphical-session.target xdg-desktop-autostart.target
 }  // namespace
 
 TEST(PreloginUnit, TheServiceIsKeptAsPackaged) {
-  const auto unit = from_boot_unit(packaged_unit, "/usr/lib/systemd/user/hermes.service");
+  const auto unit = from_boot_unit(packaged_unit, "/usr/lib/systemd/user/ares.service");
 
   EXPECT_TRUE(has_line(unit, "ExecStartPre=/bin/sleep 5"));
-  EXPECT_TRUE(has_line(unit, "ExecStart=/usr/bin/hermes"));
-  EXPECT_TRUE(has_line(unit, "ExecStopPost=-/usr/bin/hermes-monitor-recovery"));
+  EXPECT_TRUE(has_line(unit, "ExecStart=/usr/bin/ares-streaming"));
+  EXPECT_TRUE(has_line(unit, "ExecStopPost=-/usr/bin/ares-monitor-recovery"));
   EXPECT_TRUE(has_line(unit, "Restart=on-failure"));
   EXPECT_TRUE(has_line(unit, "StartLimitBurst=5"));
 }
@@ -86,7 +86,7 @@ TEST(PreloginUnit, TheServiceIsKeptAsPackaged) {
 TEST(PreloginUnit, NothingTiesItToTheGraphicalSession) {
   // Wants=graphical-session.target pulled in at boot would mark a graphical
   // session as running with none behind it.
-  const auto unit = from_boot_unit(packaged_unit, "/usr/lib/systemd/user/hermes.service");
+  const auto unit = from_boot_unit(packaged_unit, "/usr/lib/systemd/user/ares.service");
 
   EXPECT_EQ(unit.find("graphical-session"), std::string::npos);
   EXPECT_EQ(unit.find("xdg-desktop-autostart"), std::string::npos);
@@ -94,7 +94,7 @@ TEST(PreloginUnit, NothingTiesItToTheGraphicalSession) {
 }
 
 TEST(PreloginUnit, ItStartsWithTheUserManager) {
-  const auto unit = from_boot_unit(packaged_unit, "/usr/lib/systemd/user/hermes.service");
+  const auto unit = from_boot_unit(packaged_unit, "/usr/lib/systemd/user/ares.service");
 
   EXPECT_TRUE(has_line(unit, "[Install]"));
   EXPECT_TRUE(has_line(unit, "WantedBy=default.target"));
@@ -104,7 +104,7 @@ TEST(PreloginUnit, ItStartsWithTheUserManager) {
 TEST(PreloginUnit, OtherDependenciesOnTheSameLineSurvive) {
   const auto unit = from_boot_unit(
     "[Unit]\nAfter=network-online.target graphical-session.target pipewire.service\nWants=graphical-session.target\n"
-    "[Service]\nExecStart=/usr/bin/hermes\n",
+    "[Service]\nExecStart=/usr/bin/ares-streaming\n",
     "/x"
   );
 
@@ -115,7 +115,7 @@ TEST(PreloginUnit, OtherDependenciesOnTheSameLineSurvive) {
 TEST(PreloginUnit, AUnitWithNoRestartPolicyGetsOne) {
   // Hermes leaves with the compositor at logout and has to come back for the
   // login screen.
-  const auto unit = from_boot_unit("[Unit]\nDescription=x\n[Service]\nExecStart=/usr/bin/hermes\n", "/x");
+  const auto unit = from_boot_unit("[Unit]\nDescription=x\n[Service]\nExecStart=/usr/bin/ares-streaming\n", "/x");
 
   EXPECT_TRUE(has_line(unit, "Restart=on-failure"));
   EXPECT_TRUE(has_line(unit, "WantedBy=default.target"));
@@ -136,7 +136,7 @@ TEST(PreloginUnit, TheFlatpakStartAndStopCommandsCarryOver) {
 }
 
 TEST(PreloginUnit, WhatItWroteIsRecognisedAndWhatSomeoneElseWroteIsNot) {
-  EXPECT_TRUE(is_generated_unit(from_boot_unit(packaged_unit, "/usr/lib/systemd/user/hermes.service")));
+  EXPECT_TRUE(is_generated_unit(from_boot_unit(packaged_unit, "/usr/lib/systemd/user/ares.service")));
   EXPECT_FALSE(is_generated_unit(packaged_unit));
   EXPECT_FALSE(is_generated_unit("# my own override\n[Service]\nExecStart=/home/me/hermes\n"));
 }
@@ -154,7 +154,7 @@ TEST(PreloginUnit, AUnitIsJudgedByWhatItWaitsForNotByWhoWroteIt) {
   // Someone's own override that starts at boot is as good as the generated one.
   EXPECT_FALSE(unit_waits_for_session("[Service]\nExecStart=/home/me/hermes\n[Install]\nWantedBy=default.target\n"));
   // A target named only in a comment is not a dependency.
-  EXPECT_FALSE(unit_waits_for_session("# no longer After=graphical-session.target\n[Service]\nExecStart=/usr/bin/hermes\n"));
+  EXPECT_FALSE(unit_waits_for_session("# no longer After=graphical-session.target\n[Service]\nExecStart=/usr/bin/ares-streaming\n"));
   EXPECT_TRUE(unit_waits_for_session("[Install]\nWantedBy=xdg-desktop-autostart.target\n"));
 }
 

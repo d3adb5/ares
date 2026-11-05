@@ -98,7 +98,7 @@ RUN --mount=type=cache,target=/var/cache/pacman,sharing=locked \
     yes | pacman -Scc; \
     rm -rf /var/lib/pacman/sync/* /var/log/pacman.log /tmp/* /var/tmp/*
 
-RUN setcap cap_sys_admin+p /usr/bin/hermes || true; setcap cap_sys_admin+ep /usr/bin/sway || true
+RUN setcap cap_sys_admin+p /usr/bin/ares-streaming || true; setcap cap_sys_admin+ep /usr/bin/sway || true
 
 COPY rootfs/ /
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/hermes-steam-session /usr/local/bin/hermes-focus-watch

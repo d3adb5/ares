@@ -49,7 +49,7 @@ namespace platf::prelogin {
   /** What the checks are decided from, gathered by collect_facts(). */
   struct facts_t {
     std::string user;
-    std::string unit_name;  ///< "hermes.service"; empty when no packaged unit was found.
+    std::string unit_name;  ///< "ares.service"; empty when no packaged unit was found.
     bool unit_from_boot {false};  ///< A unit in the user's own directory that does not wait for the session.
     bool unit_generated {false};  ///< ...and it is the copy `--prelogin enable` writes.
     bool unit_enabled {false};  ///< The unit is wanted by default.target.

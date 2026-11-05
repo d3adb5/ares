@@ -125,7 +125,7 @@ namespace platf::session_attach {
             idle_polls = 0;
             if (!announced) {
               announced = true;
-              BOOST_LOG(info) << "[Session] A graphical session has started that this Hermes is not part of. It will "
+              BOOST_LOG(info) << "[Session] A graphical session has started that this Ares is not part of. It will "
                                  "restart itself into it once no client is connected; until then it cannot launch "
                                  "applications into the desktop or change its layout."sv;
             }
@@ -135,7 +135,7 @@ namespace platf::session_attach {
             continue;
           }
 
-          BOOST_LOG(info) << "[Session] Restarting into the graphical session that started after Hermes did, with the "
+          BOOST_LOG(info) << "[Session] Restarting into the graphical session that started after Ares did, with the "
                              "environment the user manager now holds."sv;
           pending_restart_environment = merged_environment(own, session);
           platf::restart();

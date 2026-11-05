@@ -3,7 +3,7 @@ Description=Hermes session account broker socket
 Documentation=https://github.com/MrOz59/Hermes
 
 [Socket]
-ListenStream=/run/hermes/session-broker.sock
+ListenStream=/run/ares/session-broker.sock
 # Mode 0666 the way the card broker's socket is: the gate is not the socket
 # mode but SO_PEERCRED checked against a root-owned allow file, and a mode that
 # pretended otherwise would only invite someone to rely on it.

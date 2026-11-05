@@ -139,26 +139,24 @@ namespace platf {
   }
 
   namespace {
-    // Hermes used to store its configuration in ~/.config/sunshine, the very directory
-    // Apollo and Sunshine use. All three then shared one credentials file, one apps list
-    // and one paired-client list, so installing Hermes next to either of them silently
-    // took over their setup — and made a reinstall look like it had kept the old
-    // password. Hermes now keeps its own directory.
-    constexpr auto CONFIG_DIR_NAME = "hermes"sv;
-    constexpr auto SHARED_CONFIG_DIR_NAME = "sunshine"sv;
+    // Ares keeps its own directory, so it can be installed beside Hermes. Its first start
+    // copies Hermes' setup (apps, paired clients, credentials); Hermes' files stay as they
+    // were, including an apps list Ares would otherwise migrate out from under it.
+    constexpr auto CONFIG_DIR_NAME = "ares-streaming"sv;
+    constexpr auto SHARED_CONFIG_DIR_NAME = "hermes"sv;
 
     // Files that are renamed along with the directory. Keep in sync with the defaults in
     // src/config.cpp.
     constexpr std::pair<std::string_view, std::string_view> RENAMED_CONFIG_FILES[] {
-      {"sunshine.conf"sv, "hermes.conf"sv},
-      {"sunshine_state.json"sv, "hermes_state.json"sv},
+      {"hermes.conf"sv, "ares.conf"sv},
+      {"hermes_state.json"sv, "ares_state.json"sv},
     };
 
     /**
-     * @brief Give any Sunshine-named file in the Hermes config directory its Hermes name.
+     * @brief Give any Hermes-named file in the Ares config directory its Ares name.
      * @details Idempotent, so it also fixes up a directory that was copied over by hand.
      *          This runs before Boost logging exists, so it cannot log through it.
-     * @param config_path The Hermes config directory.
+     * @param config_path The Ares config directory.
      */
     void rename_shared_config_files(const fs::path &config_path) {
       for (const auto &[shared_name, name] : RENAMED_CONFIG_FILES) {
@@ -175,12 +173,12 @@ namespace platf {
     }
 
     /**
-     * @brief Seed a first-run Hermes config directory from the shared Sunshine one.
-     * @details The source is copied, never moved: Apollo or Sunshine may still be running
-     *          from it. Existing Hermes installs therefore carry their apps, paired
-     *          clients and credentials across without disturbing their neighbours.
-     * @param config_path The Hermes config directory.
-     * @param shared_path The Sunshine config directory to seed from.
+     * @brief Seed a first-run Ares config directory from the Hermes one.
+     * @details The source is copied, never moved: Hermes may still be used from it. Ares
+     *          therefore carries over its apps, paired clients and credentials without
+     *          disturbing it.
+     * @param config_path The Ares config directory.
+     * @param shared_path The Hermes config directory to seed from.
      */
     void seed_from_shared_config(const fs::path &config_path, const fs::path &shared_path) {
       std::error_code ec;
@@ -200,19 +198,19 @@ namespace platf {
         fs::copy(shared_path, config_path, fs::copy_options::recursive | fs::copy_options::copy_symlinks, ec);
       }
       if (ec) {
-        std::cerr << "Could not seed the Hermes config directory: "sv << ec.message() << std::endl;
-        std::cerr << "Hermes will start with a fresh configuration in "sv << config_path << std::endl;
+        std::cerr << "Could not seed the Ares config directory: "sv << ec.message() << std::endl;
+        std::cerr << "Ares will start with a fresh configuration in "sv << config_path << std::endl;
         return;
       }
 
       // Logs are the one thing not worth inheriting: a log that starts mid-way through
-      // another host's session is actively misleading when diagnosing Hermes.
-      for (const auto &name : {"sunshine.log"sv, "sunshine.log.backup"sv}) {
+      // another host's session is actively misleading when diagnosing Ares.
+      for (const auto &name : {"hermes.log"sv, "hermes.log.backup"sv}) {
         fs::remove(config_path / name, ec);
       }
       ec.clear();
 
-      std::cout << shared_path << " was left untouched; Apollo and Sunshine keep using it."sv << std::endl;
+      std::cout << shared_path << " was left untouched; Ares keeps using it."sv << std::endl;
     }
   }  // namespace
 
@@ -563,11 +561,11 @@ std::string get_local_ip_for_gateway() {
     // Restart=on-failure if a remaining workload hits systemd's stop timeout.
     std::error_code ec;
     boost::filesystem::path working_dir {"/"};
-    auto child = run_command(false, false, "systemctl --user --no-block stop hermes.service",
+    auto child = run_command(false, false, "systemctl --user --no-block stop ares.service",
                              working_dir, boost::this_process::environment(), nullptr, ec, nullptr);
     if (!ec && child.valid()) {
       if (child.wait_for(2s, ec) && !ec && child.exit_code() == 0) {
-        BOOST_LOG(info) << "Requested intentional stop of hermes.service from system tray";
+        BOOST_LOG(info) << "Requested intentional stop of ares.service from system tray";
         return true;
       }
       child.terminate(ec);

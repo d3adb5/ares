@@ -888,7 +888,7 @@ namespace wl {
       if (!gbm_device) {
         BOOST_LOG(error) << "Configured adapter_name "sv << node
                          << " cannot allocate capture buffers. Point it at the render node the "sv
-                         << "compositor renders on, or clear it to let Hermes search."sv;
+                         << "compositor renders on, or clear it to let Ares search."sv;
         return false;
       }
       BOOST_LOG(info) << "GBM capture device: "sv << node << " (adapter_name)"sv;

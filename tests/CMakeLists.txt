@@ -73,8 +73,8 @@ set(INTEGRATION_TEST_FILES
     "docs/configuration.md"
     "src_assets/common/assets/web/public/assets/locale/en.json"
     "src_assets/common/assets/web/configs/tabs/General.vue"
-    "src_assets/linux/misc/60-hermes.rules"
-    "src_assets/linux/misc/74-hermes-session-acl.rules"
+    "src_assets/linux/misc/60-ares.rules"
+    "src_assets/linux/misc/74-ares-session-acl.rules"
 )
 
 foreach(file ${INTEGRATION_TEST_FILES})

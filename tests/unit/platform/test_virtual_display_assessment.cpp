@@ -150,7 +150,7 @@ TEST(SessionAssessment, IsolationWithoutTheDrmSeatRuleIsUnavailableNotReady) {
 
   const auto isolated = reportFor(facts, VDISPLAY::feature_e::isolated_sessions);
   EXPECT_EQ(isolated.readiness, VDISPLAY::readiness_e::unavailable);
-  EXPECT_NE(isolated.remediation.find("72-hermes-kms-session-seats.rules"), std::string::npos)
+  EXPECT_NE(isolated.remediation.find("72-ares-kms-session-seats.rules"), std::string::npos)
     << "the fix must name the rule to install: " << isolated.remediation;
 
   // Nothing else may be dragged down with it: the host session still works.
@@ -286,7 +286,7 @@ TEST(SessionAssessment, DISABLED_LiveSession) {
   const auto kms = VDISPLAY::getHermesKmsStatus();
   std::cout << "  [hermes-kms] module_loaded=" << kms.module_loaded
             << " card_index=" << kms.card_index
-            << " uapi=" << kms.uapi_version << " (Hermes needs " << kms.required_uapi_version << ")"
+            << " uapi=" << kms.uapi_version << " (Ares needs " << kms.required_uapi_version << ")"
             << " driver=" << kms.driver_version << "\n\n";
   for (const auto &report : VDISPLAY::assessSession(facts)) {
     std::cout << VDISPLAY::featureName(report.feature) << ": "

@@ -4,8 +4,10 @@ StartLimitIntervalSec=500
 StartLimitBurst=5
 # Start only once the graphical session is up, and stop when it goes away.
 # Capture, the virtual display, and launched apps all need a live session.
-After=graphical-session.target
+After=graphical-session.target hermes.service
 PartOf=graphical-session.target
+# Same default ports as Hermes: starting one stops the other.
+Conflicts=hermes.service
 Wants=graphical-session.target
 
 [Service]
@@ -25,7 +27,7 @@ Wants=graphical-session.target
 ExecStartPre=/bin/sleep 5
 @SUNSHINE_SERVICE_START_COMMAND@
 @SUNSHINE_SERVICE_STOP_COMMAND@
-ExecStopPost=-/usr/bin/hermes-monitor-recovery
+ExecStopPost=-/usr/bin/ares-monitor-recovery
 # Fedora defaults to aborting timed-out services, producing misleading
 # Gamescope/Wine coredumps. Escalate directly to the final kill signal instead.
 TimeoutStopFailureMode=kill

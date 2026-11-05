@@ -18,7 +18,7 @@ namespace platf::session_broker {
 
   namespace {
 
-    constexpr const char *default_socket_path = "/run/hermes/session-broker.sock";
+    constexpr const char *default_socket_path = "/run/ares/session-broker.sock";
 
     bool valid_client_id(std::string_view value) {
       return !value.empty() && value.size() <= 64 && std::ranges::all_of(value, [](char ch) {

@@ -1,14 +1,14 @@
 [Unit]
 Description=Hermes session account broker
 Documentation=https://github.com/MrOz59/Hermes
-Requires=hermes-session-broker.socket
-After=hermes-session-broker.socket
+Requires=ares-session-broker.socket
+After=ares-session-broker.socket
 
 [Service]
 Type=simple
 User=root
 Group=root
-ExecStart=/usr/bin/hermes-session-broker
+ExecStart=/usr/bin/ares-session-broker
 Restart=on-failure
 RestartSec=1s
 UMask=0077
@@ -35,7 +35,7 @@ PrivateNetwork=yes
 # writes to any of those three.
 ProtectHome=read-only
 ProtectSystem=strict
-ReadWritePaths=/etc /var/lib/hermes /run/hermes
+ReadWritePaths=/etc /var/lib/hermes /run/ares
 ProtectClock=yes
 ProtectControlGroups=yes
 ProtectHostname=yes

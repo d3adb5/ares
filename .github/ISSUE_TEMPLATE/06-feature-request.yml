@@ -9,8 +9,8 @@ body:
         Good feature requests start from the problem, not from the solution. Describing what you were trying to do,
         and what stopped you, leaves room for a better answer than the one you had in mind.
 
-        Please check [docs/configuration.md](https://github.com/MrOz59/Hermes/blob/main/docs/configuration.md) first -
-        Hermes has many settings, and what you want may already exist under a name you did not expect.
+        Please check [docs/configuration.md](https://github.com/d3adb5/ares/blob/master/docs/configuration.md) first -
+        Ares has many settings, and what you want may already exist under a name you did not expect.
 
   - type: checkboxes
     id: preflight
@@ -35,7 +35,7 @@ body:
   - type: textarea
     id: proposal
     attributes:
-      label: What would you like Hermes to do?
+      label: What would you like Ares to do?
     validations:
       required: true
 

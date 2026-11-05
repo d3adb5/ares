@@ -86,7 +86,7 @@ struct UserCredsTest: testing::Test {
     dir = std::filesystem::temp_directory_path() / "hermes-user-creds-test";
     std::filesystem::remove_all(dir);
     std::filesystem::create_directories(dir);
-    file = (dir / "hermes_state.json").string();
+    file = (dir / "ares_state.json").string();
   }
 
   void TearDown() override {

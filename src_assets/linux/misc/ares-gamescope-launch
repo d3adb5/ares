@@ -2,7 +2,7 @@
 
 set -u
 
-LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hermes"
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/ares-streaming"
 LOG="$LOG_DIR/gamescope.log"
 mkdir -p "$LOG_DIR"
 

@@ -1,5 +1,5 @@
 /**
- * @file tools/hermes-gamemode.cpp
+ * @file tools/ares-gamemode.cpp
  * @brief The console Hermes shows when there is no keyboard and no desktop.
  *
  * SteamOS and CachyOS Game Mode are a compositor, a controller and Steam. There
@@ -90,7 +90,7 @@ namespace {
    * @brief The user unit that runs Hermes on this machine.
    *
    * The CMake build installs sunshine.service; the Arch packaging renames it
-   * to hermes.service so it can sit beside an apollo/sunshine install. A
+   * to ares.service so it can sit beside an apollo/sunshine install. A
    * restart has to name the unit that is actually there, so the usual unit
    * directories are checked and the first candidate found wins.
    */
@@ -107,7 +107,7 @@ namespace {
     directories.emplace_back("/usr/local/lib/systemd/user");
     directories.emplace_back("/usr/lib/systemd/user");
 
-    for (const char *candidate : {"hermes", "sunshine"}) {
+    for (const char *candidate : {"ares", "sunshine"}) {
       for (const auto &directory : directories) {
         std::error_code error;
         if (std::filesystem::exists(directory / (std::string {candidate} + ".service"), error)) {
@@ -131,9 +131,9 @@ namespace {
   int web_ui_port() {
     std::string config_path;
     if (const char *xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg) {
-      config_path = std::string {xdg} + "/hermes/hermes.conf";
+      config_path = std::string {xdg} + "/hermes/ares.conf";
     } else if (const char *home = std::getenv("HOME"); home && *home) {
-      config_path = std::string {home} + "/.config/hermes/hermes.conf";
+      config_path = std::string {home} + "/.config/ares-streaming/ares.conf";
     } else {
       return DEFAULT_BASE_PORT + WEB_UI_PORT_OFFSET;
     }
@@ -251,7 +251,7 @@ namespace {
       }
       result.ok = result.status >= 200 && result.status < 300;
       if (!result.ok && result.error.empty()) {
-        result.error = "Hermes answered " + std::to_string(result.status);
+        result.error = "Ares answered " + std::to_string(result.status);
       }
       return result;
     }
@@ -324,7 +324,7 @@ namespace {
         api_ {std::move(api)},
         port_ {port} {
       setStyleSheet(STYLE_SHEET);
-      setWindowTitle("Hermes");
+      setWindowTitle("Ares");
 
       stack_ = new QStackedWidget;
       stack_->addWidget(build_home());
@@ -390,7 +390,7 @@ namespace {
       auto *layout = new QVBoxLayout(page);
       layout->setSpacing(14);
 
-      auto *title = new QLabel("Hermes");
+      auto *title = new QLabel("Ares");
       title->setObjectName("title");
       layout->addWidget(title);
 
@@ -409,7 +409,7 @@ namespace {
       });
       layout->addWidget(pair_button_);
 
-      auto *restart = make_button("Restart Hermes");
+      auto *restart = make_button("Restart Ares");
       connect(restart, &QPushButton::clicked, this, [this] {
         restart_service();
       });
@@ -654,7 +654,7 @@ namespace {
         status_label_->setText(
           QStringLiteral("<span style=\"color:#e05252\">\u25cf</span> Not reachable")
         );
-        host_label_->setText("Hermes is not answering on port " + QString::number(port_));
+        host_label_->setText("Ares is not answering on port " + QString::number(port_));
         message_label_->setText(QString::fromStdString(result.error));
         pending_ = false;
         pair_button_->setObjectName({});
@@ -764,26 +764,26 @@ namespace {
   public:
     NotRunning() {
       setStyleSheet(STYLE_SHEET);
-      setWindowTitle("Hermes");
+      setWindowTitle("Ares");
 
       auto *layout = new QVBoxLayout(this);
       layout->setContentsMargins(48, 40, 48, 40);
       layout->setSpacing(14);
 
-      auto *title = new QLabel("Hermes is not running");
+      auto *title = new QLabel("Ares is not running");
       title->setObjectName("title");
       layout->addWidget(title);
 
       auto *hint = new QLabel(
         "No local API token was found, which is how this console finds a "
-        "running Hermes. Starting the service publishes one."
+        "running Ares. Starting the service publishes one."
       );
       hint->setObjectName("subtitle");
       hint->setWordWrap(true);
       layout->addWidget(hint);
       layout->addSpacing(18);
 
-      auto *start = make_button("Start Hermes");
+      auto *start = make_button("Start Ares");
       connect(start, &QPushButton::clicked, this, [this] {
         // The unit is named as installed - hermes on Arch, sunshine elsewhere
         // - because a restart of a unit that does not exist is a silent

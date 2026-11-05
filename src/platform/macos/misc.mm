@@ -99,7 +99,7 @@ namespace platf {
 
     // Kept in step with the Linux path: Hermes owns its config directory rather than
     // sharing ~/.config/sunshine with Apollo and Sunshine.
-    return fs::path {homedir} / ".config/hermes"sv;
+    return fs::path {homedir} / ".config/ares-streaming"sv;
   }
 
   using ifaddr_t = util::safe_ptr<ifaddrs, freeifaddrs>;

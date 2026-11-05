@@ -313,11 +313,11 @@ namespace proc {
         return options;
       }
       if (app.isolate_devices == "on" || app.isolate_sound == "on") {
-        BOOST_LOG(error) << "[IsolatedSession] " << app.name << " requires device isolation, but Hermes lacks "
+        BOOST_LOG(error) << "[IsolatedSession] " << app.name << " requires device isolation, but Ares lacks "
                             "CAP_SYS_ADMIN and CAP_MKNOD (setcap cap_sys_admin,cap_mknod,cap_sys_chroot+p).";
         return std::nullopt;
       }
-      BOOST_LOG(warning) << "[IsolatedSession] Hermes lacks CAP_SYS_ADMIN and CAP_MKNOD; "
+      BOOST_LOG(warning) << "[IsolatedSession] Ares lacks CAP_SYS_ADMIN and CAP_MKNOD; "
                          << app.name << " sees the host's devices.";
       return platf::session_devices::options_t {};
     }
@@ -1103,12 +1103,12 @@ namespace proc {
       std::error_code ec;
       const auto self = std::filesystem::canonical("/proc/self/exe", ec);
       if (!ec) {
-        const auto sibling = self.parent_path() / "hermes-detached-session";
+        const auto sibling = self.parent_path() / "ares-detached-session";
         if (::access(sibling.c_str(), X_OK) == 0) {
           return sibling.string();
         }
       }
-      return find_program("hermes-detached-session");
+      return find_program("ares-detached-session");
     }
 
     std::string detached_unit_name(const std::string &runtime_id) {
@@ -1960,7 +1960,7 @@ namespace proc {
       }
     } else {
       BOOST_LOG(warning) << "[IsolatedSession] Session " << runtime->runtime_id
-                         << " runs as its own user, which has an audio server Hermes cannot "
+                         << " runs as its own user, which has an audio server Ares cannot "
                             "reach; audio for this session is not isolated yet.";
     }
 
@@ -1995,7 +1995,7 @@ namespace proc {
 
   #ifndef SUNSHINE_BUILD_KWIN_TRANSPORT
       return plasma_failed(
-        "is not available: Hermes was built without the KWin transport, which needs "
+        "is not available: Ares was built without the KWin transport, which needs "
         "plasma-wayland-protocols 1.23 or newer"
       );
   #endif
@@ -2011,7 +2011,7 @@ namespace proc {
              {"kscreen-doctor", find_program("kscreen-doctor")},
              {"systemd-run", systemd_run},
              {"dbus-run-session", dbus_run_session},
-             {"hermes-detached-session", session_tool},
+             {"ares-detached-session", session_tool},
            }) {
         if (path.empty()) {
           missing.emplace_back(name);
@@ -2025,7 +2025,7 @@ namespace proc {
         return plasma_failed("cannot start: " + list + " not found");
       }
       if (self_ec) {
-        return plasma_failed("cannot start: Hermes cannot resolve its own executable");
+        return plasma_failed("cannot start: Ares cannot resolve its own executable");
       }
       // Startup leaves the encoders unprobed when nothing is on screen, and a
       // probe can fail; capture needs a chosen encoder either way. Validate one
@@ -2121,7 +2121,7 @@ namespace proc {
         std::filesystem::create_directories(staging, staging_ec);
         plan = platf::session_devices::plan_t::isolate(staging.string(), devices);
       } else {
-        BOOST_LOG(warning) << "[IsolatedSession] Hermes lacks CAP_SYS_ADMIN and CAP_MKNOD; detached desktop "
+        BOOST_LOG(warning) << "[IsolatedSession] Ares lacks CAP_SYS_ADMIN and CAP_MKNOD; detached desktop "
                            << runtime->runtime_id << " sees the host's devices.";
       }
 
@@ -2151,11 +2151,11 @@ namespace proc {
       }
       if (runtime->namespace_pid) {
         // The client's gamepads carry this tag. udev keeps devices so tagged
-        // off every seat and closed to the user's processes (60-hermes.rules);
+        // off every seat and closed to the user's processes (60-ares.rules);
         // Hermes gives the desktop its own copies of their nodes instead.
         // Without it, gamepads are refused rather than shown to the host.
         const auto tag = "hermes-detached-" + runtime->runtime_id;
-        // For 60-hermes.rules, as for isolated Gamescope sessions: the
+        // For 60-ares.rules, as for isolated Gamescope sessions: the
         // desktop's mount namespace and Hermes' pid, so that the Steam Input
         // pads a Steam in this desktop makes are kept off the host too.
         runtime->isolated_seat_flag = (std::filesystem::path {host_runtime_dir()} / "hermes" / "isolated" / tag).string();
@@ -2383,7 +2383,7 @@ namespace proc {
       const auto gamescope = find_gamescope();
       const auto &gamescope_binary = gamescope.binary;
       if (gamescope_binary.empty()) {
-        BOOST_LOG(error) << "[IsolatedSession] Application profile requires gamescope; Hermes' own build "
+        BOOST_LOG(error) << "[IsolatedSession] Application profile requires gamescope; Ares' own build "
                             "installs to /usr/lib/hermes-gamescope (see scripts/install.sh).";
         return -1;
       }
@@ -2444,7 +2444,7 @@ namespace proc {
         BOOST_LOG(error) << "[IsolatedSession] " << gamescope_binary
                          << " cannot scan out on a different device than it renders with, so it "
                             "would open the host GPU's display instead of this session's card. Install "
-                            "Hermes' Gamescope (scripts/install.sh), use one with --prefer-drm "
+                            "Ares' Gamescope (scripts/install.sh), use one with --prefer-drm "
                             "(ValveSoftware/gamescope#2220), or set "
                             "HERMES_ISOLATED_GAMESCOPE_DRM_FLAG for a build whose --help does not "
                             "list the option it accepts.";
@@ -2699,7 +2699,7 @@ namespace proc {
       }
       if (devices->devices) {
         // Before any of the seat's devices, which come with the stream. For
-        // 60-hermes.rules: the session's mount namespace and Hermes' pid, to
+        // 60-ares.rules: the session's mount namespace and Hermes' pid, to
         // tell the Steam Input pads the session makes; for 74-: no ACL.
         runtime->isolated_seat_flag = (std::filesystem::path {host_runtime_dir()} / "hermes" / "isolated" / runtime->seat_id).string();
         std::error_code flag_ec;
@@ -3273,7 +3273,7 @@ namespace proc {
       const int height = static_cast<int>(launch_session->height ? launch_session->height : 1080);
       const int refresh = launch_session->fps ? launch_session->fps : 60000;
       if (helper.empty() || run_program({helper, "--configure-output", runtime->runtime_dir, std::to_string(width), std::to_string(height), std::to_string(refresh)}, 8s) != 0) {
-        launch_session->launch_error_message = "Could not apply the requested Detached display mode; see the Hermes log";
+        launch_session->launch_error_message = "Could not apply the requested Detached display mode; see the Ares log";
         BOOST_LOG(error) << "[IsolatedSession] " << launch_session->launch_error_message;
         return false;
       }
@@ -3713,7 +3713,7 @@ namespace proc {
     _env["APOLLO_CLIENT_ENABLE_SOPS"] = launch_session->enable_sops ? "true" : "false";
 
     // Hermes-branded env vars (mirror the APOLLO_* lineage contract). New
-    // tooling (e.g. hermes-gamescope-launch) reads these; APOLLO_*/SUNSHINE_*
+    // tooling (e.g. ares-gamescope-launch) reads these; APOLLO_*/SUNSHINE_*
     // remain for client/lineage compatibility.
     _env["HERMES_APP_ID"] = _app.id;
     _env["HERMES_APP_NAME"] = _app.name;
@@ -4684,7 +4684,7 @@ namespace proc {
         std::istringstream tokens {cmd};
         tokens >> first_token;
 
-        bool is_launcher = first_token == "hermes-gamescope-launch" ||
+        bool is_launcher = first_token == "ares-gamescope-launch" ||
                            first_token == "apollo-gamescope-launch";
         if (!is_launcher &&
             app.value("name", "") == "Gamescope Steam Session" &&

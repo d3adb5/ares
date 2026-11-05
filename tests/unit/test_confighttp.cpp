@@ -66,7 +66,7 @@ struct ConfigResponseTest: PlatformTestSuite {};
 TEST_F(ConfigResponseTest, AConfigFileCannotReplaceAComputedField) {
   // The reported bug: saveConfig() persists whatever the Web UI posts back, and
   // the config page posts the whole response - so streamPorts ended up in
-  // hermes.conf. The merge then overwrote the array with the string the config
+  // ares.conf. The merge then overwrote the array with the string the config
   // parser produces, `"[]"` passed the `|| []` guard because it is truthy, and
   // the home page died calling .filter on it.
   auto response = confighttp::computed_config_json();
@@ -96,7 +96,7 @@ TEST_F(ConfigResponseTest, EveryComputedFieldIsRegisteredAsOne) {
   for (const auto &[name, _] : response.items()) {
     EXPECT_TRUE(config::server_computed_keys().contains(name))
       << '\'' << name << "' is computed for the config response but is not in "
-      << "config::server_computed_keys(), so a hermes.conf key of that name would "
+      << "config::server_computed_keys(), so a ares.conf key of that name would "
       << "overwrite it and the config parser would report it as unrecognized";
   }
 }

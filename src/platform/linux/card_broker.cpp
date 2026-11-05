@@ -26,7 +26,7 @@ namespace VDISPLAY::card_broker {
 
   namespace {
 
-    constexpr const char *default_socket_path = "/run/hermes/card-broker.sock";
+    constexpr const char *default_socket_path = "/run/ares/card-broker.sock";
     constexpr size_t max_reply_bytes = 4096;
 
     // The whole conversation - connect, request, reply - shares one deadline.

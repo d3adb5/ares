@@ -16,7 +16,7 @@ namespace VDISPLAY::card_broker {
    *
    * The paths come from the driver rather than from udev, so they are known
    * before any rule has run. The render node is not necessarily *openable*
-   * yet: `92-hermes-kms-access.rules` turns the card's `access_uid` into
+   * yet: `92-ares-kms-access.rules` turns the card's `access_uid` into
    * ownership of that node, and that happens on udev's schedule.
    */
   struct card_t {

@@ -15,6 +15,6 @@ namespace platf {
       return false;
     }
     const auto path = entry.substr(second + 1);
-    return path.find("/user@") != std::string_view::npos && path.ends_with("/hermes.service");
+    return path.find("/user@") != std::string_view::npos && path.ends_with("/ares.service");
   }
 }  // namespace platf

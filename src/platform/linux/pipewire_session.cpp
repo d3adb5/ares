@@ -190,7 +190,7 @@ namespace platf::kwin {
     }();
     pw_core_add_listener(state->core, &state->core_listener, &core_events, state.get());
     const auto target = std::to_string(serial);
-    state->stream = pw_stream_new(state->core, "Hermes detached desktop", pw_properties_new(PW_KEY_TARGET_OBJECT, target.c_str(), PW_KEY_MEDIA_TYPE, "Video", PW_KEY_MEDIA_CATEGORY, "Capture", PW_KEY_MEDIA_ROLE, "Screen", nullptr));
+    state->stream = pw_stream_new(state->core, "Ares detached desktop", pw_properties_new(PW_KEY_TARGET_OBJECT, target.c_str(), PW_KEY_MEDIA_TYPE, "Video", PW_KEY_MEDIA_CATEGORY, "Capture", PW_KEY_MEDIA_ROLE, "Screen", nullptr));
     if (!state->stream) {
       error = "Could not create private PipeWire stream";
       return nullptr;

@@ -9,7 +9,7 @@ elseif (UNIX)
     include(GNUInstallDirs)
 
     if(NOT DEFINED SUNSHINE_EXECUTABLE_PATH)
-        set(SUNSHINE_EXECUTABLE_PATH "hermes")
+        set(SUNSHINE_EXECUTABLE_PATH "ares-streaming")
     endif()
 
     if(SUNSHINE_BUILD_FLATPAK)

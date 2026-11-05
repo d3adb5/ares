@@ -454,7 +454,7 @@ namespace VDISPLAY {
    *
    * Isolation has two halves and they are installed separately: Hermes' own
    * udev rules place a session's input devices on a private seat, while the
-   * driver's `72-hermes-kms-session-seats.rules` does the same for its DRM
+   * driver's `72-ares-kms-session-seats.rules` does the same for its DRM
    * cards. With only the first installed a session still starts, still gets its
    * own input, and shares the host compositor's screen - and every check Hermes
    * performs today passes. This is the missing check: a card with no ID_SEAT is

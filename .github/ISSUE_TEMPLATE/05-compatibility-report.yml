@@ -1,14 +1,14 @@
 name: Compatibility report (it works, or it does not)
-description: Tell us how Hermes behaved on your distribution, compositor and GPU. Reports that it simply works are just as valuable as failures.
+description: Tell us how Ares behaved on your distribution, compositor and GPU. Reports that it simply works are just as valuable as failures.
 title: "[Compatibility] "
 labels: ["documentation"]
 body:
   - type: markdown
     attributes:
       value: |
-        Hermes is developed on CachyOS with KDE Plasma (Wayland) on AMD, because that is the only configuration one
+        Ares is developed on CachyOS with KDE Plasma (Wayland) on AMD, because that is the only configuration one
         maintainer can keep continuously exercised. Everything else is documented in
-        [docs/compatibility.md](https://github.com/MrOz59/Hermes/blob/main/docs/compatibility.md) as *verified*,
+        [docs/compatibility.md](https://github.com/d3adb5/ares/blob/master/docs/compatibility.md) as *verified*,
         *expected to work*, *known broken* or *untested*.
 
         A report like this is what moves an entry from "expected to work" to "verified". **Positive reports are
@@ -85,7 +85,7 @@ body:
         - label: More than one client at the same time
         - label: HDR
         - label: Clipboard synchronization
-        - label: The Game Mode console (hermes-gamemode)
+        - label: The Game Mode console (ares-gamemode)
 
   - type: textarea
     id: what-worked
@@ -100,7 +100,7 @@ body:
       value: |
         ### Host information
 
-        Run this in a terminal **on the machine that runs Hermes**, then paste the whole output below.
+        Run this in a terminal **on the machine that runs Ares**, then paste the whole output below.
         Nothing is uploaded anywhere - it only prints text for you to copy.
 
         ```bash
@@ -116,11 +116,11 @@ body:
           echo "== kms ==";      grep -H . /sys/module/hermes_kms/parameters/* 2>/dev/null
           echo "== drm ==";      ls -l /dev/dri/ /dev/dri/by-path/ 2>/dev/null
           echo "== user ==";     id -nG
-          echo "== service ==";  systemctl --user is-enabled hermes; systemctl --user is-active hermes
+          echo "== service ==";  systemctl --user is-enabled ares; systemctl --user is-active ares
         } 2>&1
         ```
 
-        If you run Hermes from the container image, run the block inside the container and add the output of
+        If you run Ares from the container image, run the block inside the container and add the output of
         `podman --version` or `docker --version` from the host.
 
   - type: textarea
@@ -138,7 +138,7 @@ body:
       label: Log (optional, but very welcome)
       description: >
         A debug-level log of one successful session proves the code path was really taken, and a failing one shows
-        where it stopped. See the Web UI under **Troubleshooting** -> **Logs**, or `~/.config/hermes/hermes.log`.
+        where it stopped. See the Web UI under **Troubleshooting** -> **Logs**, or `~/.config/ares-streaming/ares.log`.
       render: shell
     validations:
       required: false

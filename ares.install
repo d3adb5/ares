@@ -1,0 +1,39 @@
+do_setcap() {
+    setcap cap_sys_admin,cap_mknod,cap_sys_chroot+p /usr/bin/ares-streaming
+}
+
+do_udev_reload() {
+    udevadm control --reload-rules
+    udevadm trigger --property-match=DEVNAME=/dev/uinput
+    udevadm trigger --property-match=DEVNAME=/dev/uhid
+    modprobe uinput || true
+    modprobe uhid || true
+}
+
+fix_asset_permissions() {
+    # pacman preserves existing directory modes on upgrade. Keep packaged
+    # assets system-owned and non-writable after replacing older local builds.
+    chown -R root:root /usr/share/ares-streaming
+    find /usr/share/ares-streaming -type d -exec chmod 755 {} +
+    find /usr/share/ares-streaming -type f -exec chmod 644 {} +
+}
+
+post_install() {
+    do_setcap
+    do_udev_reload
+    fix_asset_permissions
+    echo ""
+    echo "==> Ares is installed. It uses the same default ports as Hermes, so starting"
+    echo "==> one stops the other. To switch from Hermes:"
+    echo "==>   systemctl --user disable --now hermes"
+    echo "==>   systemctl --user enable --now ares"
+    echo "==> The first start copies ~/.config/hermes to ~/.config/ares-streaming"
+    echo "==> and leaves the original untouched."
+    echo ""
+}
+
+post_upgrade() {
+    do_setcap
+    do_udev_reload
+    fix_asset_permissions
+}

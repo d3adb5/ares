@@ -43,7 +43,7 @@ TEST(WindowPlacement, DirectGameLaunchesDoNotMoveTheSteamClient) {
 
 TEST(WindowPlacement, RecognizesQuotedGamescopeAndTheShippedLauncher) {
   EXPECT_TRUE(launches_gamescope(split_unix("\"/usr/bin/gamescope\" -f -- game")));
-  EXPECT_TRUE(launches_gamescope(split_unix("'/path with spaces/hermes-gamescope-launch'")));
+  EXPECT_TRUE(launches_gamescope(split_unix("'/path with spaces/ares-gamescope-launch'")));
   EXPECT_FALSE(launches_gamescope(split_unix("steam -bigpicture")));
 }
 #endif

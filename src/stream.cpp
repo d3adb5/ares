@@ -1922,7 +1922,7 @@ namespace stream {
                     std::to_string(port) + ": " + error.message() + " (" + error.category().name() +
                     ':' + std::to_string(error.value()) + ").";
       if (error == boost::asio::error::address_in_use) {
-        reason += " The port is already in use. Check which process holds it, including any remaining Hermes or helper process.";
+        reason += " The port is already in use. Check which process holds it, including any remaining Ares or helper process.";
       }
       report_stream_start_failure(reason);
     };

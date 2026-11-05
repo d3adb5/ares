@@ -143,8 +143,8 @@ jobs:
         run: |
           mkdir -p build
           g++-13 -std=c++20 -O2 -Wall -Wextra -Werror \
-            tools/hermes-session-broker.cpp tools/session-broker-input.cpp \
-            -lacl -o build/hermes-session-broker
+            tools/ares-session-broker.cpp tools/session-broker-input.cpp \
+            -lacl -o build/ares-session-broker
       - name: Compile and test broker RPCs, worker bounds and ACLs independently
         env:
           HERMES_TEST_REQUIRE_UNIX_SOCKETS: "1"
@@ -160,16 +160,16 @@ jobs:
             tests/unit/platform/test_session_input_access.cpp \
             -lgtest_main -lgtest -lboost_log -lboost_thread -lboost_filesystem \
             -lboost_regex -lboost_chrono -lboost_atomic -lacl -pthread \
-            -o build/hermes-session-broker-tests
-          build/hermes-session-broker-tests --gtest_color=yes
+            -o build/ares-session-broker-tests
+          build/ares-session-broker-tests --gtest_color=yes
       - name: Test real accounts, hotplug, restart and per-seat revocation
         run: |
-          python3 scripts/session-broker-concurrency-test.py "$PWD/build/hermes-session-broker"
-          sudo udevadm verify src_assets/linux/misc/99-hermes-session-input.rules
-          sudo scripts/session-broker-test.sh "$PWD/build/hermes-session-broker"
+          python3 scripts/session-broker-concurrency-test.py "$PWD/build/ares-session-broker"
+          sudo udevadm verify src_assets/linux/misc/99-ares-session-input.rules
+          sudo scripts/session-broker-test.sh "$PWD/build/ares-session-broker"
       - name: Broker journal
         if: always()
-        run: sudo journalctl -u hermes-session-broker --no-pager -n 120
+        run: sudo journalctl -u ares-session-broker --no-pager -n 120
 
   linux:
     needs: artifacts
@@ -221,7 +221,7 @@ jobs:
 
       - name: Compile Hermes and input tests
         id: compile
-        run: cmake --build build --target sunshine test_sunshine hermes-session-broker -j2
+        run: cmake --build build --target sunshine test_sunshine ares-session-broker -j2
 
       - name: Test Hermes input translation and per-client feedback
         working-directory: build/tests

@@ -329,7 +329,7 @@ namespace config {
    * @brief Keys the Web UI's config response carries but that are never
    *        configuration: server-computed status, platform and version fields.
    *
-   * They end up in a real hermes.conf, because saveConfig() persists whatever
+   * They end up in a real ares.conf, because saveConfig() persists whatever
    * the Web UI posts and the config page posts the whole response back. Two
    * places have to know about them and used to disagree: the parser, which
    * would otherwise report each as an unrecognized option, and the config

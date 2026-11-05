@@ -134,7 +134,7 @@ namespace platf::prelogin {
      */
     std::optional<packaged_unit_t> find_packaged_unit() {
       std::error_code ec;
-      for (const char *name : {"hermes.service", "sunshine.service"}) {
+      for (const char *name : {"ares.service", "sunshine.service"}) {
         for (const char *dir : {"/etc/systemd/user", "/usr/local/lib/systemd/user", "/usr/lib/systemd/user"}) {
           const auto path = fs::path {dir} / name;
           if (fs::is_regular_file(path, ec)) {
@@ -263,8 +263,8 @@ namespace platf::prelogin {
     int usage(const char *name) {
       std::cerr << "Usage: " << name << " --prelogin status|enable|disable\n\n"
                 << "  status   say what stands between this machine and being reachable before login\n"
-                << "  enable   start Hermes with your user manager, and that manager at boot\n"
-                << "  disable  go back to starting Hermes with the graphical session\n"
+                << "  enable   start Ares with your user manager, and that manager at boot\n"
+                << "  disable  go back to starting Ares with the graphical session\n"
                 << std::endl;
       return 2;
     }
@@ -272,7 +272,7 @@ namespace platf::prelogin {
     int enable() {
       const auto packaged = find_packaged_unit();
       if (!packaged) {
-        std::cerr << "No packaged hermes.service or sunshine.service was found to start at boot." << std::endl;
+        std::cerr << "No packaged ares.service or sunshine.service was found to start at boot." << std::endl;
         return 1;
       }
       const auto source = read_file(packaged->path);
@@ -313,7 +313,7 @@ namespace platf::prelogin {
 
       const auto result = report();
       print(result);
-      std::cout << "This takes effect the next time Hermes starts: at the next boot, or with\n"
+      std::cout << "This takes effect the next time Ares starts: at the next boot, or with\n"
                 << "`systemctl --user restart " << packaged->name << "`, which ends a stream in progress." << std::endl;
       return result.ready ? 0 : 1;
     }
@@ -501,7 +501,7 @@ namespace platf::prelogin {
     bool ready = true;
 
     if (facts.unit_name.empty()) {
-      ready &= add("unit", state_e::missing, "Start at boot", "No packaged hermes.service or sunshine.service was found, so there is no unit to start at boot.", "Install Hermes from a package, or write a user unit that starts it from default.target.");
+      ready &= add("unit", state_e::missing, "Start at boot", "No packaged ares.service or sunshine.service was found, so there is no unit to start at boot.", "Install Ares from a package, or write a user unit that starts it from default.target.");
     } else if (report.enabled) {
       ready &= add("unit", state_e::ready, "Start at boot", facts.unit_name + (facts.unit_generated ? " starts with the user manager." : " is a unit of your own that starts with the user manager."));
     } else {
@@ -535,15 +535,15 @@ namespace platf::prelogin {
       // the greeter drew the login screen on it.
       ready &= add("greeter", state_e::ready, "Login screen", "Plasma Login Manager's greeter runs on KWin Wayland, which lights a new output by itself.");
     } else if (facts.display_manager == "gdm") {
-      ready &= add("greeter", state_e::unknown, "Login screen", "GDM's greeter is a Wayland session and should light a new output, but it has not been run with Hermes.");
+      ready &= add("greeter", state_e::unknown, "Login screen", "GDM's greeter is a Wayland session and should light a new output, but it has not been run with Ares.");
     } else {
-      ready &= add("greeter", state_e::unknown, "Login screen", facts.display_manager + " has not been run with Hermes; its greeter has to light a new output by itself.");
+      ready &= add("greeter", state_e::unknown, "Login screen", facts.display_manager + " has not been run with Ares; its greeter has to light a new output by itself.");
     }
 
     if (!facts.input_without_session) {
       ready &= add("input", state_e::unknown, "Input before login", "/dev/uinput was not found.");
     } else if (*facts.input_without_session) {
-      ready &= add("input", state_e::ready, "Input before login", "Hermes can create its keyboard and mouse with no session of its own.");
+      ready &= add("input", state_e::ready, "Input before login", "Ares can create its keyboard and mouse with no session of its own.");
     } else {
       ready &= add("input", state_e::missing, "Input before login", "/dev/uinput is granted to whoever is on the seat, which before login is the greeter.", "Run `sudo usermod -aG input " + user + "` and reboot.");
     }
@@ -619,7 +619,7 @@ namespace platf::prelogin {
       BOOST_LOG(info) << "[Prelogin] This host is set up to be reached before anyone logs in."sv;
       return;
     }
-    BOOST_LOG(warning) << "[Prelogin] Hermes starts at boot, but this host cannot be reached before login yet:"sv;
+    BOOST_LOG(warning) << "[Prelogin] Ares starts at boot, but this host cannot be reached before login yet:"sv;
     for (const auto &check : result.checks) {
       if (check.state == state_e::ready || check.state == state_e::note) {
         continue;
@@ -634,7 +634,7 @@ namespace platf::prelogin {
       return usage(name);
     }
     if (::getuid() == 0) {
-      std::cerr << "Run this as the user Hermes streams for, not as root." << std::endl;
+      std::cerr << "Run this as the user Ares streams for, not as root." << std::endl;
       return 2;
     }
 

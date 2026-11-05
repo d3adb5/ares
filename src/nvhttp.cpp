@@ -2279,7 +2279,7 @@ namespace nvhttp {
         }
 
         BOOST_LOG(fatal) << "Couldn't start http server on ports ["sv << port_http << ", "sv << port_https << "]: "sv << err.what();
-        BOOST_LOG(fatal) << "Another host is most likely already bound to them. Hermes, Apollo and Sunshine all use these ports, so only one of them can run at a time."sv;
+        BOOST_LOG(fatal) << "Another host is most likely already bound to them. Ares, Apollo and Sunshine all use these ports, so only one of them can run at a time."sv;
         shutdown_event->raise(true);
         return;
       }

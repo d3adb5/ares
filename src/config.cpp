@@ -555,7 +555,7 @@ namespace config {
     CERTIFICATE_FILE,
 
     platf::get_host_name(),  // sunshine_name,
-    "hermes_state.json"s,  // file_state
+    "ares_state.json"s,  // file_state
     {},  // external_ip
   };
 
@@ -605,7 +605,7 @@ namespace config {
     {},  // Username
     {},  // Password
     {},  // Password Salt
-    platf::appdata().string() + "/hermes.conf",  // config file
+    platf::appdata().string() + "/ares.conf",  // config file
     {},  // cmd args
     47989,  // Base port number
     // Default to dual-stack. On modern distros `localhost` often resolves to
@@ -614,7 +614,7 @@ namespace config {
     // nothing is listening on, before falling back to 127.0.0.1). "both" binds
     // "::" dual-stack so localhost works regardless of how it resolves.
     "both",  // Address family
-    platf::appdata().string() + "/hermes.log",  // log file
+    platf::appdata().string() + "/ares.log",  // log file
     false,  // notify_pre_releases
     true,  // announcements
     false,  // legacy_ordering
@@ -1584,7 +1584,7 @@ namespace config {
     // so that service instance will do the work instead.
 
     if (!config_loaded && !shortcut_launch) {
-      BOOST_LOG(fatal) << "To relaunch Hermes successfully, use the shortcut in the Start Menu. Do not run sunshine.exe manually."sv;
+      BOOST_LOG(fatal) << "To relaunch Ares successfully, use the shortcut in the Start Menu. Do not run sunshine.exe manually."sv;
       std::this_thread::sleep_for(10s);
 #else
     if (!config_loaded) {

@@ -46,9 +46,9 @@ echo "
 function install() {
   # user input rules
   # shellcheck disable=SC2002
-  cat "$SUNSHINE_SHARE_HERE/udev/rules.d/60-hermes.rules" | sudo tee /etc/udev/rules.d/60-hermes.rules
-  cat "$SUNSHINE_SHARE_HERE/udev/rules.d/74-hermes-session-acl.rules" | sudo tee /etc/udev/rules.d/74-hermes-session-acl.rules
-  cat "$SUNSHINE_SHARE_HERE/modules-load.d/60-hermes.conf" | sudo tee /etc/modules-load.d/60-hermes.conf
+  cat "$SUNSHINE_SHARE_HERE/udev/rules.d/60-ares.rules" | sudo tee /etc/udev/rules.d/60-ares.rules
+  cat "$SUNSHINE_SHARE_HERE/udev/rules.d/74-ares-session-acl.rules" | sudo tee /etc/udev/rules.d/74-ares-session-acl.rules
+  cat "$SUNSHINE_SHARE_HERE/modules-load.d/60-ares.conf" | sudo tee /etc/modules-load.d/60-ares.conf
   sudo modprobe uhid
   sudo udevadm control --reload-rules
   sudo udevadm trigger --property-match=DEVNAME=/dev/uinput
@@ -66,10 +66,10 @@ function install() {
 
 function remove() {
   # remove input rules
-  sudo rm -f /etc/udev/rules.d/60-hermes.rules /etc/udev/rules.d/74-hermes-session-acl.rules
+  sudo rm -f /etc/udev/rules.d/60-ares.rules /etc/udev/rules.d/74-ares-session-acl.rules
 
   # remove uhid module loading config
-  sudo rm -f /etc/modules-load.d/60-hermes.conf
+  sudo rm -f /etc/modules-load.d/60-ares.conf
 
   # remove service
   sudo rm -f ~/.config/systemd/user/sunshine.service
@@ -93,7 +93,7 @@ fi
 
 # create config directory if it doesn't exist
 # https://github.com/LizardByte/Sunshine/issues/324
-mkdir -p ~/.config/hermes
+mkdir -p ~/.config/ares-streaming
 
 # run sunshine
 "$SUNSHINE_BIN_HERE" $@

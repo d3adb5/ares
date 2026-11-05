@@ -230,7 +230,7 @@ namespace {
     if (!path.is_absolute() || path == fs::path {"/run/user"} / std::to_string(::getuid()) ||
         ::lstat(path.c_str(), &info) || !S_ISDIR(info.st_mode) || info.st_uid != ::getuid() ||
         (info.st_mode & 077) != 0 || ::getuid() == 0) {
-      throw std::runtime_error("Refusing to run outside a private same-user Hermes runtime directory");
+      throw std::runtime_error("Refusing to run outside a private same-user Ares runtime directory");
     }
     return path;
   }
@@ -333,7 +333,7 @@ namespace {
     set("XDG_RUNTIME_DIR", root.string());
     runtime_dir();
     if (root.parent_path() != fs::path {"/run/user"} / std::to_string(::getuid()) / "hermes/sessions") {
-      throw std::runtime_error("Not a private Hermes session directory");
+      throw std::runtime_error("Not a private Ares session directory");
     }
     std::ifstream ready(root / "ready");
     std::string line, socket, bus;
@@ -550,7 +550,7 @@ int main(int argc, char **argv) {
       return 0;
     }
     if ((argc != 5 && argc != 6) || std::string(argv[1]) != "--bootstrap") {
-      throw std::runtime_error("Usage: hermes-detached-session --bootstrap WIDTH HEIGHT HERMES_EXECUTABLE [REFRESH_MHZ]");
+      throw std::runtime_error("Usage: ares-detached-session --bootstrap WIDTH HEIGHT HERMES_EXECUTABLE [REFRESH_MHZ]");
     }
     const auto width = std::to_string(dimension(argv[2]));
     const auto height = std::to_string(dimension(argv[3]));
@@ -561,19 +561,19 @@ int main(int argc, char **argv) {
     set("HERMES_DETACHED_REFRESH_MHZ", refresh);
     const auto executable = fs::canonical(argv[4]);
     if (!executable.is_absolute() || ::access(executable.c_str(), X_OK)) {
-      throw std::runtime_error("Hermes executable is unavailable");
+      throw std::runtime_error("Ares executable is unavailable");
     }
     if (owns("org.freedesktop.systemd1")) {
       throw std::runtime_error("Bootstrap requires a private session bus");
     }
     fs::create_directories(root / "data/applications");
     fs::create_directories(root / "cache");
-    write_private(root / "data/applications/org.hermes.DetachedTransport.desktop", "[Desktop Entry]\nType=Application\nName=Hermes Detached Transport\nExec=" + desktop_exec(executable.string()) + "\nX-KDE-Wayland-Interfaces=org_kde_kwin_fake_input,zkde_screencast_unstable_v1\n");
+    write_private(root / "data/applications/org.hermes.DetachedTransport.desktop", "[Desktop Entry]\nType=Application\nName=Ares Detached Transport\nExec=" + desktop_exec(executable.string()) + "\nX-KDE-Wayland-Interfaces=org_kde_kwin_fake_input,zkde_screencast_unstable_v1\n");
     // A packaged Hermes retains capabilities needed by ordinary KMS capture.
     // KWin cannot read that process's /proc/<pid>/exe. Its private connection
     // is therefore opened by this capability-free helper and passed back.
     const auto connector = fs::canonical("/proc/self/exe");
-    write_private(root / "data/applications/org.hermes.DetachedPeer.desktop", "[Desktop Entry]\nType=Application\nName=Hermes Detached Connection\nExec=" + desktop_exec(connector.string()) + "\nX-KDE-Wayland-Interfaces=org_kde_kwin_fake_input,zkde_screencast_unstable_v1\n");
+    write_private(root / "data/applications/org.hermes.DetachedPeer.desktop", "[Desktop Entry]\nType=Application\nName=Ares Detached Connection\nExec=" + desktop_exec(connector.string()) + "\nX-KDE-Wayland-Interfaces=org_kde_kwin_fake_input,zkde_screencast_unstable_v1\n");
     // A second PowerDevil would manage the physical monitors and the machine's
     // sleep from a desktop nobody is sitting at. The host's stays in charge.
     fs::create_directories(root / "xdg/autostart");

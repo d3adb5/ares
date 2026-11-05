@@ -1,5 +1,5 @@
 name: Install, build or packaging problem
-description: makepkg, a package, the container image or a source build fails - or Hermes will not start after installing.
+description: makepkg, a package, the container image or a source build fails - or Ares will not start after installing.
 title: "[Install] "
 labels: ["bug"]
 body:
@@ -12,8 +12,8 @@ body:
         Three traps account for most reports, so check them first:
 
         - The AUR package named `hermes` is an unrelated PAM authentication project. The streaming package is
-          `hermes-streaming`.
-        - Hermes, Apollo and Sunshine all bind ports 47984, 47989 and 47990. They can be installed side by side, but
+          `ares-streaming`.
+        - Ares, Apollo and Sunshine all bind ports 47984, 47989 and 47990. They can be installed side by side, but
           only one may run at a time; the second one to start exits, which looks like `Failed to fetch` on the
           login page.
         - Image-based distributions (Bazzite, Silverblue, SteamOS) keep `/usr` read-only. Use the container image in
@@ -45,7 +45,7 @@ body:
         - Compiling
         - Linking
         - Packaging or installing
-        - After installing - Hermes does not start
+        - After installing - Ares does not start
         - After installing - the Web UI is not reachable
         - Something else
     validations:
@@ -91,7 +91,7 @@ body:
           echo "== tools =="; cmake --version | head -1; gcc --version | head -1; node --version; npm --version
           echo "== deps ==";  pacman -Q base-devel cmake git git-lfs nodejs npm cuda 2>&1
           echo "== hermes =="
-          pacman -Q hermes-streaming 2>/dev/null; ls -l /usr/bin/hermes 2>/dev/null
+          pacman -Q ares-streaming 2>/dev/null; ls -l /usr/bin/ares-streaming 2>/dev/null
           echo "== git ==";   git -C . rev-parse --short HEAD 2>/dev/null; git -C . status --short | head -20
         } 2>&1
         ```
