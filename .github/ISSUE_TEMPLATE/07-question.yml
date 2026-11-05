@@ -79,7 +79,7 @@ body:
     attributes:
       label: Log, if something is failing
       description: >
-        Web UI -> **Troubleshooting** -> **Logs** (there is a copy button), or `~/.config/ares-streaming/ares.log`, or
+        Web UI -> **Troubleshooting** -> **Logs** (there is a copy button), or `~/.config/ares/ares.log`, or
         `journalctl --user -u ares -b --no-pager`. Set the log level to `debug` under
         **Configuration** -> **General** first, and reproduce the problem once more.
       render: shell

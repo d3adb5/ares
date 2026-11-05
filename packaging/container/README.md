@@ -100,7 +100,7 @@ Network=host
 Environment=AUTOSTART_STEAM=false
 AddDevice=/dev/uinput
 AddDevice=/dev/uhid
-Volume=%h/.local/share/ares-streaming:/config:Z
+Volume=%h/.local/share/ares:/config:Z
 Volume=/dev/dri:/dev/dri
 Volume=/dev/input:/dev/input
 SecurityLabelDisable=true

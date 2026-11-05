@@ -7,7 +7,7 @@ Ares is [d3adb5](https://github.com/d3adb5)'s fork of
 to Hermes and Hermes' changes may be merged or cherry-picked here. It installs
 beside Hermes without file conflicts, but the two share default ports, so
 `ares.service` and `hermes.service` stop each other. Ares' first start copies
-`~/.config/hermes` to `~/.config/ares-streaming`. Clients see the same protocol,
+`~/.config/hermes` to `~/.config/ares`. Clients see the same protocol,
 including `server_name` "Hermes", and the Hermes-KMS driver is used unchanged.
 
 Ares is an Apollo-derived Linux game-streaming host focused on making
@@ -409,7 +409,7 @@ version publishes a normal release, both at
 
 | Distribution | Asset | Installs |
 |:-------------|:------|:---------|
-| Arch / CachyOS | `ares-streaming-<version>-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./ares-streaming-*.pkg.tar.zst` |
+| Arch / CachyOS | `ares-<version>-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./ares-*.pkg.tar.zst` |
 | Ubuntu 24.04, 26.04 | `hermes_<version>_ubuntu<release>_amd64.deb` | `sudo apt install ./hermes_<version>_ubuntu<release>_amd64.deb` |
 | Fedora 43, 44 | `hermes-<version>-1.fc<release>.x86_64.rpm` | `sudo dnf install ./hermes-<version>-1.fc<release>.x86_64.rpm` |
 
@@ -420,7 +420,7 @@ are the configuration Ares is developed on; the others are built in CI and not
 exercised as a desktop — see [docs/compatibility.md](docs/compatibility.md).
 No AppImage, Flatpak or Windows/macOS package is published.
 
-Every package installs the binary as `/usr/bin/ares-streaming` and a `ares.service`
+Every package installs the binary as `/usr/bin/ares` and a `ares.service`
 systemd **user** unit:
 
 ```bash
@@ -452,14 +452,14 @@ makepkg --nodeps -sf
 Install the generated package and start it with:
 
 ```bash
-sudo pacman -U ./ares-streaming-*.pkg.tar.zst
+sudo pacman -U ./ares-*.pkg.tar.zst
 systemctl --user enable --now ares
 ```
 
-The Arch package is named `ares-streaming` because the `hermes` name belongs
+The Arch package is named `ares` because the `hermes` name belongs
 to an unrelated PAM authentication project in the AUR. Upgrading from an older
 Ares package replaces only the old `hermes` package versions below `0.5.0`.
-The application paths remain `/usr/bin/ares-streaming`, `/usr/share/ares-streaming`, and the
+The application paths remain `/usr/bin/ares`, `/usr/share/ares`, and the
 `ares.service` systemd user unit, so it can still be installed **side by side
 with the `apollo` (AUR) and `sunshine` packages**.
 
@@ -510,7 +510,7 @@ Note that `docker/` at the repository root is unrelated: those are Sunshine's
 
 ## Notes
 
-- **Configuration location.** Ares stores everything in `~/.config/ares-streaming`
+- **Configuration location.** Ares stores everything in `~/.config/ares`
   (or `$XDG_CONFIG_HOME/hermes`): `ares.conf`, `ares_state.json` (Web UI
   credentials and paired clients), `apps.json`, and `ares.log`. Releases
   before 0.5.0 used `~/.config/sunshine`, shared with Apollo and Sunshine; on

@@ -26,8 +26,8 @@ location by modifying the configuration file.
 | OS      | Location                                        |
 |---------|-------------------------------------------------|
 | Docker  | @code{}/config@endcode                          |
-| Linux   | @code{}~/.config/ares-streaming@endcode               |
-| macOS   | @code{}~/.config/ares-streaming@endcode               |
+| Linux   | @code{}~/.config/ares@endcode               |
+| macOS   | @code{}~/.config/ares@endcode               |
 | Windows | @code{}%ProgramFiles%\\Sunshine\\config@endcode |
 
 Although it is recommended to use the configuration UI, it is possible manually configure Sunshine by
@@ -1695,7 +1695,7 @@ alias; new configurations should use the key above.
             on KWin's virtual backend (see below). Any other name replaces KWin
             with a
             compositor profile file, looked up first in
-            <code>~/.config/ares-streaming/session-compositors/</code> and then in the
+            <code>~/.config/ares/session-compositors/</code> and then in the
             profiles Ares ships; a profile declares the command line, any
             environment it needs, and whether it is told its Wayland socket name
             or names its own, and the compositor runs on a private Hermes-KMS

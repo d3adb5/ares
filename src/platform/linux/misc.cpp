@@ -142,7 +142,7 @@ namespace platf {
     // Ares keeps its own directory, so it can be installed beside Hermes. Its first start
     // copies Hermes' setup (apps, paired clients, credentials); Hermes' files stay as they
     // were, including an apps list Ares would otherwise migrate out from under it.
-    constexpr auto CONFIG_DIR_NAME = "ares-streaming"sv;
+    constexpr auto CONFIG_DIR_NAME = "ares"sv;
     constexpr auto SHARED_CONFIG_DIR_NAME = "hermes"sv;
 
     // Files that are renamed along with the directory. Keep in sync with the defaults in

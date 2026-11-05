@@ -133,7 +133,7 @@ namespace {
     if (const char *xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg) {
       config_path = std::string {xdg} + "/hermes/ares.conf";
     } else if (const char *home = std::getenv("HOME"); home && *home) {
-      config_path = std::string {home} + "/.config/ares-streaming/ares.conf";
+      config_path = std::string {home} + "/.config/ares/ares.conf";
     } else {
       return DEFAULT_BASE_PORT + WEB_UI_PORT_OFFSET;
     }

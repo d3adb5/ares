@@ -290,7 +290,7 @@ if(${SUNSHINE_ENABLE_TRAY})
         set(SUNSHINE_TRAY_PREFIX "${PROJECT_FQDN}")
     else()
         # Must match the RENAME used for the status icons in cmake/packaging/linux.cmake.
-        set(SUNSHINE_TRAY_PREFIX "ares-streaming")
+        set(SUNSHINE_TRAY_PREFIX "ares")
     endif()
     list(APPEND SUNSHINE_DEFINITIONS SUNSHINE_TRAY_PREFIX="${SUNSHINE_TRAY_PREFIX}")
 else()

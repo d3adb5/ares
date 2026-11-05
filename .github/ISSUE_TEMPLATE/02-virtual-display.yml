@@ -192,12 +192,12 @@ body:
         ### Ares log
 
         1. Set the log level to `debug`: Web UI -> **Configuration** -> **General** -> **Log Level** -> `debug`,
-           or `min_log_level = debug` in `~/.config/ares-streaming/ares.conf`.
+           or `min_log_level = debug` in `~/.config/ares/ares.conf`.
         2. Restart Ares: `systemctl --user restart ares` (or restart the process you started by hand).
         3. Reproduce the problem.
         4. Take the log from any of these:
            - Web UI -> **Troubleshooting** -> **Logs** (there is a copy button)
-           - the file `~/.config/ares-streaming/ares.log`
+           - the file `~/.config/ares/ares.log`
            - `journalctl --user -u ares -b --no-pager`
 
         Paste the part that covers the whole attempt - from Ares starting the session to the failure - and not only
@@ -222,7 +222,7 @@ body:
     id: config
     attributes:
       label: Virtual display settings
-      description: "The relevant lines from `~/.config/ares-streaming/ares.conf`."
+      description: "The relevant lines from `~/.config/ares/ares.conf`."
       render: ini
       placeholder: |
         virtual_display_backend = hermes_kms

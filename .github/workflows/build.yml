@@ -472,7 +472,7 @@ jobs:
 
       # Build the real Arch package straight from the PKGBUILD, so CI and a
       # local `makepkg -si` produce the exact same
-      # ares-streaming-*.pkg.tar.zst (same paths, service, deps). makepkg
+      # ares-*.pkg.tar.zst (same paths, service, deps). makepkg
       # refuses to run as root, hence the `builder` user created above.
       - name: Build package with makepkg
         run: |
@@ -495,7 +495,7 @@ jobs:
       # v6). Arch tracks Plasma closely, so its package must have it.
       - name: Check the detached desktop transport
         run: |
-          pkg="$(ls ares-streaming-[0-9]*.pkg.tar.zst | head -n1)"
+          pkg="$(ls ares-[0-9]*.pkg.tar.zst | head -n1)"
           if bsdtar -tf "$pkg" | grep -qx 'usr/bin/ares-detached-session'; then
             echo "::notice title=Detached desktop (Arch)::KWin transport built; ares-detached-session is packaged"
           else
@@ -506,7 +506,7 @@ jobs:
       - name: Upload Arch Package
         uses: actions/upload-artifact@v4
         with:
-          name: ares-streaming-arch-pkg
+          name: ares-arch-pkg
           # Both the package and its symbols. The -debug package is what makes a
           # user's coredump readable; publishing only the stripped binary is why
           # the crash reports so far could not be resolved past raw offsets.
@@ -644,14 +644,14 @@ jobs:
       - name: Configure CMake
         run: |
           # SUNSHINE_ASSETS_DIR is baked into the binary at compile time and must
-          # match where the package actually puts the assets (/usr/share/ares-streaming).
+          # match where the package actually puts the assets (/usr/share/ares).
           # Without it the default is `assets`, which unix.cmake turns into
           # /usr/assets, and the Web UI 404s on every page it tries to serve.
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
             -DCMAKE_INSTALL_PREFIX=/usr \
             -DCMAKE_INSTALL_LIBDIR="lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" \
-            -DSUNSHINE_ASSETS_DIR=share/ares-streaming \
+            -DSUNSHINE_ASSETS_DIR=share/ares \
             -DSUNSHINE_ENABLE_WAYLAND=ON \
             -DSUNSHINE_ENABLE_X11=ON \
             -DSUNSHINE_ENABLE_DRM=ON \
@@ -691,7 +691,7 @@ jobs:
           # a throwaway one rather than a full debian/ source tree.
           LIBDIR="$(bash scripts/cmake-install-libdir.sh build/CMakeCache.txt)"
           test -n "${LIBDIR}"
-          CODEC_LIB_PATH="$(readlink -f "${PKGDIR}/usr/${LIBDIR}/ares-streaming")"
+          CODEC_LIB_PATH="$(readlink -f "${PKGDIR}/usr/${LIBDIR}/ares")"
           # The session broker is a separate executable with its own dependencies
           # (notably libacl). Scan every staged ELF, including the private codec,
           # rather than deriving the package's dependencies only from Hermes.
@@ -734,7 +734,7 @@ jobs:
           cat > ${PKGDIR}/DEBIAN/postinst << 'EOF'
           #!/bin/bash
           set -e
-          setcap cap_sys_admin,cap_mknod,cap_sys_chroot+p /usr/bin/ares-streaming || true
+          setcap cap_sys_admin,cap_mknod,cap_sys_chroot+p /usr/bin/ares || true
           if command -v modprobe &> /dev/null; then
             modprobe evdi 2>/dev/null || true
           fi
@@ -894,13 +894,13 @@ jobs:
 
       - name: Configure CMake
         run: |
-          # Must match where the RPM installs the assets (/usr/share/ares-streaming);
+          # Must match where the RPM installs the assets (/usr/share/ares);
           # see the DEB job for why the default would break the Web UI.
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/usr \
             -DCMAKE_INSTALL_LIBDIR="$(rpm --eval '%{_lib}')" \
-            -DSUNSHINE_ASSETS_DIR=share/ares-streaming \
+            -DSUNSHINE_ASSETS_DIR=share/ares \
             -DSUNSHINE_ENABLE_WAYLAND=ON \
             -DSUNSHINE_ENABLE_X11=ON \
             -DSUNSHINE_ENABLE_DRM=ON \
@@ -926,7 +926,7 @@ jobs:
           # %files is generated from that tree, so a file CMake starts or stops
           # installing cannot silently fall in or out of the package.
           FILE_LIST="$(cd hermes-${VERSION} && {
-            find . -type d -path './usr/share/ares-streaming*' -printf '%%dir /%P\n'
+            find . -type d -path './usr/share/ares*' -printf '%%dir /%P\n'
             find . \( -type f -o -type l \) -printf '/%P\n'
           } | sort)"
 
@@ -962,7 +962,7 @@ jobs:
           ${FILE_LIST}
 
           %post
-          setcap cap_sys_admin,cap_mknod,cap_sys_chroot+p /usr/bin/ares-streaming || true
+          setcap cap_sys_admin,cap_mknod,cap_sys_chroot+p /usr/bin/ares || true
           EOF
 
           rpmbuild -bb ~/rpmbuild/SPECS/hermes.spec
@@ -1141,7 +1141,7 @@ jobs:
           find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.pkg.tar.zst' \) -exec cp -t payload -- {} +
           test "$(find payload -name '*.deb' | wc -l)" -eq 2
           test "$(find payload -name '*.rpm' | wc -l)" -eq 2
-          test "$(find payload -name 'ares-streaming-*.pkg.tar.zst' | wc -l)" -ge 1
+          test "$(find payload -name 'ares-*.pkg.tar.zst' | wc -l)" -ge 1
           notes="docs/${tag}-notes.md"
           test -s "$notes"
           export RC_TAG="$tag"

@@ -2,7 +2,7 @@
 
 set -u
 
-STATE_DIR="${XDG_STATE_HOME:-${HOME:-}/.local/state}/ares-streaming"
+STATE_DIR="${XDG_STATE_HOME:-${HOME:-}/.local/state}/ares"
 STATE_FILE="$STATE_DIR/saved-primary"
 
 if [[ ! -s "$STATE_FILE" ]]; then

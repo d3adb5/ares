@@ -1,5 +1,5 @@
 do_setcap() {
-    setcap cap_sys_admin,cap_mknod,cap_sys_chroot+p /usr/bin/ares-streaming
+    setcap cap_sys_admin,cap_mknod,cap_sys_chroot+p /usr/bin/ares
 }
 
 do_udev_reload() {
@@ -13,9 +13,9 @@ do_udev_reload() {
 fix_asset_permissions() {
     # pacman preserves existing directory modes on upgrade. Keep packaged
     # assets system-owned and non-writable after replacing older local builds.
-    chown -R root:root /usr/share/ares-streaming
-    find /usr/share/ares-streaming -type d -exec chmod 755 {} +
-    find /usr/share/ares-streaming -type f -exec chmod 644 {} +
+    chown -R root:root /usr/share/ares
+    find /usr/share/ares -type d -exec chmod 755 {} +
+    find /usr/share/ares -type f -exec chmod 644 {} +
 }
 
 post_install() {
@@ -27,7 +27,7 @@ post_install() {
     echo "==> one stops the other. To switch from Hermes:"
     echo "==>   systemctl --user disable --now hermes"
     echo "==>   systemctl --user enable --now ares"
-    echo "==> The first start copies ~/.config/hermes to ~/.config/ares-streaming"
+    echo "==> The first start copies ~/.config/hermes to ~/.config/ares"
     echo "==> and leaves the original untouched."
     echo ""
 }

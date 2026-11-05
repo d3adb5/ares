@@ -11,7 +11,7 @@ warn() { printf '\033[0;33m[hermes][warn]\033[0m %s\n' "$*" >&2; }
 # config file is handed to hermes explicitly, so it stays flat in the volume;
 # apps.json is resolved by Hermes itself and so has to match its default.
 HERMES_CONFIG="${HERMES_CONFIG:-/config/ares.conf}"
-APPS_JSON="${APPS_JSON:-/config/.config/ares-streaming/apps.json}"
+APPS_JSON="${APPS_JSON:-/config/.config/ares/apps.json}"
 LEGACY_HERMES_CONFIG="/config/sunshine.conf"
 STEAM_SESSION_CMD="/usr/local/bin/hermes-steam-session"
 SWAY_TEMPLATE="/etc/sway/config"
@@ -70,7 +70,7 @@ reconcile_file_capabilities() {
 
     log "SYS_ADMIN is not in this container's bounding set; dropping the file capabilities that need it"
     local dropped=0
-    for binary in /usr/bin/sway /usr/bin/ares-streaming; do
+    for binary in /usr/bin/sway /usr/bin/ares; do
         [ -e "${binary}" ] || continue
         if setcap -r "${binary}" 2>/dev/null; then
             dropped=1
@@ -699,7 +699,7 @@ seed_config() {
 # Steam up correctly at the client's resolution. Strip the broken commands, drop
 # the redundant "Low Res Desktop" and gamescope-launch apps in place, idempotently,
 # so existing configs get fixed too. Fresh configs get the cleaned
-# /usr/share/ares-streaming/apps.json template.
+# /usr/share/ares/apps.json template.
 sanitize_apps() {
     [ -f "${APPS_JSON}" ] || return 0
     grep -Eq 'xrandr|steam://|ares-gamescope-launch|Low Res Desktop' "${APPS_JSON}" 2>/dev/null || return 0
@@ -809,4 +809,4 @@ configure_steam_app
 log "launching hermes with config: ${HERMES_CONFIG}"
 log "web UI will be available at https://<host>:47990"
 cd /config
-exec /usr/bin/ares-streaming "${HERMES_CONFIG}" "$@"
+exec /usr/bin/ares "${HERMES_CONFIG}" "$@"

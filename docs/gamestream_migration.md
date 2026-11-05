@@ -6,7 +6,7 @@ Hermes performs as well as or better than Nvidia GameStream did.
 Upstream's [GSMS](https://github.com/LizardByte/GSMS) migrates custom and auto-detected GameStream games and apps
 automatically, writing the working directory, command and image into an `apps.json` and copying the box art to a
 directory you choose. It writes Sunshine's `apps.json`, which Hermes reads the same way; point it at
-`~/.config/ares-streaming/apps.json`, or copy the entries across.
+`~/.config/ares/apps.json`, or copy the entries across.
 
 ## Internet Streaming
 If you are using the Moonlight Internet Hosting Tool, you can remove it from your system when you migrate.

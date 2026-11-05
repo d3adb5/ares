@@ -132,7 +132,7 @@ class @PROJECT_NAME@ < Formula
   end
 
   service do
-    run [opt_bin/"sunshine", "~/.config/ares-streaming/ares.conf"]
+    run [opt_bin/"sunshine", "~/.config/ares/ares.conf"]
   end
 
   def post_install

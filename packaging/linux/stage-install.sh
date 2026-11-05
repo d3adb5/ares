@@ -21,7 +21,7 @@ DESTDIR="$root" cmake --install "$build_dir"
 # CMake installs the versioned binary plus a `sunshine` symlink beside it; a
 # package ships one binary, named after this fork.
 rm -f "$root/usr/bin/sunshine"
-mv "$root"/usr/bin/sunshine-* "$root/usr/bin/ares-streaming"
+mv "$root"/usr/bin/sunshine-* "$root/usr/bin/ares"
 
 # Same for the unit, whose upstream name would collide with an apollo or
 # sunshine install on the same machine.
@@ -33,14 +33,14 @@ fi
 # generic icon in the tray, or a package that installs and then cannot be
 # started at all.
 required=(
-  usr/bin/ares-streaming
+  usr/bin/ares
   usr/lib/systemd/user/ares.service
   usr/share/applications/io.github.d3adb5.Ares.desktop
   usr/share/applications/io.github.d3adb5.Ares.terminal.desktop
   usr/share/icons/hicolor/scalable/apps/hermes.svg
   usr/share/metainfo/io.github.d3adb5.Ares.metainfo.xml
-  usr/share/ares-streaming/apps.json
-  usr/share/ares-streaming/web/index.html
+  usr/share/ares/apps.json
+  usr/share/ares/web/index.html
 )
 missing=()
 for path in "${required[@]}"; do

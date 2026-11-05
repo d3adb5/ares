@@ -138,7 +138,7 @@ body:
       label: Log (optional, but very welcome)
       description: >
         A debug-level log of one successful session proves the code path was really taken, and a failing one shows
-        where it stopped. See the Web UI under **Troubleshooting** -> **Logs**, or `~/.config/ares-streaming/ares.log`.
+        where it stopped. See the Web UI under **Troubleshooting** -> **Logs**, or `~/.config/ares/ares.log`.
       render: shell
     validations:
       required: false

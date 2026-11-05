@@ -22,7 +22,7 @@ Packages are built in CI and published at
 
 | Distribution | Asset |
 |:-------------|:------|
-| Arch / CachyOS | `ares-streaming-{version}-1-x86_64.pkg.tar.zst` |
+| Arch / CachyOS | `ares-{version}-1-x86_64.pkg.tar.zst` |
 | Ubuntu 24.04, 26.04 | `hermes_{version}_ubuntu{release}_amd64.deb` |
 | Fedora 43, 44 | `hermes-{version}-1.fc{release}.x86_64.rpm` |
 
@@ -55,12 +55,12 @@ compute capabilities 50, 52, 53, 60, 61, 62, 70, 72, 75, 80, 86, 87, 89, 90,
 ### Arch / CachyOS
 
 ```bash
-sudo pacman -U ./ares-streaming-*.pkg.tar.zst
+sudo pacman -U ./ares-*.pkg.tar.zst
 ```
 
-The package is named `ares-streaming` because the `hermes` name in the AUR
+The package is named `ares` because the `hermes` name in the AUR
 belongs to an unrelated PAM authentication project — do not install that one. It
-installs `/usr/bin/ares-streaming`, `/usr/share/ares-streaming` and a `ares.service` user
+installs `/usr/bin/ares`, `/usr/share/ares` and a `ares.service` user
 unit, so it can sit side by side with the `apollo` (AUR) and `sunshine`
 packages. Only one of the three can *run* at a time: they all bind ports
 47984/47989/47990, and whichever starts second exits, which shows up in the
@@ -71,7 +71,7 @@ To build the package from the source tree instead, see
 
 Uninstall:
 ```bash
-sudo pacman -R ares-streaming
+sudo pacman -R ares
 ```
 
 ### Debian / Ubuntu
@@ -120,7 +120,7 @@ rpm-ostree install ./hermes-*.fc44.x86_64.rpm
 systemctl reboot
 ```
 
-After the reboot, `getcap /usr/bin/ares-streaming` shows the capabilities the package
+After the reboot, `getcap /usr/bin/ares` shows the capabilities the package
 sets, and the service starts like on any other distribution:
 
 ```bash

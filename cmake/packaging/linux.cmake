@@ -54,7 +54,7 @@ endif()
 # purpose - the group must exist before the rule that references it is live.
 # Session compositor profiles. weston is the one Hermes ships and tests; the
 # example alongside it documents the format for anyone swapping in another.
-# A profile of the same name under ~/.config/ares-streaming/session-compositors/ wins,
+# A profile of the same name under ~/.config/ares/session-compositors/ wins,
 # so trying one out never needs root.
 install(DIRECTORY "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/session-compositors/"
         DESTINATION "${SUNSHINE_ASSETS_DIR}/session-compositors")
@@ -223,12 +223,12 @@ if(SUNSHINE_BUILD_SESSION_BROKER)
 endif()
 
 # application icon
-# Installed as ares-streaming.svg rather than apollo.svg so the package does not claim a
+# Installed as ares.svg rather than apollo.svg so the package does not claim a
 # path already owned by the apollo package.
 if(NOT ${SUNSHINE_BUILD_FLATPAK})
     install(FILES "${CMAKE_SOURCE_DIR}/apollo.svg"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps"
-            RENAME "ares-streaming.svg")
+            RENAME "ares.svg")
 else()
     install(FILES "${CMAKE_SOURCE_DIR}/apollo.svg"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps"
@@ -240,16 +240,16 @@ if(${SUNSHINE_TRAY} STREQUAL 1)
     if(NOT ${SUNSHINE_BUILD_FLATPAK})
         install(FILES "${CMAKE_SOURCE_DIR}/apollo.svg"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status"
-                RENAME "ares-streaming-tray.svg")
+                RENAME "ares-tray.svg")
         install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/common/assets/web/public/images/apollo-playing.svg"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status"
-                RENAME "ares-streaming-playing.svg")
+                RENAME "ares-playing.svg")
         install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/common/assets/web/public/images/apollo-pausing.svg"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status"
-                RENAME "ares-streaming-pausing.svg")
+                RENAME "ares-pausing.svg")
         install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/common/assets/web/public/images/apollo-locked.svg"
                 DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/status"
-                RENAME "ares-streaming-locked.svg")
+                RENAME "ares-locked.svg")
     else()
         # flatpak icons must be prefixed with the app id or they will not be included in the flatpak
         install(FILES "${CMAKE_SOURCE_DIR}/apollo.svg"

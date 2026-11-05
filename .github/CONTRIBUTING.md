@@ -41,7 +41,7 @@ at, and a guess costs you another round trip before anything can be looked at.
   monitor, wrong resolution, no output created. Also asks what your compositor
   reports about its outputs, which is where these failures are decided.
 - **Crash or freeze** — asks for `coredumpctl` output. Install the matching
-  `ares-streaming-debug` package first, so the backtrace has names on it
+  `ares-debug` package first, so the backtrace has names on it
   instead of raw offsets into a stripped binary.
 - **Install, build or packaging problem** — the exact command and its complete
   output, not only the line that looks like the error.
