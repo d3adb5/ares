@@ -8,11 +8,11 @@ end-to-end HDR client/display certification.
 
 KWin composes full-range BT.2020 RGB with PQ transfer into the virtual output.
 `ACQUIRE_FRAME2` pairs those samples with the committed colour state, static
-metadata, format/modifier and producer fence. Hermes waits for that fence,
+metadata, format/modifier and producer fence. Ares waits for that fence,
 converts RGB to BT.2020 non-constant-luminance YUV, and uses a ten-bit encoder
 profile. It does not decode and reapply PQ during the RGB-to-YUV matrix operation.
 
-AMD uses the existing DMA-BUF/GL/VAAPI path. NVIDIA retains Hermes's existing CPU
+AMD uses the existing DMA-BUF/GL/VAAPI path. NVIDIA retains Ares's existing CPU
 copy of linear scanout, because NVIDIA's EGL import of these buffers samples the
 wrong pages. The copied frame is uploaded from page-locked memory, and one CUDA
 kernel decodes the packed ten-bit pixels, without truncating the RGB channels,
@@ -42,7 +42,7 @@ printf '%s\n' 'options hermes_kms hdr_enable=1 color_depth=10' | sudo tee /etc/m
 ```
 
 Preserve `initial_enabled=0` and the normal manual/on-demand output lifecycle.
-Enable HDR for the virtual output in KDE and enable HDR in the client. Hermes
+Enable HDR for the virtual output in KDE and enable HDR in the client. Ares
 does not alter module autoload or desktop settings automatically.
 
 HDR for Gamescope inside an isolated session, with an optional Gamescope patch,
@@ -102,7 +102,7 @@ screens. Driver VM and shader tests do not replace those measurements.
 
 ## KDE reconnects and client color mode
 
-Before a shared KDE virtual-display launch or resume, Hermes matches that owned
+Before a shared KDE virtual-display launch or resume, Ares matches that owned
 output's HDR and wide-gamut settings to the incoming client's HDR request. It
 waits for frame-associated metadata to confirm the new encoding before probing
 encoders. This prevents KDE's remembered HDR setting from breaking a subsequent

@@ -1,6 +1,6 @@
 # API
 
-Hermes has a RESTful API which can be used to interact with the service. It is
+Ares has a RESTful API which can be used to interact with the service. It is
 served by the Web UI's HTTPS server, on port 47990 by default.
 
 Two different callers are authenticated in two different ways:
@@ -15,7 +15,7 @@ Two different callers are authenticated in two different ways:
   `401 unauthorized`; a paired client without the permission gets
   `403 permission_denied`. These endpoints never accept the admin password. The
   one exception is `capabilities`, which is deliberately unauthenticated so a
-  client can detect Hermes before it has paired; it is read-only and exposes no
+  client can detect Ares before it has paired; it is read-only and exposes no
   host state.
 
 Unless otherwise specified, authentication is required for all API calls.
@@ -131,7 +131,7 @@ if it is not.
 
 ### POST /api/clipboard/install
 Install the clipboard helper this host is missing. On Linux pkexec owns the
-privilege prompt, so Hermes never handles an admin password.
+privilege prompt, so Ares never handles an admin password.
 
 ## Hestia API v1
 

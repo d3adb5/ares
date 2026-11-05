@@ -6,7 +6,7 @@ user, while the host's desktop stays in use - and neither gets in the other's
 way. Separate desktops and separate files per client are not the aim here.
 
 Most of the session work is d3adb5's, from
-[#57](https://github.com/MrOz59/Hermes/issues/57) and
+[#57](https://github.com/d3adb5/ares/issues/57) and
 [d3adb5/hermes](https://github.com/d3adb5/hermes), cherry-picked with his
 authorship. Input is the MrOz59/libvirtualhid stack from
 `experimental/libvirtualhid-input`, merged in.
@@ -14,7 +14,7 @@ authorship. Input is the MrOz59/libvirtualhid stack from
 ## Setting it up
 
 Not available on Ubuntu 24.04 for now: the Gamescope these sessions run in
-needs newer libwayland, libdrm and libxkbcommon than 24.04 ships, so Hermes'
+needs newer libwayland, libdrm and libxkbcommon than 24.04 ships, so Ares'
 Gamescope build is packaged for Ubuntu 26.04, Fedora 43/44 and Arch/CachyOS
 only.
 
@@ -25,8 +25,8 @@ only.
    private seat brokers (`hermes-kms-seatd@N`) - which must run with
    `SEATD_VTBOUND=0` (Hermes-KMS PR #16), or they put the host's VT into text
    mode when a session ends.
-2. Hermes' Gamescope build (below), PipeWire with WirePlumber, and seatd.
-3. `cap_sys_admin,cap_mknod,cap_sys_chroot+p` on `/usr/bin/hermes` for a
+2. Ares' Gamescope build (below), PipeWire with WirePlumber, and seatd.
+3. `cap_sys_admin,cap_mknod,cap_sys_chroot+p` on `/usr/bin/ares-streaming` for a
    private `/dev` (the packages in this branch set them).
 4. `hermes_kms_isolated_sessions = enabled` and
    `virtual_display_backend = hermes_kms`, with `isolation_method = gamescope`
@@ -48,7 +48,7 @@ the libinput seat from `XDG_SEAT` and `wl_touch.frame` after passthrough touch
 (both from d3adb5). It installs into `/usr/lib/hermes-gamescope`, beside the
 distribution's Gamescope; a source build goes to `/opt/hermes-gamescope`.
 
-Hermes looks for Gamescope in those two prefixes first, then on `PATH`
+Ares looks for Gamescope in those two prefixes first, then on `PATH`
 (`HERMES_GAMESCOPE` names a binary outright). It runs `gamescope --help` once
 per binary and passes the session's card with `--prefer-drm` or
 `--drm-device` (d3adb5's downstream patch), whichever the build lists, and
@@ -66,7 +66,7 @@ layer.
 - **Input.** `XDG_SEAT=hermes-kms-N`; the client's virtual devices carry that
   seat, and `WLR_LIBINPUT_NO_DEVICES=1` lets Gamescope start before they exist.
   With a fixed gamepad type, the client's pads are plugged in when the stream
-  starts. `74-hermes-session-acl.rules` opens the seat's input and hidraw nodes
+  starts. `74-ares-session-acl.rules` opens the seat's input and hidraw nodes
   to the session user; Steam Input pads made inside a session take its seat.
 - **No stray cursor.** No +1/-1 mouse nudge, and the wiggle Moonlight-based
   clients send on connect is dropped (`isolated_ignore_mouse_wiggle`).
@@ -93,7 +93,7 @@ layer.
 | `gamescope-steam-mode` | `auto` / `on` / `off` | `-e` and a second Xwayland; `auto` when `cmd` runs `steam` |
 | `gamescope-args` | flags | replaces `--expose-wayland --force-windows-fullscreen` |
 | `first-frame-timeout` | seconds | time to the first frame; `0` = 30 s (application), 5 s (desktop) |
-| `isolate-devices` | `auto` / `on` / `off` | private `/dev`; `auto` when Hermes has the capabilities |
+| `isolate-devices` | `auto` / `on` / `off` | private `/dev`; `auto` when Ares has the capabilities |
 | `isolate-sound` | `auto` / `on` / `off` | no `/dev/snd` |
 | `stop-desktop-steam` | `auto` / `on` / `off` | stop the desktop's Steam first; `auto` when `cmd` runs `steam` |
 

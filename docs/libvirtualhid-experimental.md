@@ -12,14 +12,14 @@ to commit `14ee6c4717d32b678c2983bfa6c54019b944d421`. Updating the dependency
 requires reviewing and intentionally changing that SHA.
 
 That revision was promoted to the fork's `master` on 2026-10-25 by a
-fast-forward from `38904f3`. Hermes keeps the exact pin; building this branch
+fast-forward from `38904f3`. Ares keeps the exact pin; building this branch
 does not require installing a separate libvirtualhid package. Promoting the
-library does not promote Hermes' integration branch or validate streaming.
+library does not promote Ares' integration branch or validate streaming.
 
-The library uses C++23, Linux `uinput`/`uhid`, and libevdev. Hermes needs read
+The library uses C++23, Linux `uinput`/`uhid`, and libevdev. Ares needs read
 and write access to `/dev/uinput` and `/dev/uhid`; applications consuming
 controller output reports also need the generated `hidraw` node. The packaged
-`60-hermes.rules` grants those permissions. Never use
+`60-ares.rules` grants those permissions. Never use
 `lvh::BackendKind::fake` in production: it accepts events without creating
 kernel devices.
 
@@ -35,13 +35,13 @@ kernel devices.
 | Multitouch, hover and cancel-all | `lvh::Touchscreen` |
 | Pen, eraser, pressure, distance, tilt and three barrel buttons | `lvh::PenTablet` |
 
-Hermes still owns GameStream packet parsing, client permissions, keyboard
+Ares still owns GameStream packet parsing, client permissions, keyboard
 repeat and feedback messages. The adapter translates those contracts into
 libvirtualhid state and reports.
 
 ## Configuration and client negotiation
 
-The Hermes web UI's Input tab selects the emulated controller. With `gamepad =
+The Ares web UI's Input tab selects the emulated controller. With `gamepad =
 auto`, PlayStation, Nintendo and Xbox client types select DualSense, Switch Pro
 and Xbox Series respectively. For an unknown client type, `motion_as_ds4` and
 `touchpad_as_ds4` can select DualSense; otherwise Xbox Series is used. A manual
@@ -107,14 +107,14 @@ sysfs identity again, and edits the ACL by descriptor. It grants only the
 session UID read/write access, preserving other ACL entries' effective rights.
 A name reused by a different device is never sufficient authorization.
 
-The packaged `99-hermes-session-input.rules` invokes a root-only helper after
+The packaged `99-ares-session-input.rules` invokes a root-only helper after
 the distribution uaccess rules and before udev publishes a new device. This
 ensures already-running SDL/libinput consumers can open it on the first add
 event. The helper accepts only a numbered kernel node name and uses a short
 ACL lock, so another session stopping does not hold up its hotplug.
 
 Input reconciliation also runs approximately every two seconds to retry missed
-updates and recover after restart, without a new request from Hermes.
+updates and recover after restart, without a new request from Ares.
 Persisted leases survive a broker restart. An isolated session
 started by an older broker needs to be restarted once to register its lease.
 
@@ -141,14 +141,14 @@ the Flatpak build also includes its attr/acl build dependencies. Device ACLs
 do not bypass a container's device filter: native HID profiles still require
 the container to expose their own hidraw nodes.
 
-Run `scripts/session-broker-test.sh /path/to/hermes-session-broker` as root
+Run `scripts/session-broker-test.sh /path/to/ares-session-broker` as root
 **only in a disposable VM with systemd, udev, uinput, uhid and ACL tools**.
 It installs the packaged broker and creates real accounts. The test verifies
 both event and hidraw access for two UIDs, cross-seat denial, SDL consumers
 started before device creation, replacement devices, persisted leases after
 restart, STOP and PURGE. This is separate from
 pure identity/ACL tests, which touch only temporary fixtures.
-`python3 scripts/session-broker-concurrency-test.py /path/to/hermes-session-broker`
+`python3 scripts/session-broker-concurrency-test.py /path/to/ares-session-broker`
 also runs the actual daemon with a private socket/map/allow-file. It creates no
 accounts or devices and requires no systemd; it verifies incomplete requests,
 queued mutations and immediate refusal of unsafe locks.
@@ -156,8 +156,8 @@ queued mutations and immediate refusal of unsafe locks.
 ## Building
 
 ```bash
-git clone --recursive https://github.com/MrOz59/Hermes.git
-cd Hermes
+git clone --recursive https://github.com/d3adb5/ares.git
+cd Ares
 git switch experimental/libvirtualhid-input
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target sunshine -j2
@@ -168,7 +168,7 @@ selection option: Linux builds use libvirtualhid exclusively.
 
 ## Manual validation with a DS4 and DualSense
 
-A physical controller connects to the **Hestia client**. Hermes creates a
+A physical controller connects to the **Hestia client**. Ares creates a
 separate virtual controller on the host; connecting the physical controller
 directly to the host would bypass the streaming path being tested. A DS4 can
 drive virtual Xbox profiles as well as PlayStation profiles. Different physical
@@ -178,19 +178,19 @@ tests cannot prove every controller's client-side behavior.
 Start with the DS4. Borrowing a DualSense adds useful coverage but need not
 delay the first round. Keep the host kernel, compositor, display/capture mode,
 game, Steam Input setting and stream settings unchanged between the known-good
-Hermes build and this branch. Record whether each physical connection is USB
+Ares build and this branch. Record whether each physical connection is USB
 or Bluetooth; test the other connection separately if the client supports it.
 
 Install a package built from `experimental/libvirtualhid-input`, including its
 matching session broker and both packaged udev rules. A standalone replacement
-of the Hermes binary does not validate the updated permissions or broker.
-Keep the previous package and a copy of the Hermes configuration for reversal.
+of the Ares binary does not validate the updated permissions or broker.
+Keep the previous package and a copy of the Ares configuration for reversal.
 Use the native host first; the production container needs a separate round.
 See [Building](building.md) for dependencies and packaging instructions. On an
 AMD-only build without the CUDA toolkit, configure with
 `-DSUNSHINE_ENABLE_CUDA=OFF -DCUDA_FAIL_ON_MISSING=OFF`.
 
-In Hermes' Input settings, test these rows one at a time. Save, restart Hermes
+In Ares' Input settings, test these rows one at a time. Save, restart Ares
 between rows after ending the stream, and reconnect so the virtual device is
 recreated. Preserve unrelated configuration settings.
 
@@ -231,18 +231,18 @@ simultaneous controller input and verify that rumble reaches only its owner.
 If only one client is available, mark concurrent streaming as pending; the
 two-account CI is not a substitute for this end-to-end check.
 
-Finally, with no valuable work open, restart Hermes and resume a session.
+Finally, with no valuable work open, restart Ares and resume a session.
 Repeat once after reboot to cover installed rules and service startup. When
 finished, reinstall the previous package, restore the saved configuration if
 needed, and confirm that a stream still starts. Do not run the disposable-VM
 account test script on the daily-use host to obtain a passing result.
 
-For each result, record the Hermes commit/package, Hestia version and client
+For each result, record the Ares commit/package, Hestia version and client
 OS, host kernel/compositor, physical controller and USB/Bluetooth connection,
 the two settings above, game and Steam Input setting, expected/observed behavior
-and time of failure. Keep the Hermes log from the same attempt; for an
+and time of failure. Keep the Ares log from the same attempt; for an
 isolated-session failure also keep the session-broker journal. CMake configure
-output must identify `Hermes Linux input backend: MrOz59/libvirtualhid`;
+output must identify `Ares Linux input backend: MrOz59/libvirtualhid`;
 controller-selection messages show the profile chosen by `auto`. If more
 detail is needed, repeat the failure with `min_log_level = debug`, then
 restore the previous log level. Review logs before sharing them.
@@ -259,7 +259,7 @@ The startup/liveness checkpoint at `6700e5c` passed
 [35 independent broker/client/ACL tests, three real-daemon concurrency checks
 and 58 checks with real accounts](https://github.com/MrOz59/Hermes/actions/runs/40157668651/job/121062412179).
 The [complete compiler job](https://github.com/MrOz59/Hermes/actions/runs/40157668651/job/121062440390)
-passed 77 selected Hermes tests and 176 library tests; the
+passed 77 selected Ares tests and 176 library tests; the
 [kernel job](https://github.com/MrOz59/Hermes/actions/runs/40157668651/job/121065555329)
 passed 32 adapter/kernel tests and four library runtime/event-backend tests.
 The runtime harness additionally queries a live session during queued account
@@ -273,13 +273,13 @@ execution always requests a fresh complete build.
 
 Earlier checkpoint:
 
-The 2026-10-25 checkpoint passed the complete Hermes build, 62 selected Hermes
+The 2026-10-25 checkpoint passed the complete Ares build, 62 selected Ares
 tests and 176 library tests in the
 [compiler job](https://github.com/MrOz59/Hermes/actions/runs/40151792958/job/121044822644).
 The [session-account job](https://github.com/MrOz59/Hermes/actions/runs/40153673474/job/121050309949)
 passed 58 checks with real UIDs, including hotplug while broker reconciliation
 was paused. The [kernel job](https://github.com/MrOz59/Hermes/actions/runs/40153673474/job/121050328653)
-passed 32 Hermes tests and four library runtime/event-backend tests. All seven
+passed 32 Ares tests and four library runtime/event-backend tests. All seven
 controller profiles completed 1000 batches at 1000 Hz without SYN_DROPPED or
 cross-seat keyboard events; both Xbox event profiles delivered non-root rumble.
 These results do not validate an entire streamed Hestia desktop or real games.
@@ -292,7 +292,7 @@ change may reuse binaries from a passing compiler job after checking that all
 compiled inputs remain identical. Source, dependency, CMake and compiled-test
 changes always trigger a new complete build.
 
-The branch workflow compiles Hermes and runs the library's identity/discovery,
+The branch workflow compiles Ares and runs the library's identity/discovery,
 UHID round-trip and fail-closed isolation tests. On a host with uinput/uhid,
 the library consumer suite also verifies evdev, libinput, SDL, touchscreen,
 trackpad and tablet behavior.
@@ -314,7 +314,7 @@ The local VM validation below used `hid-playstation` and ran that test.
 
 The repository's `scripts/vm-isolated-input-test.sh` validates the packaged
 udev rules inside a disposable VM. Pass `build/tests/test_sunshine` to also
-exercise the actual Hermes adapter with two concurrent private seats, including
+exercise the actual Ares adapter with two concurrent private seats, including
 seat 12 to cover dynamically allocated indices beyond the old eight-seat pool:
 
 ```bash

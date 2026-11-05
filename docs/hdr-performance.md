@@ -73,7 +73,7 @@ cached, as it would be right after the compositor wrote it.
 
 Functional HDR is working in the reported tests; performance remains open, and
 the follow-up reports are tracked in
-[#56](https://github.com/MrOz59/Hermes/issues/56). The evidence establishes higher host processing cost and frequent
+[#56](https://github.com/d3adb5/ares/issues/56). The evidence establishes higher host processing cost and frequent
 client recovery, not an HDR-specific packet corruption defect or a proven single
 root cause. Do not suppress recovery requests or change stream pacing speculatively:
 that could hide lost reference frames or increase latency. Further attribution

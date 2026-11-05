@@ -308,7 +308,7 @@ const refreshClipboardInfo = async () => {
       } else if (result.installStatus === 2) {
         clipboardInstalling.value = false
         clipboardInstallError.value = false
-        clipboardMessage.value = 'Installation completed. Refresh this status after starting Hermes in your Wayland session.'
+        clipboardMessage.value = 'Installation completed. Refresh this status after starting Ares in your Wayland session.'
       } else if (result.installStatus === 3) {
         clipboardInstalling.value = false
         clipboardInstallError.value = true
@@ -324,7 +324,7 @@ const refreshClipboardInfo = async () => {
 }
 
 const installClipboard = async () => {
-  if (!window.confirm('Install Wayland and X11 clipboard support now? Hermes will ask your system for administrator permission.')) return
+  if (!window.confirm('Install Wayland and X11 clipboard support now? Ares will ask your system for administrator permission.')) return
 
   clipboardMessage.value = ''
   clipboardInstallError.value = false
@@ -609,7 +609,7 @@ const validateFallbackMode = (event) => {
           {{ $t('config.evdi_no_frames_warning') }}
         </div>
         <div v-if="evdiInfo.activeDisplays?.some(display => display.zeroCopyCapture === false)" class="alert alert-warning small mt-2 mb-0">
-          Hermes can still use hardware encoding, but EVDI exposes a CPU framebuffer rather than a GPU render node. Frames are copied through system memory before VAAPI encoding, which can increase latency compared with direct physical-display capture.
+          Ares can still use hardware encoding, but EVDI exposes a CPU framebuffer rather than a GPU render node. Frames are copied through system memory before VAAPI encoding, which can increase latency compared with direct physical-display capture.
         </div>
       </div>
     </section>
@@ -729,7 +729,7 @@ const validateFallbackMode = (event) => {
 
     <section class="border-top pt-3 mt-4" v-if="platform === 'linux'">
       <div class="d-flex align-items-center justify-content-between mb-3">
-        <h3 class="h6 mb-0">Hermes Clipboard Support</h3>
+        <h3 class="h6 mb-0">Ares Clipboard Support</h3>
         <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="clipboardLoading" @click="refreshClipboardInfo" title="Refresh clipboard support status">
           <i class="fa-solid fa-arrows-rotate" :class="{'fa-spin': clipboardLoading}"></i>
         </button>

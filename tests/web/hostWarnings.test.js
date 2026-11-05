@@ -33,7 +33,7 @@ describe('hostWarnings', () => {
 
   it('survives a streamPorts that came back through the config file as a string', () => {
     // The reported bug, exactly: a read-only field round-tripped through
-    // hermes.conf and returned as the string "[]". It is truthy, so the old
+    // ares.conf and returned as the string "[]". It is truthy, so the old
     // `|| []` guard did not fire and `.filter` was not a function.
     const warnings = hostWarnings({ ...healthyHost, streamPorts: '[]' })
     expect(Array.isArray(warnings)).toBe(true)
@@ -156,7 +156,7 @@ describe('hostWarnings', () => {
       enabled: true,
       ready: false,
       checks: [
-        { id: 'unit', state: 'ready', title: 'Start at boot', detail: 'hermes.service starts with the user manager.', fix: '' },
+        { id: 'unit', state: 'ready', title: 'Start at boot', detail: 'ares.service starts with the user manager.', fix: '' },
         { id: 'greeter', state: 'missing', title: 'Login screen', detail: 'SDDM uses its X11 greeter.', fix: 'Set DisplayServer=wayland.' },
         { id: 'autologin', state: 'note', title: 'Autologin', detail: 'SDDM logs ana in by itself.', fix: '' },
       ],

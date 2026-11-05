@@ -1,10 +1,10 @@
 # Getting Started
 
-Hermes is a Linux game-streaming host. The recommended way to run it is one of
+Ares is a Linux game-streaming host. The recommended way to run it is one of
 the packages built for each release — see [Binaries](#binaries).
 
 > [!NOTE]
-> Hermes is developed on CachyOS with KDE Plasma (Wayland) on AMD, and that is
+> Ares is developed on CachyOS with KDE Plasma (Wayland) on AMD, and that is
 > the only configuration continuously exercised. Other distributions,
 > compositors and GPUs are supported as far as their code paths allow;
 > [Compatibility](compatibility.md) records what has actually been verified,
@@ -14,7 +14,7 @@ the packages built for each release — see [Binaries](#binaries).
 ## Binaries
 
 Packages are built in CI and published at
-[Releases](https://github.com/MrOz59/Hermes/releases):
+[Releases](https://github.com/d3adb5/ares/releases):
 
 - a **tagged release** for each version;
 - a rolling **nightly** prerelease, refreshed on every push to `main`. It
@@ -22,7 +22,7 @@ Packages are built in CI and published at
 
 | Distribution | Asset |
 |:-------------|:------|
-| Arch / CachyOS | `hermes-streaming-{version}-1-x86_64.pkg.tar.zst` |
+| Arch / CachyOS | `ares-streaming-{version}-1-x86_64.pkg.tar.zst` |
 | Ubuntu 24.04, 26.04 | `hermes_{version}_ubuntu{release}_amd64.deb` |
 | Fedora 43, 44 | `hermes-{version}-1.fc{release}.x86_64.rpm` |
 
@@ -36,7 +36,7 @@ that release ships; a package built for another release will refuse to install.
 > but only as a workflow artifact. The code for those platforms is inherited
 > from upstream Sunshine and still builds (see [Building](building.md)); none of
 > it is exercised here. Third-party packages of *Sunshine* are not packages of
-> Hermes.
+> Ares.
 
 ### CUDA compatibility
 
@@ -55,12 +55,12 @@ compute capabilities 50, 52, 53, 60, 61, 62, 70, 72, 75, 80, 86, 87, 89, 90,
 ### Arch / CachyOS
 
 ```bash
-sudo pacman -U ./hermes-streaming-*.pkg.tar.zst
+sudo pacman -U ./ares-streaming-*.pkg.tar.zst
 ```
 
-The package is named `hermes-streaming` because the `hermes` name in the AUR
+The package is named `ares-streaming` because the `hermes` name in the AUR
 belongs to an unrelated PAM authentication project — do not install that one. It
-installs `/usr/bin/hermes`, `/usr/share/hermes` and a `hermes.service` user
+installs `/usr/bin/ares-streaming`, `/usr/share/ares-streaming` and a `ares.service` user
 unit, so it can sit side by side with the `apollo` (AUR) and `sunshine`
 packages. Only one of the three can *run* at a time: they all bind ports
 47984/47989/47990, and whichever starts second exits, which shows up in the
@@ -71,7 +71,7 @@ To build the package from the source tree instead, see
 
 Uninstall:
 ```bash
-sudo pacman -R hermes-streaming
+sudo pacman -R ares-streaming
 ```
 
 ### Debian / Ubuntu
@@ -120,41 +120,41 @@ rpm-ostree install ./hermes-*.fc44.x86_64.rpm
 systemctl reboot
 ```
 
-After the reboot, `getcap /usr/bin/hermes` shows the capabilities the package
+After the reboot, `getcap /usr/bin/ares-streaming` shows the capabilities the package
 sets, and the service starts like on any other distribution:
 
 ```bash
-systemctl --user enable --now hermes
+systemctl --user enable --now ares
 ```
 
-Bazzite's default firewall zone already allows the ports Hermes uses.
+Bazzite's default firewall zone already allows the ports Ares uses.
 
 For a virtual display, Bazzite ships EVDI prebuilt; the package loads it at boot
 with one device (#100), so the default backend works after that first reboot. For
 Hermes-KMS, which DKMS cannot install on a read-only `/usr`, the driver
 repository builds a derived Bazzite image with the module in it
 ([Image-based systems](https://github.com/MrOz59/Hermes-KMS#image-based-systems-bazzite-and-compatible-bootcostree-images)).
-Switching to that image drops packages layered with `rpm-ostree`, so layer Hermes
+Switching to that image drops packages layered with `rpm-ostree`, so layer Ares
 again afterwards. Hermes-KMS hands its device to the user logged in at the
 machine, so a machine meant to stream from boot needs automatic login.
 
 **A headless session instead.** `packaging/container` holds a runtime image that
-runs Hermes on a headless sway session, separate from the desktop; only the
+runs Ares on a headless sway session, separate from the desktop; only the
 kernel module has to exist on the host. See `packaging/container/README.md`.
 
 ### The virtual display driver
 
-A virtual display needs a kernel module, installed separately from Hermes:
+A virtual display needs a kernel module, installed separately from Ares:
 
 - **EVDI** — the default `virtual_display_backend` and the stable backend. On
   Arch it lives in the AUR (`paru -S evdi`), not the official repositories, so
   no package depends on it.
 - **Hermes-KMS** (zero-copy, opt-in with `virtual_display_backend = hermes_kms`,
   labeled experimental for now) — <https://github.com/MrOz59/Hermes-KMS>,
-  installed through DKMS. Hermes 0.6.0 needs the driver's `v0.4.0` tag; a
+  installed through DKMS. Ares 0.6.0 needs the driver's `v0.4.0` tag; a
   nightly works with `v0.4.0` or `main`.
   [The overview](../README.md#installing-the-hermes-kms-driver) covers the
-  install and the `initial_enabled=0` module option it needs. Hermes does not
+  install and the `initial_enabled=0` module option it needs. Ares does not
   fall back to EVDI on its own when Hermes-KMS is selected but unavailable.
 
 Several features exist only on Hermes-KMS: zero-copy capture on AMD/Intel,
@@ -178,7 +178,7 @@ After installation, some initial setup is required.
 
 > [!NOTE]
 > `cap_sys_admin` may as well be root, except you don't need to be root to run the program. This is necessary to
-> allow Hermes to use KMS capture.
+> allow Ares to use KMS capture.
 
 Every package applies this in its post-install script, so this step is only
 needed for a binary you built yourself, or after the capability was removed.
@@ -199,12 +199,12 @@ sudo setcap -r $(readlink -f $(which hermes))
 
 **Start once**
 ```bash
-systemctl --user start hermes
+systemctl --user start ares
 ```
 
 **Start on boot**
 ```bash
-systemctl --user enable hermes
+systemctl --user enable ares
 ```
 
 **Session environment**
@@ -224,7 +224,7 @@ the current session and restart the service:
 
 ```bash
 systemctl --user import-environment DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR XDG_SESSION_TYPE DBUS_SESSION_BUS_ADDRESS
-systemctl --user restart hermes
+systemctl --user restart ares
 ```
 
 To make this persistent, add the same `import-environment` line to your
@@ -234,7 +234,7 @@ compositor's startup (e.g. an autostart script) so it runs at every login.
 
 A host that reboots with no monitor and no autologin has no session for the
 service to start in, so there is nothing to connect to until someone logs in
-at the machine. Hermes can instead be started at boot and stream the login
+at the machine. Ares can instead be started at boot and stream the login
 screen: the client types the password, and the same stream carries on into the
 desktop.
 
@@ -245,23 +245,23 @@ way.
 
 **Setting it up**
 
-As the user Hermes streams for:
+As the user Ares streams for:
 
 ```bash
 hermes --prelogin enable
 ```
 
-That does the part that is Hermes' to do, and neither step needs root. It
+That does the part that is Ares' to do, and neither step needs root. It
 writes a copy of the packaged unit that starts with your user manager instead
 of the graphical session, and it turns on lingering so that manager runs from
 boot. Enabling the packaged unit for `default.target` by hand is not the same
 thing: it wants `graphical-session.target`, and started at boot it would mark
 a graphical session as running when there is none. The change takes effect the
-next time Hermes starts.
+next time Ares starts.
 
 It then lists what is still in the way, as `hermes --prelogin status` does at
 any time. The Web UI shows the same list on its home page for as long as
-something on it is missing. What can be left is outside Hermes:
+something on it is missing. What can be left is outside Ares:
 
 1. **A greeter that lights a new output by itself.** With SDDM that is the
    Wayland greeter; the X11 greeter never lights a virtual output. As root:
@@ -281,7 +281,7 @@ something on it is missing. What can be left is outside Hermes:
    `User=` is set under `[Autologin]`, whatever else that section says, and
    with autologin on none of this is used.
 2. **Input devices without a session.** Before login the seat belongs to the
-   greeter, so the per-session grant to `/dev/uinput` does not reach Hermes:
+   greeter, so the per-session grant to `/dev/uinput` does not reach Ares:
    `sudo usermod -aG input $USER`, then reboot.
 3. **The virtual display without a session.** Hermes-KMS is the only virtual
    display this has been run with, so set `virtual_display_backend =
@@ -290,7 +290,7 @@ something on it is missing. What can be left is outside Hermes:
    comes with the driver's optional broker (`hermes-kms-seatd-git`, or
    `sudo make INSTALL_BROKER=1 dkms-install` from a clone).
 
-`hermes --prelogin disable` goes back to starting Hermes with the graphical
+`hermes --prelogin disable` goes back to starting Ares with the graphical
 session, and turns lingering off again if `enable` was what turned it on. A
 unit of your own in `~/.config/systemd/user` is never replaced or removed.
 
@@ -298,7 +298,7 @@ unit of your own in `~/.config/systemd/user` is never replaced or removed.
 
 - **The greeter must not lose its last output.** SDDM's greeter exits when
   that happens and SDDM does not start another, so there is no login screen
-  left to stream. Hermes does not probe the encoders at startup for that
+  left to stream. Ares does not probe the encoders at startup for that
   reason, and when a display is removed before login - the application is
   quit from the client, or a launch fails - it keeps the output connected for
   the greeter, hands it to the next session, and lets it go once someone has
@@ -307,18 +307,18 @@ unit of your own in `~/.config/systemd/user` is never replaced or removed.
   application has been run on real hardware; a launch that fails, in a
   virtual machine only. If the login screen is gone anyway,
   `sudo systemctl restart sddm` over SSH brings it back.
-- **Hermes joins the session only once no client is connected.** The
-  stream, input and audio carry on through the login, but a Hermes that
+- **Ares joins the session only once no client is connected.** The
+  stream, input and audio carry on through the login, but a Ares that
   started before it has none of the session's environment, and a running
   process cannot be given one. Until it has, applications it launches do not
   find the desktop, and it cannot change the resolution of a display that is
   already lit, apply the exclusive, mirror or detached layouts, or share the
-  clipboard. About fifteen seconds after the last client disconnects, Hermes
+  clipboard. About fifteen seconds after the last client disconnects, Ares
   restarts itself with the environment the session published - what
-  `systemctl --user restart hermes` would do - and is unreachable for the few
-  seconds that takes. If that restart stalls, Hermes' own ten-second shutdown
+  `systemctl --user restart ares` would do - and is unreachable for the few
+  seconds that takes. If that restart stalls, Ares' own ten-second shutdown
   watchdog ends it and systemd starts it again, inside the session either
-  way. When you log out, Hermes exits with the compositor and systemd brings
+  way. When you log out, Ares exits with the compositor and systemd brings
   it back for the login screen within about ten seconds. The restart after
   the last client leaves has been run on real hardware; the watchdog path and
   the logout, in a virtual machine only.
@@ -331,30 +331,30 @@ unit of your own in `~/.config/systemd/user` is never replaced or removed.
 
 A machine that boots straight into Game Mode - SteamOS, or CachyOS with
 `gamescope-session` - runs no desktop, so there is nowhere to open the web UI
-and no keyboard to type into it. Two things make Hermes usable there.
+and no keyboard to type into it. Two things make Ares usable there.
 
 **It starts by itself.** `gamescope-session` reaches `graphical-session.target`
 like every other session type, and the unit is installed into it, so enabling
 the service is enough:
 
 ```bash
-systemctl --user enable --now hermes
+systemctl --user enable --now ares
 ```
 
-Hermes reports `no window system` in that session and captures through
+Ares reports `no window system` in that session and captures through
 Hermes-KMS instead. That is expected: `gamescope-session` publishes nothing to
 the systemd user manager, and the KMS backend needs none of it. Set
 `capture = kms` if it is not already.
 
-**The console handles what needs a person.** `hermes-gamemode` is a
+**The console handles what needs a person.** `ares-gamemode` is a
 controller-driven window for the two things that cannot be done from a client:
 entering the PIN for a new device, and restarting the service. Add it to Steam
 once, from Desktop Mode:
 
 1. Switch to Desktop Mode.
 2. In Steam, *Games* → *Add a Non-Steam Game to My Library* → *Browse*.
-3. Pick **Hermes (Game Mode)** from the application list, or
-   `/usr/bin/hermes-gamemode` directly.
+3. Pick **Ares (Game Mode)** from the application list, or
+   `/usr/bin/ares-gamemode` directly.
 4. Return to Game Mode. It is in the library under *Non-Steam*.
 
 Launch it like a game. The D-pad moves between the buttons, `A` presses, and
@@ -362,7 +362,7 @@ Launch it like a game. The D-pad moves between the buttons, `A` presses, and
 sized to be hit with a thumbstick. When a device is waiting to pair, the console
 says so on its own and offers a numeric keypad for the four digits - no
 on-screen keyboard, and nothing to type a password into. It authenticates
-through a token Hermes writes into your runtime directory at `0600`, which is
+through a token Ares writes into your runtime directory at `0600`, which is
 why it never asks you to log in.
 
 The console is not required for streaming; it is only needed when somebody has
@@ -371,7 +371,7 @@ to act on the host itself.
 ### macOS
 
 > [!NOTE]
-> Hermes publishes no macOS package; this section describes the inherited
+> Ares publishes no macOS package; this section describes the inherited
 > upstream behaviour for anyone building it there.
 
 The first time you start it, you will be asked to grant access to screen recording and your microphone.
@@ -389,11 +389,11 @@ Only microphones can be accessed on macOS due to system limitations. To stream s
 ## Usage
 
 ### Basic usage
-The packages install a `hermes.service` systemd **user** unit, which is the
+The packages install a `ares.service` systemd **user** unit, which is the
 normal way to run it:
 
 ```bash
-systemctl --user enable --now hermes
+systemctl --user enable --now ares
 ```
 
 To run it in the foreground instead — useful when reading the log of a failing
@@ -401,13 +401,13 @@ start — stop the service first, since running two instances is not advised and
 the second one fails to bind its ports:
 
 ```bash
-systemctl --user stop hermes
+systemctl --user stop ares
 hermes
 ```
 
 ### Specify config file
 ```bash
-hermes <directory of conf file>/hermes.conf
+hermes <directory of conf file>/ares.conf
 ```
 
 > [!NOTE]
@@ -416,7 +416,7 @@ hermes <directory of conf file>/hermes.conf
 > [!TIP]
 > The configuration file specified will be created if it doesn't exist.
 
-### Start Hermes over SSH (Linux/X11)
+### Start Ares over SSH (Linux/X11)
 Assuming you are already logged into the host, you can use this command
 
 ```bash
@@ -424,7 +424,7 @@ ssh <user>@<ip_address> 'export DISPLAY=:0; hermes'
 ```
 
 If you are logged into the host with only a tty (teletypewriter), you can use `startx` to start the X server prior to
-executing Hermes. You may need to add `sleep` between `startx` and `hermes` to allow more time for the display to
+executing Ares. You may need to add `sleep` between `startx` and `hermes` to allow more time for the display to
 be ready.
 
 ```bash
@@ -441,7 +441,7 @@ Sunshine, so substitute the binary and unit names. On Wayland, Hermes-KMS replac
 
 ### Configuration
 
-Hermes is configured via the web ui, which is available on [https://localhost:47990](https://localhost:47990)
+Ares is configured via the web ui, which is available on [https://localhost:47990](https://localhost:47990)
 by default. You may replace *localhost* with your internal ip address.
 
 > [!NOTE]
@@ -480,11 +480,11 @@ All shortcuts start with `Ctrl+Alt+Shift`, just like Moonlight.
 * You can use Environment variables in place of values
 * `$(HOME)` will be replaced by the value of `$HOME`
 * `$$` will be replaced by `$`, e.g. `$$(HOME)` will be become `$(HOME)`
-* `env` - Adds or overwrites Environment variables for the commands/applications run by Hermes.
+* `env` - Adds or overwrites Environment variables for the commands/applications run by Ares.
   This can only be changed by modifying the `apps.json` file directly.
 
 ### Considerations
-* On Windows, Hermes uses the Desktop Duplication API which only supports capturing from the GPU used for display.
+* On Windows, Ares uses the Desktop Duplication API which only supports capturing from the GPU used for display.
   If you want to capture and encode on the eGPU, connect a display or HDMI dummy display dongle to it and run the games
   on that display.
 * When an application is started, if there is an application already running, it will be terminated.
@@ -503,7 +503,7 @@ All shortcuts start with `Ctrl+Alt+Shift`, just like Moonlight.
 
 ### HDR Support
 Streaming HDR content is experimental on Linux hosts. The Windows notes below are inherited from upstream Sunshine;
-Hermes does not publish or exercise a Windows build.
+Ares does not publish or exercise a Windows build.
 
 On a Hermes-KMS virtual display, HDR10 capture targets AMD through VAAPI (Intel shares the path but is untested) and
 NVIDIA through NVENC, by way of the CPU copy that backend always uses there. It needs `virtual_display_backend = hermes_kms`, Hermes-KMS

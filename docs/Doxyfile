@@ -22,8 +22,8 @@
 # doxygen -x_noenv [configFile]
 
 # project metadata
-DOCSET_BUNDLE_ID = io.github.mroz59.Hermes
-DOCSET_PUBLISHER_ID = io.github.mroz59.Hermes.documentation
+DOCSET_BUNDLE_ID = io.github.d3adb5.Ares
+DOCSET_PUBLISHER_ID = io.github.d3adb5.Ares.documentation
 PROJECT_BRIEF = "Self-hosted game stream host for Hestia and Artemis."
 PROJECT_ICON = ../apollo.ico
 PROJECT_LOGO = ../apollo.png

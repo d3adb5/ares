@@ -35,6 +35,9 @@ run `scripts/bump-version.sh <major|minor|patch>` — it moves everything under
   Input then has no controller.
 
 ### Changed
+- This fork is now Ares (`ares-streaming`, `ares.service`,
+  `~/.config/ares-streaming`, copied from `~/.config/hermes` on first start). It
+  installs beside Hermes; the two services stop each other, as they share ports.
 - The per-app `session-type` is now `isolation-method` (`default`, `gamescope`,
   `kwin_virtual`), and `shared` is the `host-session` flag; `apps.json` is
   migrated on start. The Detached Desktop and Detached Steam entries are renamed

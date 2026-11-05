@@ -9,9 +9,9 @@ Stop the service first, so the running process does not write the old state
 back over the new credentials:
 
 ```bash
-systemctl --user stop hermes
+systemctl --user stop ares
 hermes --creds {new-username} {new-password}
-systemctl --user start hermes
+systemctl --user start ares
 ```
 
 > [!TIP]
@@ -19,11 +19,11 @@ systemctl --user start hermes
 > Do not include the curly braces.
 
 > [!NOTE]
-> This keeps your paired clients. Deleting `hermes_state.json` also clears the
+> This keeps your paired clients. Deleting `ares_state.json` also clears the
 > password, but unpairs every client with it.
 
 ### Unusual Mouse Behavior
-If you experience unusual mouse behavior, try attaching a physical mouse to the Hermes host.
+If you experience unusual mouse behavior, try attaching a physical mouse to the Ares host.
 
 ### Web UI Access
 Can't access the web UI?
@@ -46,7 +46,7 @@ consistency (low latency with low variance, minimal or no packet loss).
 
 The network can be tested using the multi-platform tool [iPerf3](https://iperf.fr).
 
-On the Hermes host `iperf3` is started in server mode:
+On the Ares host `iperf3` is started in server mode:
 
 ```bash
 iperf3 -s
@@ -71,9 +71,9 @@ If you are testing a remote connection (over the internet), you will need to
 forward the port 5201 (TCP and UDP) from your host.
 
 ### Packet loss (Buffer overrun)
-If the host PC (running Hermes) has a much faster connection to the network
+If the host PC (running Ares) has a much faster connection to the network
 than the slowest segment of the network path to the client device (running
-Moonlight), massive packet loss can occur: Hermes emits its stream in bursts
+Moonlight), massive packet loss can occur: Ares emits its stream in bursts
 every 16 ms (for 60 fps), but those bursts can't be passed on fast enough to the
 client and must be buffered by one of the network devices inbetween. If the
 bitrate is high enough, these buffers will overflow and data will be discarded.
@@ -85,7 +85,7 @@ client having only a 100 Mbps interface.
 As a workaround the transmission speed of the host NIC can be reduced: 1 Gbps
 instead of 2.5 or 100 Mbps instead of 1 Gbps. A technically more advanced
 solution would be to configure traffic shaping rules at the OS level, so that
-only Hermes' traffic is slowed down.
+only Ares' traffic is slowed down.
 
 Such a solution on Linux could look like that:
 
@@ -100,7 +100,7 @@ sudo tc qdisc add dev <NIC> root handle 1: htb default 1
 sudo tc class add dev <NIC> parent 1: classid 1:1 htb \
     rate 10000mbit ceil 10000mbit burst 32k
 
-# 4) Create class 1:10 for the Hermes game stream at 1 Gbit/s
+# 4) Create class 1:10 for the Ares game stream at 1 Gbit/s
 sudo tc class add dev <NIC> parent 1: classid 1:10 htb \
     rate 1000mbit ceil 1000mbit burst 32k
 
@@ -110,10 +110,10 @@ sudo tc filter add dev <NIC> protocol ip parent 1: prio 1 \
     match ip sport 47998 0xffff flowid 1:10
 ```
 
-In that way only the Hermes traffic is limited by 1 Gbit. This is not persistent on reboots.
+In that way only the Ares traffic is limited by 1 Gbit. This is not persistent on reboots.
 If you use a different port for the game stream, you need to adjust the last command.
 
-Hermes carries the improved networking code from upstream Sunshine 0.23.1 and
+Ares carries the improved networking code from upstream Sunshine 0.23.1 and
 later, which should alleviate or even solve this issue (without reducing the
 NIC speed).
 
@@ -134,12 +134,12 @@ Due to legal concerns, Mesa has disabled hardware decoding and encoding by defau
 Error: Could not open codec [h264_vaapi]: Function not implemented
 ```
 
-If you see the above error in the Hermes logs, compiling *Mesa* manually may be required. See the official Mesa3D
+If you see the above error in the Ares logs, compiling *Mesa* manually may be required. See the official Mesa3D
 [Compiling and Installing](https://docs.mesa3d.org/install.html) documentation for instructions.
 
 > [!IMPORTANT]
 > You must re-enable the disabled encoders. You can do so by passing the following argument to the build
-> system. You may also want to enable decoders, however, that is not required for Hermes and is not covered here.
+> system. You may also want to enable decoders, however, that is not required for Ares and is not covered here.
 > ```bash
 > -Dvideo-codecs=h264enc,h265enc
 > ```
@@ -160,19 +160,19 @@ sudo usermod -aG input $USER
 
 ### Hermes-KMS virtual display
 Hermes-KMS is opt-in (`virtual_display_backend = hermes_kms`) and labeled experimental; EVDI is the default. The
-driver has to match the Hermes build — see the pairing table in the
+driver has to match the Ares build — see the pairing table in the
 [README](../README.md#installing-the-hermes-kms-driver).
 
 * **`UAPI <n> is too old; need 11`** — the loaded driver predates v0.4.0. Install v0.4.0 or newer and reboot if
   `make dkms-install` says an older module is still loaded.
-* **Hermes 0.6.0 cannot open the Hermes-KMS device after a driver update** — driver `main` grants only read access
+* **Ares 0.6.0 cannot open the Hermes-KMS device after a driver update** — driver `main` grants only read access
   to the render node, and 0.6.0 opens it read-write, so the open fails with `EACCES`. Install the driver's `v0.4.0`
-  tag, or move Hermes to a nightly.
+  tag, or move Ares to a nightly.
 * **Chrome, Discord or other Electron apps freeze while Hermes-KMS is loaded** — they picked the capture-only render
-  node as their GPU ([#63](https://github.com/MrOz59/Hermes/issues/63)). Driver `main` with a Hermes nightly fixes it
-  by keeping that node read-only. If you installed the temporary `99-hermes-kms-uaccess.rules` workaround from the
+  node as their GPU ([#63](https://github.com/d3adb5/ares/issues/63)). Driver `main` with a Ares nightly fixes it
+  by keeping that node read-only. If you installed the temporary `99-ares-kms-uaccess.rules` workaround from the
   driver's issue #6, remove it.
-* **The virtual display never appears** — the driver's development `99-hermes-kms-ignore-seat.rules` hides the card
+* **The virtual display never appears** — the driver's development `99-ares-kms-ignore-seat.rules` hides the card
   from every compositor; remove it for streaming.
 * **The desktop extends onto a black output at boot** — an `initial_enabled=1` in `/etc/modprobe.d/hermes-kms.conf`,
   left by an older package or written by hand, overrides the packaged default. Set it to `0`;
@@ -213,7 +213,7 @@ by running them with a special
 ```bash
 export AMD_DEBUG=lowlatencyenc
 ```
-Hermes sets this variable automatically, no manual
+Ares sets this variable automatically, no manual
 configuration is needed.
 
 To check whether low-latency mode is being used, one can watch the VCLK and DCLK
@@ -243,7 +243,7 @@ launchctl load -w /Library/LaunchAgents/org.freedesktop.dbus-session.plist
 Verify that you've installed [Nefarius Virtual Gamepad](https://github.com/nefarius/ViGEmBus/releases/latest).
 
 ### Permission denied
-Since Hermes runs as a service on Windows, it may not have the same level of access that your regular user account
+Since Ares runs as a service on Windows, it may not have the same level of access that your regular user account
 has. You may get permission denied errors when attempting to launch a game or application from a non-system drive.
 
 You will need to modify the security permissions on your disk. Ensure that user/principal SYSTEM has full

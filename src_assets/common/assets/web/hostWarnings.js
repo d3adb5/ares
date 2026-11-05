@@ -5,7 +5,7 @@
  * without a browser. It used to be a computed feeding the root render with
  * nothing between it and the whole page: when `/api/config` returned a
  * `streamPorts` that was the string `"[]"` rather than an array - a read-only
- * field that had round-tripped through hermes.conf - the `|| []` guard did not
+ * field that had round-tripped through ares.conf - the `|| []` guard did not
  * fire, because a non-empty string is truthy, `.filter` was not a function, and
  * Vue tore the tree down. `<body id="app" v-cloak>` then left an entirely blank
  * page, which reads as a server or auth failure rather than a render error.
@@ -92,7 +92,7 @@ export function hostWarnings(config) {
         + preloginBlockers
           .map(check => `${check.title}: ${check.detail}${check.fix ? ' ' + check.fix : ''}`)
           .join(' '),
-      href: 'https://github.com/MrOz59/Hermes/blob/main/docs/getting_started.md#before-anyone-logs-in-experimental',
+      href: 'https://github.com/d3adb5/ares/blob/master/docs/getting_started.md#before-anyone-logs-in-experimental',
       action: 'Read the setup steps',
     });
   }

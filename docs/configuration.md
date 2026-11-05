@@ -26,8 +26,8 @@ location by modifying the configuration file.
 | OS      | Location                                        |
 |---------|-------------------------------------------------|
 | Docker  | @code{}/config@endcode                          |
-| Linux   | @code{}~/.config/hermes@endcode               |
-| macOS   | @code{}~/.config/hermes@endcode               |
+| Linux   | @code{}~/.config/ares-streaming@endcode               |
+| macOS   | @code{}~/.config/ares-streaming@endcode               |
 | Windows | @code{}%ProgramFiles%\\Sunshine\\config@endcode |
 
 Although it is recommended to use the configuration UI, it is possible manually configure Sunshine by
@@ -268,7 +268,7 @@ editing the `conf` file in a text editor. Use the examples as reference.
         <td>Description</td>
         <td colspan="2">
             Named commands a client may run on the host during a session —
-            "Server Commands" in the Web UI. They are not run by Hermes on its
+            "Server Commands" in the Web UI. They are not run by Ares on its
             own: the names are advertised to a paired client that holds the
             <code>server_cmd</code> permission, which then asks for one by name.
             A client without that permission is not told they exist.
@@ -276,7 +276,7 @@ editing the `conf` file in a text editor. Use the examples as reference.
             <code>GET /api/hestia/v1/commands</code> and
             <code>POST /api/hestia/v1/commands/run</code>, with the same
             permission.}
-            @warning{A server command runs with the privileges of the Hermes
+            @warning{A server command runs with the privileges of the Ares
             process, chosen by whoever configures the host and triggered by a
             remote client. Grant the permission only to clients you would trust
             with those commands.}
@@ -302,10 +302,10 @@ editing the `conf` file in a text editor. Use the examples as reference.
     <tr>
         <td>Description</td>
         <td colspan="2">
-            Whether the Web UI should check the rolling Hermes nightly channel
+            Whether the Web UI should check the rolling Ares nightly channel
             in addition to stable releases. Disabled by default because nightly
             builds may be unstable. This only displays an update notification
-            and download link; Hermes does not install updates automatically.
+            and download link; Ares does not install updates automatically.
         </td>
     </tr>
     <tr>
@@ -329,7 +329,7 @@ editing the `conf` file in a text editor. Use the examples as reference.
         <td>Description</td>
         <td colspan="2">
             Whether the Web UI home page shows announcements published by the
-            Hermes maintainers, such as a known issue affecting your version.
+            Ares maintainers, such as a known issue affecting your version.
             The message list is fetched from GitHub when the home page loads,
             so disabling this stops that request. Announcements never install
             or change anything; they are text, an optional link, and a dismiss
@@ -915,7 +915,7 @@ alias; new configurations should use the key above.
         <td colspan="2">
             Moonlight-based clients move the mouse by one pixel and back right after connecting to wake the host
             display. In an isolated gamescope session that is real motion and shows the cursor until the app hides it.
-            When enabled, Hermes drops that +1,+1 / -1,-1 move if it is the first mouse input of an isolated session.
+            When enabled, Ares drops that +1,+1 / -1,-1 move if it is the first mouse input of an isolated session.
         </td>
     </tr>
     <tr>
@@ -1224,7 +1224,7 @@ alias; new configurations should use the key above.
     <tr>
         <td>Description</td>
         <td colspan="2">
-            Keep the captured audio sink as the system default while streaming, instead of switching the default to the streaming sink. Disable to let Hermes take over the default sink for the session.
+            Keep the captured audio sink as the system default while streaming, instead of switching the default to the streaming sink. Disable to let Ares take over the default sink for the session.
         </td>
     </tr>
     <tr>
@@ -1437,19 +1437,19 @@ alias; new configurations should use the key above.
     <tr>
         <td>Description</td>
         <td colspan="2">
-            Selects which Linux virtual-display driver Hermes uses for new virtual-display sessions:
+            Selects which Linux virtual-display driver Ares uses for new virtual-display sessions:
             <code>evdi</code> (stable default), <code>hermes_kms</code> (zero-copy, experimental), or
             <code>none</code>.
             <br><br>
             Several features exist only with <code>hermes_kms</code>: zero-copy capture on AMD/Intel,
             HDR10 on a virtual display, <code>hermes_kms_multi_output</code>,
             <code>hermes_kms_isolated_sessions</code>, streaming before login, and the driver's
-            capture counters in diagnostics. It needs Hermes-KMS v0.4.0 or newer; Hermes does not fall
+            capture counters in diagnostics. It needs Hermes-KMS v0.4.0 or newer; Ares does not fall
             back to EVDI when it is selected but unavailable.
             <br><br>
             <code>none</code> is for a host that has no virtual-display device and does not want one,
             because the output it streams already exists - a headless compositor session is the usual
-            case. It also stops Hermes reporting readiness problems for a driver that host never uses.
+            case. It also stops Ares reporting readiness problems for a driver that host never uses.
             <code>headless</code> is accepted as an older spelling of <code>none</code>.
         </td>
     </tr>
@@ -1504,7 +1504,7 @@ alias; new configurations should use the key above.
         <td colspan="2">
             @warning{Experimental and not recommended for production yet. Independent-session support now coexists with the shared host session rather than replacing it. Resource limits, GPU compositor support, per-account audio isolation, and full Plasma-session validation remain unfinished.}
 
-            Enables the experimental independent-session capability. It does not switch the entire Hermes server into an isolated mode. Eligible launches may use independent sessions while ordinary Host Desktop, Remote Input, and other shared routes continue to use the existing host compositor.
+            Enables the experimental independent-session capability. It does not switch the entire Ares server into an isolated mode. Eligible launches may use independent sessions while ordinary Host Desktop, Remote Input, and other shared routes continue to use the existing host compositor.
 
             <b>What every isolated session gets.</b> The Plasma
             desktop (<code>hermes_kms_session_compositor = plasma</code>) runs
@@ -1522,14 +1522,14 @@ alias; new configurations should use the key above.
             <b>How far that goes depends on the session broker.</b> Separating
             what each client can <i>reach</i> - files, credentials, the host's
             desktop services - takes a separate Unix user, which is the only
-            boundary the Linux kernel actually enforces. Hermes runs as an
+            boundary the Linux kernel actually enforces. Ares runs as an
             ordinary user and cannot create accounts or become anybody, so that
-            half is done by <code>hermes-session-broker</code>, a small root
+            half is done by <code>ares-session-broker</code>, a small root
             service, and it is optional.
 
             <b>Without the session broker</b>, everything in the session runs
-            under the same uid Hermes runs under. The client's compositor and
-            applications therefore share the Hermes user's home directory, its
+            under the same uid Ares runs under. The client's compositor and
+            applications therefore share the Ares user's home directory, its
             configuration, its SSH and GPG keys, its browser and game-store
             profiles, and its D-Bus session bus - which also means an
             application that registers as a unique instance may hand its window
@@ -1557,7 +1557,7 @@ alias; new configurations should use the key above.
             <code>journalctl -u hermes-session-N</code>.
 
             If the broker is installed but will not provide an account - the
-            Hermes user is not in its allow file, or every configured slot is in
+            Ares user is not in its allow file, or every configured slot is in
             use - the launch fails instead of falling back to the host user,
             because a silent fallback is the one outcome installing it was meant
             to prevent.
@@ -1565,21 +1565,21 @@ alias; new configurations should use the key above.
             Requires a Hermes-KMS driver speaking UAPI 11 or newer and its
             session-seat udev rule, a <code>gamescope</code> that can scan out
             on another device than it renders with (<code>--prefer-drm</code>
-            or <code>--drm-device</code>, as in Hermes' own Gamescope build),
+            or <code>--drm-device</code>, as in Ares' own Gamescope build),
             the chosen session compositor, and one packaged
             <code>hermes-kms-seatd@N.service</code> private broker per device,
-            which <code>hermes-kms-setup</code> configures for the Hermes user.
-            The Hermes user must be a member of the <code>seat</code> group.
-            Hermes maps device N to
+            which <code>hermes-kms-setup</code> configures for the Ares user.
+            The Ares user must be a member of the <code>seat</code> group.
+            Ares maps device N to
             <code>/run/hermes-kms-seatd/N/seatd.sock</code>.
             <code>hermes_kms_multi_output</code> may be enabled at the same time. Shared-host launches continue to use host compositor outputs, while independent launches allocate private session devices.
-            Audio follows the same split. A session that shares the Hermes
+            Audio follows the same split. A session that shares the Ares
             user gets a sink of its own, named after the session; its
             applications play into it, capture records it by name, and the
             host's default sink is never moved - so the client hears its own
             session and not the machine. A session that has a Unix account of
             its own does not yet: it gets an audio server of its own along with
-            its user manager, which Hermes cannot reach through a
+            its user manager, which Ares cannot reach through a
             <code>0700</code> runtime directory, so that case still hears the
             host's audio and says so in the log.
             @warning{Audio is not yet isolated for sessions that have a Unix account of their own - those clients hear the host. A full Plasma desktop and simultaneous real clients are not validated. The private seat brokers are not a security boundary between mutually untrusted local users. Remote Input remains a shared-host feature. Keep independent-session support disabled outside testing.}
@@ -1599,7 +1599,7 @@ alias; new configurations should use the key above.
             @endcode
             Install the driver's broker (<code>hermes-kms-seatd-git</code>, or
             <code>sudo make INSTALL_BROKER=1 dkms-install</code> from a clone)
-            and configure the session pool as the user Hermes runs as:
+            and configure the session pool as the user Ares runs as:
             @code{}
             sudo /usr/lib/hermes-kms/hermes-kms-setup configure --user auto
             @endcode
@@ -1615,21 +1615,21 @@ alias; new configurations should use the key above.
             answered by a new card on a private seat rather than by a refusal.
             @code{}
             echo hermes | sudo tee /etc/hermes/card-broker.allow
-            sudo systemctl enable --now hermes-kms-card-broker.socket
+            sudo systemctl enable --now ares-kms-card-broker.socket
             @endcode
             The broker runs as root because the driver's configfs group is
             root's; it answers only the users listed in that file, allocates the
             session index itself (the index is what becomes the private seat, so
             it cannot be a client's choice), and lets a user remove only the
             cards it created. Cards are removed when their display is torn down,
-            and any left by a Hermes that died are swept at the next start.
+            and any left by a Ares that died are swept at the next start.
 
             To give each client a Unix account of its own, enable the session
             broker as well. Without this, sessions are isolated by display and
-            input but still run as the Hermes user:
+            input but still run as the Ares user:
             @code{}
             echo hermes | sudo tee /etc/hermes/session-broker.allow
-            sudo systemctl enable --now hermes-session-broker.socket
+            sudo systemctl enable --now ares-session-broker.socket
             @endcode
             Both brokers are authorized the same way and neither uses polkit:
             the caller's uid comes from the kernel through
@@ -1643,7 +1643,7 @@ alias; new configurations should use the key above.
             outliving an accidental unpair is worth more than a tidy passwd
             file. Removing one is a deliberate act:
             @code{}
-            sudo systemctl stop hermes-session-broker.socket
+            sudo systemctl stop ares-session-broker.socket
             sudo userdel --remove hermes-s01
             @endcode</td>
     </tr>
@@ -1695,12 +1695,12 @@ alias; new configurations should use the key above.
             on KWin's virtual backend (see below). Any other name replaces KWin
             with a
             compositor profile file, looked up first in
-            <code>~/.config/hermes/session-compositors/</code> and then in the
-            profiles Hermes ships; a profile declares the command line, any
+            <code>~/.config/ares-streaming/session-compositors/</code> and then in the
+            profiles Ares ships; a profile declares the command line, any
             environment it needs, and whether it is told its Wayland socket name
             or names its own, and the compositor runs on a private Hermes-KMS
             DRM seat.
-            @note{Hermes ships <code>weston</code> and <code>labwc</code>
+            @note{Ares ships <code>weston</code> and <code>labwc</code>
             profiles as opt-in fallbacks for machines without Plasma 6. Neither
             is required. Dropping in a profile for a third compositor needs no
             code change and is supported by nobody but you.}
@@ -1721,7 +1721,7 @@ alias; new configurations should use the key above.
             shares the user's home, files and settings, so changes made in it
             are real; it has no DRM device and no libinput, so it never wakes or
             rearranges a physical monitor and the keyboard and mouse at the
-            machine never reach it. Hermes captures it through KWin's screencast
+            machine never reach it. Ares captures it through KWin's screencast
             protocol and drives its input through KWin's fake-input protocol.
             Its frames are copied through system memory rather than exported as
             DMA-BUFs. It needs KWin and Plasma 6, plasma-wayland-protocols at
@@ -2298,7 +2298,7 @@ alias; new configurations should use the key above.
             <code>exclusive</code> forces this behaviour for that app, while
             <code>extend</code> or <code>mirror</code> keep the physical
             outputs on even when this option is enabled.}
-            @note{On Linux, this requires a compositor Hermes can drive:
+            @note{On Linux, this requires a compositor Ares can drive:
             KDE/KWin through KScreen, a Wayland compositor implementing the
             wlr-output-management protocol, or GNOME through Mutter's own
             DisplayConfig interface. On a compositor that offers none of them,
@@ -2306,7 +2306,7 @@ alias; new configurations should use the key above.
             @note{On GNOME the layout is applied as <i>temporary</i> after
             Mutter's own <code>VERIFY</code> accepts it, and the layout found at
             the start is submitted again when the session ends. Before the
-            monitors go dark Hermes also writes a physical-only layout to
+            monitors go dark Ares also writes a physical-only layout to
             <code>$XDG_STATE_HOME/hermes/saved-mutter-layout</code> and replays
             it at the next start, so a crash mid-session cannot leave a desktop
             with every screen off.}
@@ -2607,13 +2607,13 @@ alias; new configurations should use the key above.
     <tr>
         <td>Default</td>
         <td colspan="2">@code{}
-            hermes_state.json
+            ares_state.json
             @endcode</td>
     </tr>
     <tr>
         <td>Example</td>
         <td colspan="2">@code{}
-            credentials_file = hermes_state.json
+            credentials_file = ares_state.json
             @endcode</td>
     </tr>
 </table>
@@ -2630,13 +2630,13 @@ alias; new configurations should use the key above.
     <tr>
         <td>Default</td>
         <td colspan="2">@code{}
-            hermes.log
+            ares.log
             @endcode</td>
     </tr>
     <tr>
         <td>Example</td>
         <td colspan="2">@code{}
-            log_path = hermes.log
+            log_path = ares.log
             @endcode</td>
     </tr>
 </table>
@@ -2703,13 +2703,13 @@ alias; new configurations should use the key above.
     <tr>
         <td>Default</td>
         <td colspan="2">@code{}
-            hermes_state.json
+            ares_state.json
             @endcode</td>
     </tr>
     <tr>
         <td>Example</td>
         <td colspan="2">@code{}
-            file_state = hermes_state.json
+            file_state = ares_state.json
             @endcode</td>
     </tr>
 </table>
@@ -2893,9 +2893,9 @@ alias; new configurations should use the key above.
     <tr>
         <td>Description</td>
         <td colspan="2">
-            Advertise the experimental PyroWave Vulkan codec to compatible Hestia clients. The codec is intra-only,
+            Advertise the experimental PyroWave Vulkan codec to compatible Athena and Hestia clients. The codec is intra-only,
             currently supports SDR YUV 4:2:0, and is intended for high-bandwidth LAN streaming. This option is only
-            effective when Hermes was built with the optional @code{pyrowave-shared} dependency and a compatible
+            effective when Ares was built with the optional @code{pyrowave-shared} dependency and a compatible
             Vulkan device is available.
             <br><br>
             On Linux the captured image is converted to YCbCr with OpenGL and the encoder reads the result through

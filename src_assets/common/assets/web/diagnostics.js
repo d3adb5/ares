@@ -45,7 +45,7 @@ function rejectionHints(error) {
   return [
     'The request never got a reply. The browser reports every one of these the same way, so it is one of:',
     '- the certificate was refused, or its exception was never accepted for this exact host and port',
-    '- the connection was reset or refused (Hermes not running, or listening on a different address)',
+    '- the connection was reset or refused (Ares not running, or listening on a different address)',
     '- a client-certificate prompt was dismissed',
     '- an extension, proxy or firewall blocked it',
     'Opening the same URL directly in a tab usually shows which, because a navigation is allowed to explain itself where a fetch is not.',
@@ -77,7 +77,7 @@ export async function apiFetch(url, options = {}, label = 'request') {
   } catch (error) {
     const elapsed = Math.round(performance.now() - startedAt);
     console.error(
-      `${PREFIX} ${label} FAILED after ${elapsed}ms — the request never reached Hermes.`
+      `${PREFIX} ${label} FAILED after ${elapsed}ms — the request never reached Ares.`
     );
     console.error(`${PREFIX} ${error.name}: ${error.message}`);
     // Timing separates the two shapes this takes: an immediate rejection is a
@@ -100,7 +100,7 @@ export async function apiFetch(url, options = {}, label = 'request') {
   const elapsed = Math.round(performance.now() - startedAt);
   if (!response.ok) {
     console.error(
-      `${PREFIX} ${label}: Hermes answered ${response.status} ${response.statusText} after ${elapsed}ms`
+      `${PREFIX} ${label}: Ares answered ${response.status} ${response.statusText} after ${elapsed}ms`
     );
     // The body carries the reason for the 4xx/5xx replies the UI sends. Read a
     // clone so the caller still gets an unread body.

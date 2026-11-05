@@ -31,10 +31,10 @@ and applications to Sunshine.
 > that process to switch modes, so the window stays wherever that Steam already was — normally your main monitor. No new
 > process is started and nothing is placed on the virtual display.
 >
-> On Linux, the **Gamescope Steam Session** entry is the counterpart: `hermes-gamescope-launch` starts Steam Big
+> On Linux, the **Gamescope Steam Session** entry is the counterpart: `ares-gamescope-launch` starts Steam Big
 > Picture inside a Gamescope compositor of its own at the resolution the client asked for. Gamescope runs *nested* —
 > a fullscreen window of the desktop compositor, which would normally place that window on the primary monitor. The
-> entry therefore ships with `virtual-display-layout: mirror`, which makes Hermes position the virtual display over
+> entry therefore ships with `virtual-display-layout: mirror`, which makes Ares position the virtual display over
 > the primary output, so the desktop (and the Gamescope window on it) is cloned into the stream. Set the app's
 > `virtual-display-layout` to `exclusive` instead to hand the desktop to the virtual display and turn the
 > physical monitors off for the session (native resolution, no clone), or to `extend` for the default side-by-side
@@ -358,9 +358,9 @@ can select an `isolation-method` in the Web UI or `apps.json`:
 - `kwin_virtual`: always start an independent desktop with the session compositor
   chosen by `hermes_kms_session_compositor`, by default the user's own Plasma
   desktop on KWin's virtual backend. With a compositor profile such as `weston`, when `cmd` is
-  set, Hermes launches it after the desktop socket and scanout are ready, and
+  set, Ares launches it after the desktop socket and scanout are ready, and
   ties it to the session so that ending the session ends it too - as a member
-  of the session's process group where the session runs as the Hermes user, or
+  of the session's process group where the session runs as the Ares user, or
   as a unit bound to the session's where the session broker gave it a user of
   its own;
 
@@ -395,7 +395,7 @@ Three fields tune it:
   `application` profile and 5 for `desktop`.
 
 Both profiles take two fields for what the session sees of the host's `/dev`
-(sessions running as the Hermes user; values `auto` (default), `on`, `off`):
+(sessions running as the Ares user; values `auto` (default), `on`, `off`):
 
 - `isolate-devices`: the session runs in its own mount namespace with a
   private `/dev`: basic nodes, the GPUs (`/dev/dri`), `pts`, `shm`, `uinput`,
@@ -405,8 +405,8 @@ Both profiles take two fields for what the session sees of the host's `/dev`
   devices and cameras are absent, and the client's devices and the session's
   Valve virtual devices are closed to the desktop (they get the session's
   seat, and no ACL). A uinput device does not record who made it, so a Valve
-  device counts as the session's only while no process outside it, Hermes
-  aside, holds `/dev/uinput`. Hermes needs
+  device counts as the session's only while no process outside it, Ares
+  aside, holds `/dev/uinput`. Ares needs
   `cap_sys_admin,cap_mknod,cap_sys_chroot+p`; `auto` runs without isolation
   (with a warning) when they are missing, `on` refuses to start.
 - `isolate-sound`: no `/dev/snd`, so applications only reach sound through
@@ -414,8 +414,8 @@ Both profiles take two fields for what the session sees of the host's `/dev`
 
 `stop-desktop-steam` (`auto`, `on`, `off`; `auto` when `cmd` runs `steam`):
 Steam runs once per user and hands a second launch to the running client. If
-the pid in `~/.steam/steam.pid` is a live Steam outside Hermes' sessions,
-Hermes sends it SIGTERM (it logs off and saves its settings, usually in a few
+the pid in `~/.steam/steam.pid` is a live Steam outside Ares' sessions,
+Ares sends it SIGTERM (it logs off and saves its settings, usually in a few
 seconds) before starting the session, and kills it and its children if it is
 still running after 30 seconds.
 
@@ -428,9 +428,9 @@ commands.
 
 With a compositor profile such as `weston` instead, the `kwin_virtual` method is a
 reference Weston desktop, not a complete Plasma session. Before such a launch,
-configure the driver's private-seat broker for the Hermes user with
+configure the driver's private-seat broker for the Ares user with
 `sudo /usr/lib/hermes-kms/hermes-kms-setup configure --user auto`, which starts
-one broker per session card; Hermes assigns the corresponding private broker
+one broker per session card; Ares assigns the corresponding private broker
 socket to the compositor automatically.
 
 ```json
@@ -448,7 +448,7 @@ socket to the compositor automatically.
 
 > [!CAUTION]
 > Because Flatpak packages run in a sandboxed environment and do not normally have access to the
-> host, a Flatpak build requires commands to be prefixed with `flatpak-spawn --host`. Hermes
+> host, a Flatpak build requires commands to be prefixed with `flatpak-spawn --host`. Ares
 > publishes no Flatpak of its own; this applies to a Flatpak you build from `packaging/linux/flatpak`.
 
 #### Windows

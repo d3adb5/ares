@@ -13,7 +13,7 @@ built by CI and published at
 >
 > In the AUR specifically, the package named `hermes` is an unrelated PAM
 > authentication project. The Hermes package built from this repository is named
-> `hermes-streaming`.
+> `ares-streaming`.
 
 If you package Hermes for a distribution, open an issue — a packaged route that
 is maintained by someone who runs that distribution is worth linking here.

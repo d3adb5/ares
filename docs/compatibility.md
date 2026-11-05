@@ -1,9 +1,9 @@
 # Compatibility and support
 
-Hermes touches three layers that vary wildly between systems: the kernel
+Ares touches three layers that vary wildly between systems: the kernel
 (virtual display driver), the compositor (which must adopt and drive that
 virtual output), and the GPU stack (which must import and encode its frames). A
-configuration works only when all three cooperate, so "does Hermes run on X" has
+configuration works only when all three cooperate, so "does Ares run on X" has
 no single answer — this document records what has actually been exercised, what
 shares a code path with something that has, and what is known not to work.
 
@@ -30,7 +30,7 @@ machine. If you run one of those configurations, a report either way is useful.
 
 ## Compositors
 
-The compositor has to do two things: adopt the virtual connector when Hermes
+The compositor has to do two things: adopt the virtual connector when Ares
 connects it, and drive it at the mode the client negotiated. Each compositor
 family exposes a different protocol for this, which is why support is per
 compositor rather than per distribution.
@@ -60,15 +60,15 @@ ones.
 **Touch and pen are bound to the streamed output.** KWin binds a touchscreen or
 a tablet to a single output, and without a binding it guesses: the built-in
 panel, an output whose physical size matches the device's, or the first output.
-Hermes binds each of its touch and pen devices to the virtual output through
+Ares binds each of its touch and pen devices to the virtual output through
 KWin's `org.kde.KWin.InputDevice` D-Bus interface as the device appears. KWin
 stores that binding in `kcminputrc`, in a group named after the device, and
-Hermes puts the previous value back when the display goes away. Writing the
+Ares puts the previous value back when the display goes away. Writing the
 older `OutputName` key is not enough on its own: KWin 6.7 reads `OutputUuid`
 after it, and an empty one undoes the match. The devices of concurrent sessions
 share their names, so a new client's devices follow the display activated last.
 
-Verified on KWin 6.7.4 with uinput devices carrying Hermes' names and ids: a
+Verified on KWin 6.7.4 with uinput devices carrying Ares' names and ids: a
 touchscreen and a tablet that appear are bound to the virtual output, a later
 device inherits the stored binding, and after the restore a new one is left to
 KWin's guess again. Packaged builds open the standard `/run/user/<uid>/bus`
@@ -85,7 +85,7 @@ on its DRM backend.
 
 `cosmic-comp` advertises `zwlr_output_manager_v1` **version 4** (plus
 `zcosmic_output_manager_v1` v3 as an *extension* on top of it, not a
-replacement). Hermes binds `min(version, 4)`, so the versions match exactly and
+replacement). Ares binds `min(version, 4)`, so the versions match exactly and
 the existing wlroots path is used unchanged — no COSMIC-specific code exists or
 is needed.
 
@@ -94,7 +94,7 @@ Observed:
 - the virtual connector appeared in the output list with its full mode set;
 - COSMIC selected the mode the client requested (`1600x1068 @ 89.99 Hz`) as
   current, because the driver marks the requested mode `DRM_MODE_TYPE_PREFERRED`;
-- the compositor rendered into the card's scanout buffer, which is what Hermes'
+- the compositor rendered into the card's scanout buffer, which is what Ares'
   capture reads.
 
 Not tested: a real streaming session, and exclusive mode. Exclusive mode uses
@@ -112,11 +112,11 @@ This was reported broken as a black screen on the client while input and audio
 kept working. The investigation found three independent problems, all fixed for
 the video path:
 
-- Hermes asked whether Mutter had adopted the connector with a single call
+- Ares asked whether Mutter had adopted the connector with a single call
   issued milliseconds after connecting it. Mutter adopts asynchronously, so the
   answer was reliably "no" and the session was declared failed.
 - Mutter does adopt the connector, but at whichever mode *it* prefers. It drove
-  the output at one resolution while Hermes captured at the requested one, so
+  the output at one resolution while Ares captured at the requested one, so
   the encoder published frames the compositor never rendered.
 - Mutter renders on the real GPU and PRIME-imports that DMA-BUF into Hermes-KMS
   for scanout. `ACQUIRE_FRAME` incorrectly re-exported the imported GEM wrapper
@@ -125,7 +125,7 @@ the video path:
   `EGL_BAD_ALLOC`. Since 0.3.2 Hermes-KMS returns the original DMA-BUF and
   carries a regression test for this imported-scanout path.
 
-Hermes now waits for Mutter to probe the connector and pushes the requested mode
+Ares now waits for Mutter to probe the connector and pushes the requested mode
 through `ApplyMonitorsConfig`. Because that call is all-or-nothing, every config
 is submitted to Mutter's `VERIFY` method first and abandoned if it does not
 validate, and it is applied as *temporary* so `~/.config/monitors.xml` is never
@@ -133,14 +133,14 @@ rewritten.
 
 The output and scanout path was exercised on 2026-08-22 in a CachyOS VM with
 kernel 7.1.8 and GNOME Shell/Mutter 50.4. Separately, the original reporter in
-[#22](https://github.com/MrOz59/Hermes/issues/22) confirmed a working video
+[#22](https://github.com/d3adb5/ares/issues/22) confirmed a working video
 stream on an RX 7800 XT after installing the driver fix. This verifies the video
 path; it does not change the exclusive-mode limitation below.
 
 A fourth problem, on the input side, was found afterwards and is fixed. Mutter
 measures an absolute pointing device against the extents of the whole stage, so
 the client's coordinates need the streamed output's offset within the desktop
-envelope to land on it. Hermes resolved that geometry through `kscreen-doctor`,
+envelope to land on it. Ares resolved that geometry through `kscreen-doctor`,
 which GNOME does not implement, and only asked for it in multi-output mode. Since
 the physical outputs stay on for the session here, the desktop is always
 extended and the offset always matters: a 1600x1068 client stretched across the
@@ -149,13 +149,13 @@ monitor. Geometry now comes from `GetCurrentState`, in the logical coordinates
 the pointer is actually measured in.
 
 Whether that is the whole of the pointer behaviour reported in
-[#22](https://github.com/MrOz59/Hermes/issues/22) is not established - the same
-description also fits the host's own mouse, which Hermes never touches - but the
+[#22](https://github.com/d3adb5/ares/issues/22) is not established - the same
+description also fits the host's own mouse, which Ares never touches - but the
 missing offset was real and is gone.
 
 **What was verified, and how.** Every configuration described below was
 submitted to a real mutter 50.4 — headless, with two virtual monitors, its
-session bus exposed on a shared socket so the payloads Hermes builds could be
+session bus exposed on a shared socket so the payloads Ares builds could be
 fed to it unchanged. Mutter accepted and applied the exclusive configuration and
 left only the virtual output in the layout; accepted the mirrored one and put
 both connectors in a single logical monitor; and restored the original layout
@@ -174,12 +174,12 @@ is what the copy path and the cursor plane depend on; whether GNOME's input
 mapper actually routes a touchscreen to the bound monitor, which needs real
 devices on a seat; and the `global-scale-required` branch, which headless mutter
 does not exercise. The D-Bus and GSettings calls themselves were reproduced
-command-for-command rather than executed through Hermes' own wrappers.
+command-for-command rather than executed through Ares' own wrappers.
 
 **A layout change mid-session is noticed.** Everything above reads the monitor
 state once and acts on the answer, and GNOME rewrites the layout for reasons
 that have nothing to do with streaming — another monitor plugged in, the
-Displays panel opened, a stored configuration reapplied after a resume. Hermes
+Displays panel opened, a stored configuration reapplied after a resume. Ares
 subscribes to `MonitorsChanged` over sd-bus and, when the change actually moves
 an output or changes a mode, reinitialises capture so the geometry is resolved
 again. It deliberately does not put the layout back: whoever changed it very
@@ -192,16 +192,16 @@ pointer over the whole desktop, but binds a touchscreen or tablet to a single
 monitor. Left to itself it guesses - by EDID, by the device's physical size,
 and failing both a touchscreen falls back to the built-in panel - so a client's
 touches landed on the laptop screen, or spread across the desktop on a machine
-with no built-in panel. Hermes now writes the per-device `output` key for its
+with no built-in panel. Ares now writes the per-device `output` key for its
 own virtual devices, matching the virtual monitor's EDID, and puts the key back
 when the session ends. The key is addressed by the device's vendor and product
-ids, which every Hermes device shares, so it is one binding per host: with
+ids, which every Ares device shares, so it is one binding per host: with
 concurrent sessions it points at whichever output was activated last.
 
 **Exclusive mode works on GNOME.** This was recorded here as impossible, which
 was wrong. `ApplyMonitorsConfig` takes the complete list of logical monitors and
 Mutter disables every connected monitor absent from it, so handing the desktop
-to the virtual output is a configuration that names only it. Hermes captures the
+to the virtual output is a configuration that names only it. Ares captures the
 layout it found first, submits the exclusive one through `VERIFY` before
 applying it as temporary, and submits the captured layout again when the session
 ends. The captured layout is also written to
@@ -215,20 +215,20 @@ monitors, and clones by putting both connectors in a single logical monitor -
 which it accepts only when both advertise the same mode size. So a mirrored
 session on GNOME runs at the physical monitor's resolution rather than the one
 the client negotiated, and if the virtual output does not advertise that
-resolution, Hermes says so and keeps the extended layout.
+resolution, Ares says so and keeps the extended layout.
 
 ### wlroots compositors — expected to work
 
 sway and other wlroots-based compositors expose `wlr-output-management`, the
-same protocol and version verified on COSMIC, so the same Hermes code path
-applies. The container image in `packaging/container` runs Hermes on a headless
+same protocol and version verified on COSMIC, so the same Ares code path
+applies. The container image in `packaging/container` runs Ares on a headless
 sway session. They also implement `wlr-screencopy`, so the `wlgrab` capture
 backend is available there in addition to Hermes-KMS.
 
 ### Hyprland — verified through its own headless output
 
 **Verified 2026-08-23** on CachyOS, kernel 7.1.8-1-cachyos, Hyprland 0.56.2-1,
-aquamarine 0.14.0-2.2, Radeon RX 6700 XT. Exercised through Hermes' own code
+aquamarine 0.14.0-2.2, Radeon RX 6700 XT. Exercised through Ares' own code
 path, not a mock: the output is created, the client's mode is applied and read
 back from the compositor, capture initialises on it at that mode, and removing
 the display leaves the session as it was.
@@ -243,7 +243,7 @@ below is still open: the frame rate was not measured, and a headless output
 redraws on damage, so a still screen may not produce frames at the requested
 rate on its own.
 
-Hermes does not give Hyprland a virtual DRM device. It asks Hyprland to create a
+Ares does not give Hyprland a virtual DRM device. It asks Hyprland to create a
 **headless output**, which Hyprland renders itself on the primary GPU — so the
 question that breaks the DRM backends here, how aquamarine drives a display-only
 device, never arises. The rest is the path every wlr session already takes: the
@@ -255,18 +255,18 @@ Two things are worth knowing about the mechanism:
 
 - The output is created over Hyprland's **control socket**
   (`$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket.sock`), not over
-  any Wayland protocol, so Hermes must run inside the session — a service that
+  any Wayland protocol, so Ares must run inside the session — a service that
   cannot see `HYPRLAND_INSTANCE_SIGNATURE` reports the feature as unavailable
   and says so.
 - `output create` replies only `ok`; it does not name what it made, and the
-  `HEADLESS-N` counter does not reset when an output is removed. Hermes learns
+  `HEADLESS-N` counter does not reset when an output is removed. Ares learns
   the name by diffing the monitor list, because the second output of a session
   is `HEADLESS-2` even when it is the only one alive.
 
 `hyprctl keyword monitor` — the recipe most guides use to set the mode — **does
 not work on a config using the non-legacy parser**; it answers `keyword can't
 work with non-legacy parsers. Use eval.` That is why the mode goes through
-wlr-output-management instead, which is also the path Hermes already had.
+wlr-output-management instead, which is also the path Ares already had.
 
 Hermes-KMS and EVDI remain unusable on Hyprland for the reasons below, so
 `selected_backend()` routes Hyprland to the headless path regardless of the
@@ -281,8 +281,8 @@ changed is noted where it changed.
 
 Hyprland is not a wlroots compositor. It has its own backend, **aquamarine**, so
 it does not share the code path verified on sway and COSMIC — and that
-difference is exactly what breaks virtual displays. The Hermes side is not the
-problem: Hyprland implements `zwlr_output_manager_v1`, the protocol Hermes uses
+difference is exactly what breaks virtual displays. The Ares side is not the
+problem: Hyprland implements `zwlr_output_manager_v1`, the protocol Ares uses
 to enable a virtual output, and it does adopt the connector when the driver
 connects it, giving the virtual monitor its own workspace. The failure is a
 layer below, in how aquamarine drives a secondary DRM device.
@@ -372,16 +372,16 @@ None of this blocks streaming on Hyprland any more — the headless output above
 does not go through a DRM device at all. It matters for using **Hermes-KMS
 itself** under Hyprland, which is what the multi-session and seat-isolation
 features are built on: those still need KDE, GNOME, a wlroots compositor, or
-Hermes' per-session gamescope path.
+Ares' per-session gamescope path.
 
 ### Weston — driver verified, activation not applicable
 
 Hermes-KMS ships a VM test that runs real Weston DRM compositors on its cards,
 so the *driver* is known to work as a DRM device under Weston. Weston does not
-implement `wlr-output-management`, so Hermes has no way to activate the virtual
+implement `wlr-output-management`, so Ares has no way to activate the virtual
 output there — it would have to be configured by other means. Weston is used as
 a driver test harness, not as a supported streaming session. The one exception
-is the experimental independent sessions, where Hermes starts Weston itself on a
+is the experimental independent sessions, where Ares starts Weston itself on a
 private card and sets the mode through `weston.ini` instead of activating an
 output in someone else's session.
 
@@ -405,7 +405,7 @@ that moment never comes. Hermes-KMS ships a `Containerfile` that builds the
 module *into* the image instead, compiling against the image's kernel and
 installing it to `/usr/lib/modules/<kver>/extra`, with optional MOK signing.
 
-Separately, `packaging/container` holds a runtime image that runs Hermes on a
+Separately, `packaging/container` holds a runtime image that runs Ares on a
 headless sway session with audio and XWayland.
 
 ## GPUs and encoders
@@ -427,7 +427,7 @@ have not been measured — see [Hermes-KMS HDR10](hermes_kms_hdr.md) and the
 
 ### AMD zero-copy status
 
-The RX 7800 XT failure reported in [#22](https://github.com/MrOz59/Hermes/issues/22)
+The RX 7800 XT failure reported in [#22](https://github.com/d3adb5/ares/issues/22)
 was the GNOME/Mutter imported-scanout bug described above, not a GPU-generation
 limitation. The decisive control imported the same geometry from a plain
 `udmabuf` on the same card, kernel and Mesa stack; that succeeded both with and
@@ -436,7 +436,7 @@ DMA-BUF, the reporter confirmed that video streaming worked.
 
 This is direct confirmation for Navi 32, not a claim that every RDNA3 model has
 been exercised. No RDNA3-specific failure is currently known, so the dedicated
-hardware-testing request in [#23](https://github.com/MrOz59/Hermes/issues/23)
+hardware-testing request in [#23](https://github.com/d3adb5/ares/issues/23)
 has been retired.
 
 **NVIDIA needs a CPU copy.** NVIDIA's EGL import of the driver's system-memory
@@ -460,12 +460,12 @@ once it leaves that status.
 ### Hermes-KMS (experimental, opt-in)
 
 A purpose-built DRM/KMS driver. The compositor owns the card and scans out the
-desktop; Hermes opens its **render node** read-only and pulls each frame as a
+desktop; Ares opens its **render node** read-only and pulls each frame as a
 DMA-BUF. No DRM master and no KMS access are needed, so it coexists with the
 compositor.
 
-Requires driver v0.4.0 or newer (Hermes refuses anything below UAPI 11), loaded
-with `initial_enabled=0` and its card left on the active seat. Hermes 0.6.0
+Requires driver v0.4.0 or newer (Ares refuses anything below UAPI 11), loaded
+with `initial_enabled=0` and its card left on the active seat. Ares 0.6.0
 needs the `v0.4.0` tag specifically: driver `main` grants only read access to
 the render node, which 0.6.0 opens read-write — see the pairing table in the
 [README](../README.md#installing-the-hermes-kms-driver).
@@ -500,7 +500,7 @@ An EVDI connector also reports *disconnected* until a userspace client calls
 | `x11grab` | X11 | X11 sessions |
 
 `cosmic-comp` does not implement `wlr-screencopy`; it implements
-`ext-image-copy-capture-v1` instead, which Hermes does not currently support. On
+`ext-image-copy-capture-v1` instead, which Ares does not currently support. On
 COSMIC, use the Hermes-KMS backend, whose capture involves no Wayland protocol
 at all and is therefore unaffected.
 
@@ -509,20 +509,20 @@ at all and is therefore unaffected.
 **A stale `/etc/modprobe.d/hermes-kms.conf` silently wins.** The package installs
 its default to `/usr/lib/modprobe.d/hermes-kms.conf`, but `/etc/modprobe.d`
 overrides `/usr/lib/modprobe.d`. An `initial_enabled=1` written there by an older
-package, or by hand, keeps the virtual connector connected at boot before Hermes
+package, or by hand, keeps the virtual connector connected at boot before Ares
 owns it, and the compositor extends the desktop onto a black output nobody is
 streaming. No upgrade can fix this, because the package does not own that file.
 The package reports it on install and upgrade and the driver logs a warning at
 probe; neither rewrites the file. Remove it, or set `initial_enabled=0`.
 
 **A virtual display is selected by name, and the name comes from `xdg_output`.**
-`wlgrab` matches the compositor's output name against the one Hermes recorded
+`wlgrab` matches the compositor's output name against the one Ares recorded
 when it created the display. Until 2026-08-23 the names were read *after* the
 match ran, so every by-name selection failed with "is not enabled by the
 compositor" for an output the same log had just listed. Only the Hyprland
 headless path selects by name — a physical monitor is selected by index — so
 this never surfaced before. Fixed; noted here because the error message points
-at the compositor and the fault was Hermes'.
+at the compositor and the fault was Ares'.
 
 **On a multi-GPU host, Wayland screencopy capture allocates on the GPU the
 compositor renders with.** The render-node scan used to keep the first node that
@@ -543,7 +543,7 @@ GNOME path reads Mutter's logical monitor layout. KMS capture of a physical
 monitor at a scale other than 1 still has the old mismatch.
 
 **The development udev rule hides the card from every compositor.**
-`udev/99-hermes-kms-ignore-seat.rules` strips `TAG+="seat"` and `ID_SEAT` from
+`udev/99-ares-kms-ignore-seat.rules` strips `TAG+="seat"` and `ID_SEAT` from
 the Hermes-KMS card so an isolated test session can claim it. With that rule
 installed no compositor adopts the virtual output — KWin, Hyprland or any other
 — which is usually reported as "the virtual display never appears at all". The
@@ -556,7 +556,7 @@ with `-EINVAL`. Since 0.4.0 the envelope is `min_width`, `min_height`,
 7680x4320, and a refused mode names the envelope the driver would have accepted.
 Raise a limit with the matching module option if a client needs more.
 
-**Hermes 0.6.0 cannot use driver `main`.** Driver `main` restricts the render
+**Ares 0.6.0 cannot use driver `main`.** Driver `main` restricts the render
 node to read access, so Chromium/Electron's `O_RDWR` GPU probe skips it; 0.6.0
 still opens it read-write and gets `EACCES`. Pair 0.6.0 with the `v0.4.0` tag,
 or move to a nightly, which opens the node read-only.
@@ -568,12 +568,12 @@ does not arise: the headless output is not a DRM device — see
 
 **Confined packaging may lose output management.** COSMIC filters privileged
 protocol globals by Wayland security context; clients without a security context
-are trusted. Hermes running as a normal user service qualifies, but a Flatpak or
+are trusted. Ares running as a normal user service qualifies, but a Flatpak or
 Snap build could be filtered out and would not see `wlr-output-management`.
 
 **COSMIC mirroring reports an enabled output without a current mode**
 ([pop-os/cosmic-comp#945](https://github.com/pop-os/cosmic-comp/issues/945)),
-which may affect the layout Hermes saves before entering exclusive mode.
+which may affect the layout Ares saves before entering exclusive mode.
 
 ## Reporting problems and contributing
 
@@ -588,7 +588,7 @@ A useful report includes:
 
 - distribution, kernel, compositor and its version, GPU and driver;
 - `XDG_CURRENT_DESKTOP` and `XDG_SESSION_TYPE`;
-- the Hermes log for the failing session;
+- the Ares log for the failing session;
 - `cat /sys/class/drm/card*/status` and, if the module is loaded,
   `cat /sys/module/hermes_kms/parameters/initial_enabled`;
 - for display-adoption problems, the compositor's view of its outputs

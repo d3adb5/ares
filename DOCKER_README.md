@@ -3,9 +3,9 @@
 There are two unrelated sets of container files in this repository, and only one
 of them produces something you can run.
 
-## Running Hermes in a container
+## Running Ares in a container
 
-`packaging/container` holds a **runtime** image: Hermes on a headless Wayland
+`packaging/container` holds a **runtime** image: Ares on a headless Wayland
 session (sway), with audio, XWayland and an optional Steam Big Picture session.
 It exists for distributions that cannot install a package normally — Bazzite,
 Silverblue, SteamOS and other image-based systems — because the userspace lives
@@ -41,7 +41,7 @@ host. They are not what CI builds the released packages with: that is
 there.
 
 > [!NOTE]
-> Hermes publishes no container images. `lizardbyte/sunshine` on Docker Hub and
+> Ares publishes no container images. `lizardbyte/sunshine` on Docker Hub and
 > ghcr.io is upstream Sunshine, a different program.
 
 <div class="section_buttons">
