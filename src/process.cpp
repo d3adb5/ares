@@ -2310,6 +2310,14 @@ namespace proc {
       for (const auto *name : {"XDG_SEAT", "LIBSEAT_BACKEND", "SEATD_SOCK", "WLR_DRM_DEVICES", "WLR_LIBINPUT_NO_DEVICES", "HERMES_SEATD_SOCKET", "HERMES_DRM_DEVICE"}) {
         runtime->env.erase(name);
       }
+      // Under FIFO each swapchain image past two queues a finished frame: a whole refresh of latency, more
+      // at lower rates. Gamescope's WSI layer offers three and games ask for their own number. It costs a
+      // GPU-bound game no frames. An app's own env takes precedence.
+      for (const auto *name : {"GAMESCOPE_WSI_MIN_IMAGE_COUNT", "GAMESCOPE_WSI_MAX_IMAGE_COUNT"}) {
+        if (!runtime->env.count(name)) {
+          runtime->env[name] = "2";
+        }
+      }
     } else {
       if (config::video.virtual_display_backend != "hermes_kms") {
         launch_session->launch_error_message = "This session needs a Hermes-KMS card, and the virtual display backend is not hermes_kms.";
