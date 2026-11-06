@@ -48,11 +48,14 @@ Latency, one stream each:
 | `run-e2e.sh <label> <uuid>` | Latency per marker with gaps every 150-500 ms (`probe-app -120`). Pauses disturb the pacing being measured: use for comparing routes. |
 | `run-steady.sh <label> <uuid>` | Panel vs host frame counts over 14 s, new frames per vsync. |
 
+A real game: `run-game.sh <label> <uuid> <process name>`, with `GAMESCOPE_WSI_PRESENT_LOG=<this directory>/host-present.log` in its env (a Gamescope
+with the layer's present log). It freezes the game for 100 ms every 3-6 s, so leave it at a menu or standing still.
+
 Sets of them: `run-set.sh`, `run-mode.sh <tag>` (adds HWC misses), `matrix.sh <uuid> <tag> <rounds> <fps...>`, `cell.sh`,
 `vsync-matrix.sh` (swapchain images and vsync off by stream rate), `load-matrix.sh` (GPU-bound; writes `load.n`),
 `cap-test.sh` (the image cap on an app asking for three).
 
-The client and device: `setfps.sh <fps>`, `setpace.sh keep|latency|...`, `sfset.sh <percent>|off` (bind an edited lead table
+The client and device: `setfps.sh <fps>`, `setpace.sh keep|latency|...`, `setdouble.sh true|false`, `sfset.sh <percent>|off` (bind an edited lead table
 and restart SurfaceFlinger, which restarts the framework; `off` undoes it; a reboot also does).
 
 Display: `panelrate.sh` (during a stream: hardware vsync counter and present fences), `vsynccount.sh <seconds> <label>`,
