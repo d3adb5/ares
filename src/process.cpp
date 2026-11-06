@@ -1333,9 +1333,58 @@ namespace proc {
       return !runtime->stopping.load() && runtime->process.valid() && runtime->process.running();
     }
 
+    /**
+     * @brief Ask the Steam a session started to shut down, before the session is stopped.
+     *
+     * Stopping the session's processes gives Steam no time to log off and save
+     * its config. Only this session's own client is asked: Steam is one instance
+     * per user, and one started elsewhere took this session's launch for itself.
+     */
+    void shut_down_session_steam(const isolated_runtime_t &runtime) {
+      const char *home = std::getenv("HOME");
+      pid_t pid = 0;
+      std::ifstream {std::string {home ? home : ""} + "/.steam/steam.pid"} >> pid;
+      // The pid file outlives the client, and with none left -shutdown starts Steam's updater.
+      if (pid <= 0 || read_proc_line(pid, "comm") != "steam") {
+        return;
+      }
+      std::ifstream environ {"/proc/" + std::to_string(pid) + "/environ"};
+      const std::string env_of_steam {std::istreambuf_iterator<char> {environ}, {}};
+      if (env_of_steam.find("APOLLO_CLIENT_UUID=" + runtime.client_uuid) == std::string::npos) {
+        BOOST_LOG(info) << "[IsolatedSession] Steam (pid " << pid << ") is not " << runtime.runtime_id << "'s; leaving it running.";
+        return;
+      }
+
+      const auto command = platf::gamescope::steam_shutdown_command(runtime.app.cmd);
+      BOOST_LOG(info) << "[IsolatedSession] Asking Steam to shut down: [" << command << ']';
+      std::error_code ec;
+      boost::filesystem::path working_dir;
+      boost::process::v1::group group;
+      auto child = platf::run_command(false, true, command, working_dir, runtime.env, nullptr, ec, &group);
+      if (ec) {
+        BOOST_LOG(warning) << "[IsolatedSession] Could not ask Steam to shut down: " << ec.message();
+        return;
+      }
+
+      const auto deadline = std::chrono::steady_clock::now() + 30s;
+      while (read_proc_line(pid, "comm") == "steam" && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(100ms);
+      }
+      if (read_proc_line(pid, "comm") == "steam") {
+        BOOST_LOG(warning) << "[IsolatedSession] Steam did not shut down within 30 s; stopping the session anyway.";
+      } else {
+        BOOST_LOG(info) << "[IsolatedSession] Steam has shut down.";
+      }
+      terminate_process_group(child, group, 0s);
+    }
+
     void stop_isolated_runtime(const std::shared_ptr<isolated_runtime_t> &runtime) {
+      const bool steam_running = runtime && !runtime->account && runs_steam(runtime->app) && isolated_runtime_running(runtime);
       if (!runtime || runtime->stopping.exchange(true)) {
         return;
+      }
+      if (steam_running) {
+        shut_down_session_steam(*runtime);
       }
 
       BOOST_LOG(info) << "[IsolatedSession] Stopping " << runtime->runtime_id

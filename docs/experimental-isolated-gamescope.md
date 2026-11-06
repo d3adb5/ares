@@ -82,8 +82,10 @@ layer.
 - **Devices.** `isolate-devices` gives it a private `/dev` (its own mount
   namespace) with only its client's devices; `isolate-sound` removes
   `/dev/snd`.
-- **Steam.** `stop-desktop-steam` shuts down a Steam running on the desktop
-  first, since Steam runs once per user. The host's Discord IPC sockets are
+- **Steam.** Quitting a session whose `cmd` runs `steam` runs `steam -shutdown`
+  and waits up to 30 s, so Steam logs off and saves its config (it closes a
+  running game too) before the session is stopped. `stop-desktop-steam` shuts
+  down a Steam running on the desktop first, since Steam runs once per user. The host's Discord IPC sockets are
   linked into the session's runtime directory.
 
 ## Per-app settings

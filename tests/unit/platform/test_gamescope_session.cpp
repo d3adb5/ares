@@ -151,6 +151,13 @@ namespace {
     EXPECT_FALSE(steam_mode_for("off", "steam -gamepadui"));
   }
 
+  TEST(GamescopeSession, SteamShutdownUsesTheAppsOwnProgram) {
+    EXPECT_EQ(steam_shutdown_command("steam -gamepadui"), "steam -shutdown");
+    EXPECT_EQ(steam_shutdown_command("  /usr/bin/steam -gamepadui"), "/usr/bin/steam -shutdown");
+    EXPECT_EQ(steam_shutdown_command("steam"), "steam -shutdown");
+    EXPECT_EQ(steam_shutdown_command(""), "");
+  }
+
   TEST(GamescopeSession, TheApplicationAlwaysComesAfterTheSeparator) {
     auto launch = session(drm_selector_e::prefer_drm, true);
     launch.command = "env DXVK_HUD=1 %command% --prefer-drm /dev/dri/card0";

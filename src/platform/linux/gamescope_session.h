@@ -143,6 +143,18 @@ namespace platf::gamescope {
     return program == "steam";
   }
 
+  /**
+   * The command asking the Steam an application started to shut down. Its
+   * program is the one that command runs, so a path keeps working.
+   */
+  inline std::string steam_shutdown_command(std::string_view command) {
+    const auto begin = command.find_first_not_of(" \t");
+    if (begin == std::string_view::npos) {
+      return {};
+    }
+    return std::string {command.substr(begin, command.find_first_of(" \t", begin) - begin)} + " -shutdown";
+  }
+
   /// The optional flags an application session gets when its app sets none.
   constexpr std::string_view default_args {"--expose-wayland --force-windows-fullscreen"};
 
