@@ -1,6 +1,6 @@
 #!/bin/bash
 # During a running stream: hardware vsync counter and present fences over the same window.
-. "$(dirname "$(readlink -f "$0")")/env.sh"; N=$(adb shell dumpsys SurfaceFlinger --list 2>/dev/null | grep -F '(BLAST)' | grep -i 'SurfaceView.*athena' | head -1 | tr -d '\r')
+. "$(dirname "$(readlink -f "$0")")/env.sh"; N=$(stream_layer)
 S=$($RSH <<X | tr -d '\r'
 f=\$(grep -l "intf:1 .*mode: command" /sys/kernel/debug/dri/0/encoder*/status | head -1)
 echo \$(grep -o "intf:1 *vsync: *[0-9]*" \$f | grep -o "[0-9]*\$") \$(date +%s%N)
@@ -23,5 +23,5 @@ for l in open('pr.txt'):
     if len(p)==3 and p[0].isdigit() and 0<int(p[1])<2**62: t.add(int(p[1]))
 t=sorted(t); g=[y-x for x,y in zip(t,t[1:]) if y-x<4e7]; m=st.median([x for x in g if x<1.1e7])
 n=sum(round(x/m) for x in g); sp=sum(g)
-print(f"hardware counter {hw:.3f} Hz | present fences {1e9*n/sp:.3f} Hz | window {(int(b[1])-int(a[1]))/1e9:.0f}s | temp {int(b[2])/1000:.1f}C")
+print(f"hardware counter {hw:.3f} Hz | present fences {1e9*n/sp:.3f} Hz | window {(int(b[1])-int(a[1]))/1e9:.0f}s | temp {int(b[2])/1000:.1f}C | PANEL_PERIOD_NS={sp/n:.0f}")
 P

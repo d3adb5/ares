@@ -22,6 +22,7 @@ Settings, from the environment (`env.sh`):
 | `HOST_NAME` | `uname -n` | The host's name in Athena's PC list. |
 | `ATHENA` | `local.retroid.athena` | Client package. |
 | `GAMESCOPE` | `gamescope` | Binary for `headless.sh`. |
+| `PANEL_PERIOD_NS` | `8353500` (RP6) | The panel's real period, for `shown.py`, `sparse.py`, `gaps.py`. `panelrate.sh` prints it. |
 
 Test apps: `apps.example.json` has every app the scripts name by UUID. Use a throwaway config, not your own:
 
@@ -80,9 +81,9 @@ is logged before GPU work runs, so under load present to panel includes the app'
 
 ## Assumed
 
-- `shown.py` and `sparse.py` hold the RP6's period (8.35 ms): change it for another panel.
+- `shown.py`, `sparse.py`, `gaps.py`: the RP6's period unless `PANEL_PERIOD_NS` is set.
 - `panelrate.sh`, `vsynccount.sh`: `intf:1 ... mode: command` in debugfs. `display-probe.sh` finds another counter by itself.
 - `sample.sh`: /sys/class/qcom-battery/restrict_chg. It does not stop USB feeding the device, so battery current only
   compares settings.
-- `sfset.sh`: Qualcomm's `advanced_sf_offsets.xml`, at 120 Hz.
+- `sfset.sh`: Qualcomm's `advanced_sf_offsets.xml`, at 120 Hz. With a secure lock, each restart waits for someone to unlock the device.
 - `gpu.sh`: card1; `headless.sh`: `--prefer-vk-device 1002:744c`.

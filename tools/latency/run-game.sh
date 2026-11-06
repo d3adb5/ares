@@ -6,7 +6,7 @@ adb shell am force-stop $ATHENA; sleep 3; : > host-present.log
 adb shell am start -n $ATHENA/com.limelight.ShortcutTrampoline --es Name "$HOST_NAME" --es AppUUID $U >/dev/null
 P=; N=
 for i in $(seq 1 150); do sleep 2
-  N=$(adb shell dumpsys SurfaceFlinger --list 2>/dev/null | grep -F '(BLAST)' | grep -i 'SurfaceView.*athena' | head -1 | tr -d '\r')
+  N=$(stream_layer)
   P=$(pgrep -x "$G" | head -1)
   [ -n "$N" ] && [ -n "$P" ] && [ -s host-present.log ] && break
 done

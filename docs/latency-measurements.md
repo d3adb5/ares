@@ -4,7 +4,7 @@ What a stream costs from a game's present to the client's panel, what each setti
 worth chasing. To repeat any of it: [tools/latency](../tools/latency/README.md).
 
 Host: RX 7900 GRE (VCN4), wired. Client: Retroid Pocket 6 with [Athena](https://github.com/d3adb5/athena), Snapdragon 8 Gen 2,
-6 GHz Wi-Fi, 1080p120, 75 Mbit/s. Other clients were not measured.
+6 GHz Wi-Fi, 1080p120, 75 Mbit/s. One other client: [Odin 3](#odin-3-2026-11-06), stock settings only.
 
 ## Method
 
@@ -198,9 +198,26 @@ support needed) and [vkd3d-low-latency](https://github.com/netborg-afps/vkd3d-lo
 or waitable swapchains). Set in `apps.json`'s global `env`, both reach the game through Steam: seen in the process's environment, and the
 prefix's `d3d11.dll` and `d3d12core.dll` change to the low-latency builds and back. A D3D12 game was not run.
 
+## Odin 3 (2026-11-06)
+
+AYN Odin 3, Snapdragon 8 Elite, Android 15, 1080p120, 76.5 Mbit/s, with the method above and stock SurfaceFlinger lead (10.33 ms: the
+same 124% entry as the RP6, in its table's version 6). Not the RP6's day, so the difference isn't the device alone.
+
+| Pacing | Steady latency (18 samples a run) | Vsyncs with a new frame | HWC misses |
+|---|---|---|---|
+| Lowest latency | 17.8, 19.6 ms | 98.2-98.7% | 0 in 203 s |
+| `keep` | 20.0, 17.9 ms | 98.0-98.1% | 0 in 203 s |
+
+Across runs the minimum was 14.7-17.1 ms and the 90th percentile 21.1-23.4 ms, so the two pacings can't be told apart here.
+
+The panel reports 120.00 Hz and runs at 121.52-121.56 Hz (hardware counter and present fences, clocks 4.8 ppm apart). The RP6's runs below
+120, which is why two frames land in one refresh there. Here the panel is the faster clock: frames don't collide, and a 120 fps host tops out
+at 98.7% of refreshes simply by having too few frames. Streaming at the panel's rate (121.52 fps) gave `keep` 93.4% and 99.8%, lowest latency
+97.4% and 99.9%, too erratic to prefer. A shorter lead was not tested: it restarts SurfaceFlinger, which stops at this device's secure lock.
+
 ## Not measured
 
 - The controller to game path, and so whether low-latency DXVK helps overall. A real game in play rather than at a menu.
-- Any client other than the RP6 (Odin 2, Odin 3, Pocket Nova): `tools/latency/display-probe.sh` prints a device's rates and table.
+- Other clients (Odin 2, Pocket Nova), and the Odin 3 with a shorter lead: `tools/latency/display-probe.sh` prints a device's rates and table.
 - Native games and emulators on the device with a shorter lead, and the panel's 60 Hz mode.
 - The 1082-line AV1 fix, HDR on the stream route, and frame quality (VMAF).

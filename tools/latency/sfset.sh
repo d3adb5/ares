@@ -21,4 +21,4 @@ sleep 8
 for i in $(seq 1 60); do
   F=$(adb shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus | tr -d '\r'); case "$F" in *launcher*|*Launcher*) break;; esac; sleep 2
 done
-sleep 12; adb shell input keyevent KEYCODE_WAKEUP; adb shell dumpsys SurfaceFlinger | grep -m1 'SF duration' | cut -c1-90; adb shell dumpsys window | grep -m1 mCurrentFocus | cut -c1-90; adb shell cat /vendor/etc/display/advanced_sf_offsets.xml | grep 'fps="120"' | cut -c1-70
+sleep 12; adb shell input keyevent KEYCODE_WAKEUP; adb shell dumpsys SurfaceFlinger | grep -a -m1 'SF duration' | cut -c1-90; adb shell dumpsys window | grep -m1 mCurrentFocus | cut -c1-90; adb shell cat /vendor/etc/display/advanced_sf_offsets.xml | grep 'fps="120"' | cut -c1-70

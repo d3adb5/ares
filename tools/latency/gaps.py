@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -I
 # usage: gaps.py <label> <host log> <sf dump>: frames the panel presented vs the host's, by vsync gap.
-import sys,collections
+import os,sys,collections
 L,hp,sf=sys.argv[1:4]
 host=[int(l.split()[1]) for l in open(hp) if len(l.split())==2]
 rs=set()
@@ -10,7 +10,7 @@ for l in open(sf):
 rs=sorted(rs); t=[r[0] for r in rs]
 # only gaps inside one dump's reach; a real hole between dumps would be > 1 s
 g=[b-a for a,b in zip(t,t[1:])]
-c=collections.Counter(round(x/8333333) for x in g)
+c=collections.Counter(round(x/int(os.environ.get('PANEL_PERIOD_NS',8353500))) for x in g)
 span=(t[-1]-t[0])/1e9
 h=[x for x in host if t[0]-0<=x-0 or True]
 hspan=(host[-1]-host[-200])/1e9
