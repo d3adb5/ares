@@ -27,6 +27,7 @@
 #include <limits>
 #include <map>
 #include <optional>
+#include <thread>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/sysmacros.h>
@@ -156,6 +157,20 @@ namespace platf::gamescope_stream {
         for (;;) {
           release_finished();
 
+          // Gamescope exits with its app. Ending capture now would drop the client with an error before
+          // the session's process watch tells it the app finished, so stay until that happens.
+          if (gamescope_gone) {
+            if (std::chrono::steady_clock::now() - *gamescope_gone > 5s) {
+              BOOST_LOG(::error) << "Gamescope stream capture: Gamescope closed the connection";
+              return capture_e::error;
+            }
+            std::this_thread::sleep_for(50ms);
+            if (!push(nullptr, false)) {
+              return capture_e::ok;
+            }
+            continue;
+          }
+
           // The next release is near once the encoder is past a slot; nothing wakes this otherwise.
           const auto reading = converted->load();
           const bool releasing = std::ranges::any_of(leases, [&](const lease_t &lease) {
@@ -265,8 +280,9 @@ namespace platf::gamescope_stream {
 
         const auto size = ::recvmsg(connection.el, &message, MSG_CMSG_CLOEXEC);
         if (size <= 0) {
-          BOOST_LOG(::error) << "Gamescope stream capture: Gamescope closed the connection";
-          return capture_e::error;
+          BOOST_LOG(info) << "Gamescope stream capture: Gamescope closed the connection";
+          gamescope_gone = std::chrono::steady_clock::now();
+          return std::nullopt;
         }
 
         file_t received;
@@ -406,6 +422,7 @@ namespace platf::gamescope_stream {
       }
 
       bool probe_only {false};
+      std::optional<std::chrono::steady_clock::time_point> gamescope_gone;
       std::uint32_t refresh_mhz {};
       file_t connection;
       file_t encode_render_fd;
