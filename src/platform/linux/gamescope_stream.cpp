@@ -106,6 +106,9 @@ namespace platf::gamescope_stream {
           return false;
         }
 
+        // A client can ask for its panel's real rate, which is seldom a whole number.
+        refresh_mhz = config.encodingFramerate > 1000 ? static_cast<std::uint32_t>(config.encodingFramerate) : 0;
+
         if (!connect_socket(config.gamescope_stream_socket) || !handshake()) {
           return false;
         }
@@ -232,6 +235,7 @@ namespace platf::gamescope_stream {
         } request {};
         request.configure.hdr.type = HERMES_CLIENT_CONFIGURE;
         request.configure.hdr.size = sizeof(request);
+        request.configure.refresh_mhz = refresh_mhz;
         request.configure.slot_count = pool_slots;
         request.configure.num_formats = 1;
         request.format.drm_format = DRM_FORMAT_XRGB8888;
@@ -402,6 +406,7 @@ namespace platf::gamescope_stream {
       }
 
       bool probe_only {false};
+      std::uint32_t refresh_mhz {};
       file_t connection;
       file_t encode_render_fd;
       std::shared_ptr<session_t> session;
