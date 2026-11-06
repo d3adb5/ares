@@ -17,8 +17,11 @@ gave misleading numbers.
 **What it leaves out.** The controller to game path, the game's own simulation and render, and the panel's response (about 4
 ms). No camera was used.
 
-**What it can't do.** It needs an app that logs its presents, so real games were checked for frame rate and swapchain images
-only, not for latency. Static and panning content has smaller frames than a heavy game, so airtime is below a real game's.
+**Real games.** Gamescope's layer logs each present (`GAMESCOPE_WSI_PRESENT_LOG`, written where DXVK or the game hands the frame to
+Vulkan), and `run-game.sh` freezes the process with SIGSTOP for 100 ms every 3-6 s as the marker.
+
+**What it can't see.** Time before the present. A pacer that starts frames later (dxvk-low-latency) gains there, so its benefit
+is not fully visible here. Static and panning content has smaller frames than a heavy game, so airtime is below a real game's.
 
 ## Is it enough?
 
@@ -165,26 +168,39 @@ Each cell is two runs of about 10 samples each, so differences under 2-3 ms mean
 lower rates. GPU-bound, the frame rate was the same with 2 and 3 images (90.5-91.4, 61.3-61.5)
 and so was latency: double buffering did not halve the frame rate, since Gamescope isn't waiting for a scanout.
 
-**What Ares does.** On the Gamescope stream route it sets `GAMESCOPE_WSI_MIN_IMAGE_COUNT=2` and `GAMESCOPE_WSI_MAX_IMAGE_COUNT=2`
-for each session, and Gamescope's WSI layer holds a swapchain to that even if the game asks for more. An app asking for three
-measured 34.3-34.6 ms at 120 fps and 41.4-42.6 at 60. TUNIC through Proton asked for three, got two
-(`Created swapchain ... imageCount: 2`), and held 120 fps. Gamescope's refresh follows what the client asks for, so this works at
-any client rate with vsync left on. Kingdom Hearts wasn't run.
+A real game need not behave like the test app. TUNIC, Proton CachyOS 11.0 (DXVK), main menu, 120 fps stream, present to panel, ms, about
+16 samples per run; every cell held 120 fps:
 
-If a game misbehaves with two, its app entry can set `GAMESCOPE_WSI_MAX_IMAGE_COUNT` to `3`. OpenGL games not going through the layer
-aren't capped (not measured). `dxgi.numBackBuffers` in DXVK had no effect on what it asked for.
+| Configuration | Images | Present to panel | Lowest |
+|---|---|---|---|
+| Default | 4 | 31.8, 33.3 | 23-25 |
+| Double buffering on | 2 | 31.6 | 26 |
+| Low-latency DXVK | 4 | 43.6, 43.8 | 39-40 |
+| Low-latency DXVK, double buffering on | 2 | 34.4 | 27 |
 
-**What two images leave.** A vsync game still finishes its frame and then waits for its turn, up to a refresh, and that wait grows
-as the rate falls: 6 ms above a limiter at 120 fps, 15 ms at 60.
+Four images did not queue like the test app: the default already matches the test app at two. Why was not established (the game's
+own limiter or DXVK's frame latency limit are candidates, and TUNIC's vsync state was not read). Low-latency DXVK added 11 ms after the
+present with four images, and about 3 ms with two. Time it saves before the present can't be seen by this method, so this does not
+show whether it is better or worse from input to panel.
 
-**Other choices.** A frame limiter at the stream's rate is the lowest at either rate, but it has to match the client, so it needs
-changing per device. Vsync off under Gamescope doesn't tear, since Gamescope composites whole frames; it follows any client's rate
-by itself, and gains about 6 ms over two images at 60 fps and little at 120. A limiter that follows the client automatically
-would close the rest. It was neither built nor tested.
+**Image counts.** DXVK asks for the surface's minimum image count plus one, whatever the game's buffer setting, which only sizes the
+D3D side and limits its frame latency. Gamescope's layer reports a minimum of 3, so DXVK asks for 4. An in-game double or triple
+buffering option therefore doesn't reach the swapchain in a D3D11 game under Proton. `dxgi.numBackBuffers` no longer exists.
+
+**Options.** Ares sets nothing by default: games keep what they ask for. Limiting to two images is opt-in, per host
+(`vsync_double_buffer`) or per client (Athena's "Limit vsync to double buffering", `vsyncDoubleBuffer=1` at launch); an app's `env` still
+takes precedence. An app asking for three then measured 34.3-34.6 ms at 120 fps and 41.4-42.6 at 60, and a vsync-off app 31.2-31.4 at 120.
+OpenGL games not going through the layer aren't limited (not measured). A game with vsync off doesn't tear under Gamescope, which
+composites whole frames; a frame limiter must match the client's rate.
+
+**Proton.** Proton CachyOS ships [dxvk-low-latency](https://github.com/netborg-afps/dxvk-low-latency) (`PROTON_DXVK_LOWLATENCY=1`, no game
+support needed) and [vkd3d-low-latency](https://github.com/netborg-afps/vkd3d-low-latency) (`PROTON_VKD3D_LOWLATENCY=1`, the game must use Reflex
+or waitable swapchains). Set in `apps.json`'s global `env`, both reach the game through Steam: seen in the process's environment, and the
+prefix's `d3d11.dll` and `d3d12core.dll` change to the low-latency builds and back. A D3D12 game was not run.
 
 ## Not measured
 
-- Latency in a real game, and the controller to game path.
+- The controller to game path, and so whether low-latency DXVK helps overall. A real game in play rather than at a menu.
 - Any client other than the RP6 (Odin 2, Odin 3, Pocket Nova): `tools/latency/display-probe.sh` prints a device's rates and table.
 - Native games and emulators on the device with a shorter lead, and the panel's 60 Hz mode.
 - The 1082-line AV1 fix, HDR on the stream route, and frame quality (VMAF).
