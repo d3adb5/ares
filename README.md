@@ -83,10 +83,8 @@ proposal currently puts first:
 - Separating runtime, capture and topology in the capture architecture, and a
   native KWin capture path.
 
-Multi-output stays experimental until it has more real-world validation, and
-independent sessions are deprioritized until hardware rendering inside an
-isolated compositor is solved. Gamescope stays optional: Ares uses it only
-when an app configuration, a setting, or an explicit Hestia request asks for it.
+Multi-output stays experimental until it has more real-world validation. Apps run
+isolated in Gamescope by default; the host desktop is there for troubleshooting.
 
 ## Clients
 
@@ -317,12 +315,12 @@ printf '%s\n' 'options hermes_kms initial_enabled=0 outputs=2' | sudo tee /etc/m
   the whole server into an isolated-session mode: shared-host streams and
   independent sessions may run on the same Ares server at the same time.
 
-  `isolation_method` then picks how a launch is isolated when the client requests
-  a virtual display: `gamescope` (the default, Gamescope with a virtual display)
-  or `kwin_virtual` (KWin's virtual backend). An app's `isolation-method` can
-  choose either for itself, and then applies whether or not a virtual display was
-  requested. With the default, `default`, an app with no command gets the KWin
-  desktop under `gamescope`, and an explicit `extend`, `mirror` or `exclusive`
+  `isolation_method` then picks how a launch is isolated: `gamescope_stream` (the
+  default: frames go straight from Gamescope to Ares over a socket, with no virtual
+  display; see [latency measurements](docs/latency-measurements.md)), `gamescope`
+  (Gamescope with a virtual display) or `kwin_virtual` (KWin's virtual backend). An
+  app's `isolation-method` can choose any of them for itself. With the default,
+  `default`, an app with no command gets the KWin desktop, and an explicit `extend`, `mirror` or `exclusive`
   layout stays on the host desktop. `host-session: true` in `apps.json` keeps an
   app on the host desktop always.
 

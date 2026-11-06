@@ -97,6 +97,10 @@ layer.
 | `isolate-sound` | `auto` / `on` / `off` | no `/dev/snd` |
 | `stop-desktop-steam` | `auto` / `on` / `off` | stop the desktop's Steam first; `auto` when `cmd` runs `steam` |
 
+On the stream route, Ares holds games to two swapchain images, because under vsync
+every image past two queues a finished frame ([numbers](latency-measurements.md)). An
+app's `env` can set `GAMESCOPE_WSI_MAX_IMAGE_COUNT` to `3` if a game misbehaves.
+
 Server environment: `HERMES_GAMESCOPE`, `HERMES_ISOLATED_GAMESCOPE_DRM_FLAG`,
 and `HERMES_ISOLATED_GAMESCOPE_STEAM_MODE=1` (Steam mode for every app).
 
