@@ -96,6 +96,7 @@ namespace config {
     std::string gamescope_backend;
     std::string hermes_kms_session_compositor;
     std::string isolation_method;
+    bool vsync_double_buffer;
 
     struct dd_t {
       struct workarounds_t {

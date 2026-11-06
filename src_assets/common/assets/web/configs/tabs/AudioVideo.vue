@@ -499,6 +499,14 @@ const validateFallbackMode = (event) => {
     </div>
 
     <Checkbox class="mb-3"
+              id="vsync_double_buffer"
+              locale-prefix="config"
+              v-model="config.vsync_double_buffer"
+              default="false"
+              v-if="platform === 'linux' && hermesKmsIsolatedSessionsEnabled"
+    ></Checkbox>
+
+    <Checkbox class="mb-3"
               id="hermes_kms_multi_output"
               locale-prefix="config"
               v-model="config.hermes_kms_multi_output"

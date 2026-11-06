@@ -1796,6 +1796,33 @@ alias; new configurations should use the key above.
     </tr>
 </table>
 
+### vsync_double_buffer
+
+<table>
+    <tr>
+        <td>Description</td>
+        <td colspan="2">
+            Holds every game on the Gamescope stream to two swapchain images, whatever it asks
+            for. Under vsync each image past two queues a finished frame, so this lowers latency by a
+            refresh or more. A client can also ask for it per session (<code>vsyncDoubleBuffer=1</code> at
+            launch), and an app's <code>env</code> can set <code>GAMESCOPE_WSI_MAX_IMAGE_COUNT</code> itself.
+            See <a href="latency-measurements.md">latency measurements</a>.
+        </td>
+    </tr>
+    <tr>
+        <td>Default</td>
+        <td colspan="2">@code{}
+            disabled
+            @endcode</td>
+    </tr>
+    <tr>
+        <td>Example</td>
+        <td colspan="2">@code{}
+            vsync_double_buffer = enabled
+            @endcode</td>
+    </tr>
+</table>
+
 ### fallback_mode
 
 <table>

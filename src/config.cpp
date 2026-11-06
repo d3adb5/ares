@@ -504,6 +504,7 @@ namespace config {
     "auto"s,  // gamescope_backend
     "plasma"s,  // hermes_kms_session_compositor
     "gamescope_stream"s,  // isolation_method
+    false,  // vsync_double_buffer
 
     {
       video_t::dd_t::config_option_e::disabled,  // configuration_option
@@ -1274,6 +1275,7 @@ namespace config {
     // name is a profile the administrator dropped in themselves.
     string_f(vars, "hermes_kms_session_compositor", video.hermes_kms_session_compositor);
     string_restricted_f(vars, "isolation_method", video.isolation_method, {"gamescope_stream"sv, "gamescope"sv, "kwin_virtual"sv});
+    bool_f(vars, "vsync_double_buffer", video.vsync_double_buffer);
 
     generic_f(vars, "dd_configuration_option", video.dd.configuration_option, dd::config_option_from_view);
     generic_f(vars, "dd_resolution_option", video.dd.resolution_option, dd::resolution_option_from_view);

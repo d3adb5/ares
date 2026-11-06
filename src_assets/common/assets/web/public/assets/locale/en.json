@@ -614,6 +614,8 @@
         "isolation_method_gamescope": "Gamescope on a Hermes-KMS virtual display",
         "isolation_method_gamescope_stream": "Gamescope stream (no virtual display, lowest latency)",
         "isolation_method_kwin_virtual": "KWin virtual backend (virtual output and fake input)",
+        "vsync_double_buffer": "Limit vsync to double buffering",
+        "vsync_double_buffer_desc": "Holds every game on the Gamescope stream to two swapchain images, whatever it asks for. A game with vsync on then queues fewer finished frames, which lowers its latency by a refresh or more. Clients can also ask for this per session. Off, games keep the number they ask for.",
         "gamescope_backend": "Gamescope Backend",
         "gamescope_backend_desc": "Backend used when launching a desktop app through Gamescope. \"auto\" nests Gamescope in the current Wayland compositor; wayland/sdl/drm force a specific backend. Ignored in a standalone Gamescope session (SteamOS Game Mode), where the app runs directly.",
         "hermes_kms_session_compositor": "Session compositor",

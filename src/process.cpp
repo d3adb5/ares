@@ -2311,12 +2311,14 @@ namespace proc {
         runtime->env.erase(name);
       }
       // Under FIFO each swapchain image past two queues a finished frame: a whole refresh of latency, more
-      // at lower rates. Gamescope's WSI layer offers three and games ask for their own number. It costs a
-      // GPU-bound game no frames. An app's own env takes precedence.
-      for (const auto *name : {"GAMESCOPE_WSI_MIN_IMAGE_COUNT", "GAMESCOPE_WSI_MAX_IMAGE_COUNT"}) {
-        if (!runtime->env.count(name)) {
-          runtime->env[name] = "2";
+      // at lower rates. Opt-in, from this host or the client. An app's own env takes precedence.
+      if (config::video.vsync_double_buffer || launch_session->vsync_double_buffer) {
+        for (const auto *name : {"GAMESCOPE_WSI_MIN_IMAGE_COUNT", "GAMESCOPE_WSI_MAX_IMAGE_COUNT"}) {
+          if (!runtime->env.count(name)) {
+            runtime->env[name] = "2";
+          }
         }
+        BOOST_LOG(info) << "[IsolatedSession] Holding vsync to two swapchain images";
       }
     } else {
       if (config::video.virtual_display_backend != "hermes_kms") {
