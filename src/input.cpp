@@ -941,7 +941,13 @@ namespace input {
     }
 
     if (input->gamepads[packet->controllerNumber].id >= 0) {
-      BOOST_LOG(warning) << "ControllerNumber already allocated ["sv << packet->controllerNumber << ']';
+      // Plugged in when the stream started, as the launch asked. The client could not act on the motion request
+      // sent then: it assigns a controller only at its first event, which is this one. Ask again.
+      if (util::endian::little(packet->capabilities) & (LI_CCAP_ACCEL | LI_CCAP_GYRO)) {
+        const auto number = (std::uint16_t) packet->controllerNumber;
+        input->feedback_queue->raise(platf::gamepad_feedback_msg_t::make_motion_event_state(number, LI_MOTION_TYPE_ACCEL, 100));
+        input->feedback_queue->raise(platf::gamepad_feedback_msg_t::make_motion_event_state(number, LI_MOTION_TYPE_GYRO, 100));
+      }
       return;
     }
 
