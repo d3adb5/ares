@@ -1,0 +1,3 @@
+#!/bin/sh
+# Paced to the period in period.ns, in nanoseconds: a host frame rate that isn't a whole number.
+d=$(dirname "$(readlink -f "$0")"); PROBE_PERIOD_NS=$(cat "$d/period.ns") PROBE_PAN=1 exec "$d/probe-app" "$@"

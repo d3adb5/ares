@@ -1,0 +1,3 @@
+#!/bin/sh
+# Sparse under GPU load from load.n, asking for two swapchain images.
+d=$(dirname "$(readlink -f "$0")"); GAMESCOPE_WSI_MIN_IMAGE_COUNT=2 PROBE_IMAGES=2 PROBE_LOAD=$(cat "$d/load.n") PROBE_SPARSE=1 PROBE_PAN=1 exec "$d/probe-app" "$@"

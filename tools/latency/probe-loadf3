@@ -1,0 +1,3 @@
+#!/bin/sh
+# Sparse under GPU load from load.n.
+d=$(dirname "$(readlink -f "$0")"); PROBE_LOAD=$(cat "$d/load.n") PROBE_SPARSE=1 PROBE_PAN=1 exec "$d/probe-app" "$@"

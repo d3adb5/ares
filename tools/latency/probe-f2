@@ -1,0 +1,3 @@
+#!/bin/sh
+# Sparse, asking for two swapchain images.
+GAMESCOPE_WSI_MIN_IMAGE_COUNT=2 PROBE_IMAGES=2 PROBE_SPARSE=1 PROBE_PAN=1 exec "$(dirname "$(readlink -f "$0")")/probe-app" "$@"

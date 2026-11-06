@@ -1,0 +1,12 @@
+import socket,struct,sys,time
+s=socket.socket(socket.AF_UNIX,socket.SOCK_SEQPACKET); s.connect(sys.argv[1])
+hello=struct.pack('<HHIHHI',64,0,80,1,0,0)+b'probe'.ljust(64,b'\0'); s.send(hello)
+cfg=struct.pack('<HHI7I3H3H',65,0,64,0,0,0,0,3,0,1,0,0,0,0,0,0)+struct.pack('<IIQ',0x34325258,0,0); assert len(cfg)==64; s.send(cfg)
+time.sleep(0.5)
+def absol(x,y): s.send(struct.pack('<HHIdd',81,0,24,x,y))
+def btn(b,p): s.send(struct.pack('<HHIII',82,0,16,b,p))
+def axis(x,y): s.send(struct.pack('<HHIii',83,0,16,x,y))
+def touch(t,i,x,y): s.send(struct.pack('<HHIIidd',85,0,32,t,i,x,y))
+absol(.5,.5); time.sleep(.1); btn(0x110,1); time.sleep(.05); btn(0x110,0); time.sleep(.1)
+axis(0,120); time.sleep(.1)
+touch(0,7,.25,.25); time.sleep(.05); touch(1,7,.3,.3); time.sleep(.05); touch(2,7,0,0); time.sleep(.3)
