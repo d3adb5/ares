@@ -154,7 +154,7 @@ needs root and affects everything on the device, not only streams. Not measured 
 ## Vsync in the game, and queued frames
 
 A game with vsync on and no frame limiter renders as fast as it may and blocks on the swapchain. Under FIFO, images past two hold
-finished frames waiting their turn, each a whole refresh old by the time it is shown. Games and DXVK usually ask for three. A game
+finished frames waiting their turn, each a whole refresh old by the time it is shown. Games often ask for three, and DXVK for four. A game
 that paces itself, or is GPU-bound, never builds that queue.
 
 Free-running vsync game, `keep`, present to panel, ms:
