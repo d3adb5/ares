@@ -4,11 +4,13 @@
  *
  * Gamescope composites into a pool of dma-bufs it shares over a Unix socket
  * (hermes_stream_v1.h) and sends a fence with each frame. The frames take the
- * same EGL import and VA-API path as a Hermes-KMS capture.
+ * same EGL import and VA-API path as a Hermes-KMS capture, and their colour
+ * (SDR, or PQ/BT.2020 with HDR metadata) the same snapshot type.
  */
 #include "gamescope_stream.h"
 
 #include "graphics.h"
+#include "hermes_kms_color.h"
 #include "hermes_stream_v1.h"
 #include "misc.h"
 #include "src/logging.h"
@@ -46,6 +48,34 @@ namespace platf::gamescope_stream {
     // Enough for capture, the encoder's mailbox and one being imported.
     constexpr std::uint32_t pool_slots = 4;
 
+    namespace color = VDISPLAY::hermes_kms;
+
+    color::color_t make_color(bool pq) {
+      color::color_t result;
+      result.flags = color::color_valid | color::color_rgb_full_range;
+      if (pq) {
+        result.flags |= color::color_hdr_valid;
+        result.colorspace = color::colorspace_bt2020_rgb;
+        result.eotf = 2;  // SMPTE ST 2084
+      }
+      return result;
+    }
+
+    color::color_t color_of(const hermes_server_frame &frame) {
+      auto result = make_color(frame.transfer == HERMES_TRANSFER_PQ && frame.primaries == HERMES_PRIMARIES_BT2020);
+      if (result.pq() && (frame.flags & HERMES_FRAME_FLAG_HDR)) {
+        for (int i = 0; i < 3; ++i) {
+          result.primaries[i] = {frame.hdr_display_primaries_x[i], frame.hdr_display_primaries_y[i]};
+        }
+        result.white_point = {frame.hdr_white_point_x, frame.hdr_white_point_y};
+        result.max_luminance = frame.hdr_max_display_mastering_luminance;
+        result.min_luminance = frame.hdr_min_display_mastering_luminance;
+        result.max_cll = frame.hdr_max_cll;
+        result.max_fall = frame.hdr_max_fall;
+      }
+      return result;
+    }
+
     template<typename T>
     T make_message(std::uint16_t type) {
       T message {};
@@ -81,6 +111,11 @@ namespace platf::gamescope_stream {
       std::uint32_t pitch {};
     };
 
+    struct frame_message_t {
+      hermes_server_frame message;
+      file_t fence;
+    };
+
     class stream_display_t final: public display_t {
     public:
       ~stream_display_t() override {
@@ -95,11 +130,8 @@ namespace platf::gamescope_stream {
           BOOST_LOG(::error) << "Gamescope stream capture needs a VA-API encoder";
           return false;
         }
-        if (config.dynamicRange != 0 && !config.encoder_probe) {
-          BOOST_LOG(::error) << "Gamescope stream capture is SDR only";
-          return false;
-        }
         probe_only = config.encoder_probe;
+        hdr = config.dynamicRange != 0;
 
         encode_render_fd.el = open_encode_render_node();
         if (encode_render_fd.el < 0 || !va::validate(encode_render_fd.el)) {
@@ -110,15 +142,31 @@ namespace platf::gamescope_stream {
         // A client can ask for its panel's real rate, which is seldom a whole number.
         refresh_mhz = config.encodingFramerate > 1000 ? static_cast<std::uint32_t>(config.encodingFramerate) : 0;
 
-        if (!connect_socket(config.gamescope_stream_socket) || !handshake()) {
+        if (!connect_socket(config.gamescope_stream_socket) || !read_hello()) {
+          return false;
+        }
+        // A probe only asks what a stream would get. Closing before HELLO leaves the
+        // current stream and the HDR offered to games alone.
+        if (probe_only) {
+          return true;
+        }
+        if (!configure() || !read_first_frame()) {
           return false;
         }
         session = session_for(config.gamescope_stream_socket);
         session->attach(connection.el);
 
-        BOOST_LOG(info) << "Gamescope stream capture: " << width << 'x' << height << " on "
-                        << config.gamescope_stream_socket;
+        BOOST_LOG(info) << "Gamescope stream capture: " << width << 'x' << height << (color.pq() ? " HDR" : "")
+                        << " on " << config.gamescope_stream_socket;
         return true;
+      }
+
+      bool is_hdr() override {
+        return color.pq();
+      }
+
+      bool get_hdr_metadata(SS_HDR_METADATA &metadata) override {
+        return color.copy_hdr_metadata(metadata);
       }
 
       std::shared_ptr<img_t> alloc_img() override {
@@ -183,8 +231,14 @@ namespace platf::gamescope_stream {
             continue;
           }
 
-          if (const auto status = read_message(push, pull)) {
+          std::optional<frame_message_t> frame;
+          if (const auto status = read_message(frame)) {
             return *status;
+          }
+          if (frame) {
+            if (const auto status = on_frame(frame->message, std::move(frame->fence), push, pull)) {
+              return *status;
+            }
           }
         }
       }
@@ -212,7 +266,7 @@ namespace platf::gamescope_stream {
         return true;
       }
 
-      bool handshake() {
+      bool read_hello() {
         hermes_server_hello hello {};
         if (!poll_fd(connection.el, POLLIN, 2000) ||
             ::recv(connection.el, &hello, sizeof(hello), 0) != static_cast<ssize_t>(sizeof(hello)) ||
@@ -234,7 +288,13 @@ namespace platf::gamescope_stream {
             (major(render_stat.st_rdev) != hello.render_dev_major || minor(render_stat.st_rdev) != hello.render_dev_minor)) {
           BOOST_LOG(warning) << "Gamescope composites on a different GPU than Ares encodes on; frames will cross devices";
         }
+        // Zero from a 1.0 Gamescope, which offers HDR only once configured.
+        hello_pq = hello.state_flags & HERMES_STATE_HDR_ACTIVE;
+        color = make_color(hello_pq);
+        return true;
+      }
 
+      bool configure() {
         auto client_hello = make_message<hermes_client_hello>(HERMES_CLIENT_HELLO);
         client_hello.version_major = HERMES_STREAM_VERSION_MAJOR;
         client_hello.version_minor = HERMES_STREAM_VERSION_MINOR;
@@ -243,19 +303,59 @@ namespace platf::gamescope_stream {
           return false;
         }
 
-        // Linear: every GPU's EGL imports it, and Gamescope only writes it once.
+        // Linear: every GPU's EGL imports it, and Gamescope only writes it once. PQ needs
+        // ten bits; 8-bit stays second, for a GPU that cannot export them.
         struct {
           hermes_client_configure configure;
-          hermes_format_modifier format;
+          hermes_format_modifier formats[2];
         } request {};
         request.configure.hdr.type = HERMES_CLIENT_CONFIGURE;
-        request.configure.hdr.size = sizeof(request);
         request.configure.refresh_mhz = refresh_mhz;
         request.configure.slot_count = pool_slots;
-        request.configure.num_formats = 1;
-        request.format.drm_format = DRM_FORMAT_XRGB8888;
-        request.format.modifier = DRM_FORMAT_MOD_LINEAR;
-        return send_message(&request, sizeof(request));
+        request.configure.flags = hdr ? HERMES_CONFIGURE_HDR : 0;
+        request.configure.num_formats = 0;
+        if (hdr) {
+          request.formats[request.configure.num_formats++] = {DRM_FORMAT_XBGR2101010, 0, DRM_FORMAT_MOD_LINEAR};
+        }
+        request.formats[request.configure.num_formats++] = {DRM_FORMAT_XRGB8888, 0, DRM_FORMAT_MOD_LINEAR};
+        request.configure.hdr.size = sizeof(request.configure) + request.configure.num_formats * sizeof(hermes_format_modifier);
+        return send_message(&request, request.configure.hdr.size);
+      }
+
+      /**
+       * The encoder is built for the colour of the first frame. One painted before Gamescope took this
+       * CONFIGURE can still have the old colour, so wait briefly for one that matches the request.
+       */
+      bool read_first_frame() {
+        const auto deadline = std::chrono::steady_clock::now() + 1s;
+        bool seen = false;
+        for (auto now = std::chrono::steady_clock::now(); now < deadline; now = std::chrono::steady_clock::now()) {
+          const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
+          if (!poll_fd(connection.el, POLLIN, static_cast<int>(left) + 1)) {
+            break;
+          }
+          std::optional<frame_message_t> frame;
+          if (read_message(frame) || gamescope_gone) {
+            BOOST_LOG(::error) << "Gamescope stream capture: no first frame";
+            return false;
+          }
+          if (!frame) {
+            continue;
+          }
+          seen = true;
+          color = color_of(frame->message);
+          release(frame->message.pool_id, frame->message.slot);
+          if (color.pq() == hdr) {
+            return true;
+          }
+          auto request = make_message<hermes_client_request_frame>(HERMES_CLIENT_REQUEST_FRAME);
+          send_message(&request, sizeof(request));
+        }
+        if (!seen) {
+          // Nothing painted yet: guess from HELLO; a different first frame rebuilds capture.
+          color = make_color(hdr && hello_pq);
+        }
+        return true;
       }
 
       bool send_message(const void *message, std::size_t size) {
@@ -267,8 +367,8 @@ namespace platf::gamescope_stream {
         return true;
       }
 
-      // Nothing to report means keep capturing.
-      std::optional<capture_e> read_message(const push_captured_image_cb_t &push, const pull_free_image_cb_t &pull) {
+      // Nothing to report means keep capturing. A FRAME is handed back in frame.
+      std::optional<capture_e> read_message(std::optional<frame_message_t> &frame) {
         std::array<std::uint8_t, HERMES_MAX_MESSAGE_SIZE> data;
         std::array<char, CMSG_SPACE(sizeof(int))> control;
         iovec io {data.data(), data.size()};
@@ -333,11 +433,12 @@ namespace platf::gamescope_stream {
             return std::nullopt;
           }
           case HERMES_SERVER_FRAME: {
-            hermes_server_frame frame;
-            if (!view(frame)) {
+            hermes_server_frame message;
+            if (!view(message)) {
               return capture_e::error;
             }
-            return on_frame(frame, std::move(received), push, pull);
+            frame.emplace(message, std::move(received));
+            return std::nullopt;
           }
           case HERMES_SERVER_ERROR: {
             hermes_server_error error;
@@ -356,6 +457,13 @@ namespace platf::gamescope_stream {
       std::optional<capture_e> on_frame(const hermes_server_frame &frame, file_t fence, const push_captured_image_cb_t &push, const pull_free_image_cb_t &pull) {
         if (frame.pool_id != current_pool || frame.slot >= slots.size() || slots[frame.slot].fd.el < 0) {
           return capture_e::error;
+        }
+
+        // A display's colour is fixed, as its encoder and the client's HDR state were set up for it.
+        if (!(color_of(frame) == color)) {
+          BOOST_LOG(info) << "Gamescope stream capture: the frames' colour changed";
+          release(frame.pool_id, frame.slot);
+          return capture_e::reinit;
         }
 
         if (fence.el >= 0 && !poll_fd(fence.el, POLLIN, 1000)) {
@@ -422,6 +530,9 @@ namespace platf::gamescope_stream {
       }
 
       bool probe_only {false};
+      bool hdr {false};  ///< Asked Gamescope for PQ.
+      bool hello_pq {false};
+      color::color_t color;
       std::optional<std::chrono::steady_clock::time_point> gamescope_gone;
       std::uint32_t refresh_mhz {};
       file_t connection;
