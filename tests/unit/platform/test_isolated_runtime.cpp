@@ -32,7 +32,7 @@ namespace {
       directory = root;
       const auto path = (directory / "broker.sock").string();
       listener = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-      if (listener < 0 && errno == EPERM && !std::getenv("HERMES_TEST_REQUIRE_UNIX_SOCKETS")) {
+      if (listener < 0 && errno == EPERM && !std::getenv("ARES_TEST_REQUIRE_UNIX_SOCKETS")) {
         GTEST_SKIP() << "Unix sockets are required by the isolated integration CI";
       }
       ASSERT_GE(listener, 0);
@@ -42,10 +42,10 @@ namespace {
       std::memcpy(address.sun_path, path.c_str(), path.size() + 1);
       ASSERT_EQ(bind(listener, reinterpret_cast<sockaddr *>(&address), sizeof(address)), 0);
       ASSERT_EQ(listen(listener, 1), 0);
-      if (const char *value = std::getenv("HERMES_SESSION_BROKER_SOCKET")) {
+      if (const char *value = std::getenv("ARES_SESSION_BROKER_SOCKET")) {
         previous_socket = value;
       }
-      setenv("HERMES_SESSION_BROKER_SOCKET", path.c_str(), 1);
+      setenv("ARES_SESSION_BROKER_SOCKET", path.c_str(), 1);
       changed_environment = true;
       proc::seed_isolated_runtime_for_test(id, "abcd-1234");
       seeded = true;
@@ -60,9 +60,9 @@ namespace {
       }
       if (changed_environment) {
         if (previous_socket) {
-          setenv("HERMES_SESSION_BROKER_SOCKET", previous_socket->c_str(), 1);
+          setenv("ARES_SESSION_BROKER_SOCKET", previous_socket->c_str(), 1);
         } else {
-          unsetenv("HERMES_SESSION_BROKER_SOCKET");
+          unsetenv("ARES_SESSION_BROKER_SOCKET");
         }
       }
       if (!directory.empty()) {
@@ -89,7 +89,7 @@ namespace {
         while (read(peer, buffer, sizeof(buffer)) > 0) {}
         accepted.set_value();
         release_future.wait();
-        constexpr char reply[] = "OK active hermes-session-01.service\n";
+        constexpr char reply[] = "OK active ares-session-01.service\n";
         send(peer, reply, sizeof(reply) - 1, MSG_NOSIGNAL);
         close(peer);
       });
@@ -102,7 +102,7 @@ namespace {
         FAIL() << "The query did not reach the test broker";
       }
       auto lookup = std::async(std::launch::async, []() {
-        return proc::proc.get_session_env(id)["HERMES_REGISTRY_TEST"].to_string();
+        return proc::proc.get_session_env(id)["ARES_REGISTRY_TEST"].to_string();
       });
       const auto status = lookup.wait_for(250ms);
       if (remove_pending_runtime && status == std::future_status::ready) {

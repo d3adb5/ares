@@ -509,7 +509,7 @@ namespace va {
       const auto sw_format = reinterpret_cast<AVHWFramesContext *>(hw_frames_ctx_buf->data)->sw_format;
       usable = vendor && std::string_view {vendor}.find("radeonsi") != std::string_view::npos &&
                width == frame->width && height == frame->height && sw_format == AV_PIX_FMT_NV12 &&
-               !std::getenv("HERMES_STREAM_NO_EFC");
+               !std::getenv("ARES_STREAM_NO_EFC");
       if (!usable) {
         BOOST_LOG(info) << "Gamescope stream: converting with a shader, not on the encoder"sv;
         return 0;

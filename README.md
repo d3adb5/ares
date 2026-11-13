@@ -169,7 +169,7 @@ unavailable, or (for HDR) the session streams SDR:
 - **HDR10** on a virtual display. EVDI does not support HDR.
 - **Multi-output** (`hermes_kms_multi_output`): a separate output and capture
   pipeline per simultaneous client.
-- **Independent sessions** (`hermes_kms_isolated_sessions`).
+- **Independent sessions** (`isolated_sessions`).
 - **Streaming before login** (`hermes --prelogin`): Hermes-KMS is the only
   backend it has been run with, and its readiness report flags any other.
 - **Capture-side diagnostics**: the driver's frame, wait and export counters in
@@ -308,7 +308,7 @@ Both experiments default to off; the single-output path remains the default.
 printf '%s\n' 'options hermes_kms initial_enabled=0 outputs=2' | sudo tee /etc/modprobe.d/hermes-kms.conf
 ```
 
-- `hermes_kms_isolated_sessions = true` enables the independent-session
+- `isolated_sessions = true` enables the independent-session
   capability. **It is experimental.** It may change in ways that are not
   backwards compatible, nothing bounds what a session may consume, and a session
   given a Unix account of its own still hears the host's audio. It does not turn
@@ -327,7 +327,7 @@ printf '%s\n' 'options hermes_kms initial_enabled=0 outputs=2' | sudo tee /etc/m
   An independent session gets a separate compositor, application process tree,
   capture path, and input of its own. `gamescope` runs the app directly in a
   DRM Gamescope session, on its own Hermes-KMS card and private DRM seat.
-  `kwin_virtual` runs the compositor named by `hermes_kms_session_compositor`:
+  `kwin_virtual` runs the compositor named by `session_compositor`:
   by default the user's own Plasma desktop on KWin's virtual backend (a virtual
   output, with input through KWin's fake-input protocol), which needs no
   Hermes-KMS card or seat broker; or, opt-in, Weston with its desktop shell and
@@ -354,7 +354,7 @@ independent sessions use their private cards. Remote Input stays a shared-host
 feature and is not disabled by the independent-session capability.
 
 The full reference, including the optional session and card brokers, is
-[`hermes_kms_isolated_sessions`](docs/configuration.md#hermes_kms_isolated_sessions)
+[`isolated_sessions`](docs/configuration.md#isolated_sessions)
 in the configuration docs. `scripts/vm-isolated-input-test.sh` uses a disposable
 virtme-ng guest to check that the packaged udev rules assign each session's
 virtual keyboards to the right private seat without modifying host rules.
@@ -497,7 +497,7 @@ the container falls back to the wlroots headless (software) backend
 (`virtual_display_backend = none`) and gives up the zero-copy path.
 
 This image serves **one** session, so it does not compose with
-`hermes_kms_multi_output` or `hermes_kms_isolated_sessions`; several clients
+`hermes_kms_multi_output` or `isolated_sessions`; several clients
 means one container each. See `packaging/container/README.md`.
 
 Adapted from [SOVLOOKUP/hermes-sunshine](https://github.com/SOVLOOKUP/hermes-sunshine),

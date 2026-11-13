@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const vm = require('node:vm');
 
-const generator = process.env.HERMES_PLACEMENT_SCRIPT_GENERATOR;
-assert.ok(generator, 'Set HERMES_PLACEMENT_SCRIPT_GENERATOR to the compiled script.cc');
+const generator = process.env.ARES_PLACEMENT_SCRIPT_GENERATOR;
+assert.ok(generator, 'Set ARES_PLACEMENT_SCRIPT_GENERATOR to the compiled script.cc');
 
 function script(mode = 'gamescope', output = 'Virtual-1') {
   return execFileSync(generator, [mode, output], { encoding: 'utf8' });

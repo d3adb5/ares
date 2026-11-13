@@ -103,7 +103,7 @@ namespace VDISPLAY::card_broker {
     std::string socket_path() {
       // Overridable so the suite can point at a broker of its own rather than
       // at the machine's.
-      if (const char *override_path = std::getenv("HERMES_CARD_BROKER_SOCKET")) {
+      if (const char *override_path = std::getenv("ARES_CARD_BROKER_SOCKET")) {
         return override_path;
       }
       return default_socket_path;

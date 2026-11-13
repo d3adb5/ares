@@ -344,7 +344,7 @@ third-party tool, you can use *QRes* as an example.
 > recommended**. They will change in ways that are not backwards compatible, so
 > an app configuration built on the fields below is likely to need rebuilding.
 
-When `hermes_kms_isolated_sessions` is enabled, it acts as a server capability
+When `isolated_sessions` is enabled, it acts as a server capability
 rather than switching the entire server into an isolated mode. Each application
 can select an `isolation-method` in the Web UI or `apps.json`:
 
@@ -356,7 +356,7 @@ can select an `isolation-method` in the Web UI or `apps.json`:
 - `gamescope`: always start only the configured application inside an
   independent DRM Gamescope session, without a desktop panel;
 - `kwin_virtual`: always start an independent desktop with the session compositor
-  chosen by `hermes_kms_session_compositor`, by default the user's own Plasma
+  chosen by `session_compositor`, by default the user's own Plasma
   desktop on KWin's virtual backend. With a compositor profile such as `weston`, when `cmd` is
   set, Ares launches it after the desktop socket and scanout are ready, and
   ties it to the session so that ending the session ends it too - as a member
@@ -419,7 +419,7 @@ Ares sends it SIGTERM (it logs off and saves its settings, usually in a few
 seconds) before starting the session, and kills it and its children if it is
 still running after 30 seconds.
 
-With `hermes_kms_session_compositor = plasma`, the default, the `kwin_virtual`
+With `session_compositor = plasma`, the default, the `kwin_virtual`
 method is the user's own Plasma desktop on KWin's virtual backend: it runs as the
 same user with the same home, files and settings, on a virtual KWin output that
 no physical monitor or local keyboard and mouse can reach. It needs no

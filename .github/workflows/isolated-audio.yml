@@ -70,5 +70,5 @@ jobs:
       - name: Test real concurrent graphs, resumed capture and startup failure
         timeout-minutes: 3
         env:
-          HERMES_TEST_REQUIRE_PRIVATE_AUDIO: "1"
+          ARES_TEST_REQUIRE_PRIVATE_AUDIO: "1"
         run: build-audio/test_session_audio --gtest_color=yes

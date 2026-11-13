@@ -20,7 +20,7 @@
  * @return Zero only when access isolation and ordinary rumble both work.
  */
 int main(int argc, char **argv) {
-  if (!std::getenv("HERMES_TEST_KERNEL_INPUT") || ::geteuid() == 0 || argc != 3) {
+  if (!std::getenv("ARES_TEST_KERNEL_INPUT") || ::geteuid() == 0 || argc != 3) {
     return 2;
   }
   const auto own = ::open(argv[1], O_RDWR | O_NONBLOCK | O_CLOEXEC);

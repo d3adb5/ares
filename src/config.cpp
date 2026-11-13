@@ -500,9 +500,9 @@ namespace config {
     {},  // output_name
     "evdi"s,  // virtual_display_backend
     false,  // hermes_kms_multi_output
-    true,  // hermes_kms_isolated_sessions
+    true,  // isolated_sessions
     "auto"s,  // gamescope_backend
-    "plasma"s,  // hermes_kms_session_compositor
+    "plasma"s,  // session_compositor
     "gamescope_stream"s,  // isolation_method
     false,  // vsync_double_buffer
 
@@ -738,6 +738,52 @@ namespace config {
         vars.insert(std::move(legacy));
       }
     }
+  }
+
+  std::string migrate_option_names(std::string_view file_content) {
+    // Options that never needed Hermes-KMS lost its prefix; the others keep it.
+    static constexpr std::pair<std::string_view, std::string_view> renamed[] {
+      {"hermes_kms_isolated_sessions", "isolated_sessions"},
+      {"hermes_kms_session_compositor", "session_compositor"},
+    };
+    const auto key_of = [](std::string_view line) {
+      const auto begin = line.find_first_not_of(" \t");
+      const auto equals = line.find('=');
+      if (begin == std::string_view::npos || equals == std::string_view::npos || line[begin] == '#') {
+        return std::string_view {};
+      }
+      auto key = line.substr(begin, equals - begin);
+      return key.substr(0, key.find_last_not_of(" \t") + 1);
+    };
+
+    std::vector<std::string_view> lines;
+    for (std::size_t pos = 0; pos < file_content.size();) {
+      const auto eol = std::min(file_content.find('\n', pos), file_content.size());
+      lines.push_back(file_content.substr(pos, eol - pos));
+      pos = eol + 1;
+    }
+    const auto has_key = [&](std::string_view key) {
+      return std::ranges::any_of(lines, [&](auto line) { return key_of(line) == key; });
+    };
+
+    std::string out;
+    for (const auto line : lines) {
+      const auto key = key_of(line);
+      const auto rename = std::ranges::find_if(renamed, [&](const auto &r) { return r.first == key; });
+      if (key.empty() || rename == std::end(renamed)) {
+        out.append(line);
+      } else if (has_key(rename->second)) {
+        continue;
+      } else {
+        const auto at = line.find(key);
+        out.append(line.substr(0, at)).append(rename->second).append(line.substr(at + key.size()));
+      }
+      out += '\n';
+    }
+    if (!file_content.ends_with('\n') && !out.empty()) {
+      out.pop_back();
+    }
+    return out;
   }
 
   std::unordered_map<std::string, std::string> parse_config(const ::std::string_view &file_content) {
@@ -1268,12 +1314,12 @@ namespace config {
       video.virtual_display_backend = "none";
     }
     bool_f(vars, "hermes_kms_multi_output", video.hermes_kms_multi_output);
-    bool_f(vars, "hermes_kms_isolated_sessions", video.hermes_kms_isolated_sessions);
+    bool_f(vars, "isolated_sessions", video.isolated_sessions);
     string_restricted_f(vars, "gamescope_backend", video.gamescope_backend, {"auto"sv, "wayland"sv, "sdl"sv, "drm"sv});
     // Deliberately unrestricted: plasma is the user's own desktop, weston and
     // labwc are the profiles Hermes ships as opt-in fallbacks, and any other
     // name is a profile the administrator dropped in themselves.
-    string_f(vars, "hermes_kms_session_compositor", video.hermes_kms_session_compositor);
+    string_f(vars, "session_compositor", video.session_compositor);
     string_restricted_f(vars, "isolation_method", video.isolation_method, {"gamescope_stream"sv, "gamescope"sv, "kwin_virtual"sv});
     bool_f(vars, "vsync_double_buffer", video.vsync_double_buffer);
 
@@ -1562,8 +1608,15 @@ namespace config {
       #endif
       }
 
-      // Read config file
-      auto vars = parse_config(file_handler::read_file(sunshine.config_file.c_str()));
+      // Read config file, renaming what Hermes called its options in place.
+      auto content = file_handler::read_file(sunshine.config_file.c_str());
+      if (auto migrated = migrate_option_names(content); migrated != content) {
+        if (file_handler::write_file(sunshine.config_file.c_str(), migrated) == 0) {
+          BOOST_LOG(info) << "config: renamed Hermes' option names in "sv << sunshine.config_file;
+        }
+        content = std::move(migrated);
+      }
+      auto vars = parse_config(content);
 
       for (auto &[name, value] : cmd_vars) {
         vars.insert_or_assign(std::move(name), std::move(value));

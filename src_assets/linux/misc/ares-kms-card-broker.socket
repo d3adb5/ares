@@ -9,7 +9,7 @@ After=systemd-udevd.service
 [Socket]
 ListenStream=/run/ares/card-broker.sock
 # Anyone may connect; the broker answers only uids listed in
-# /etc/hermes/card-broker.allow, which only root can write. Authorization has
+# /etc/ares/card-broker.allow, which only root can write. Authorization has
 # to be the peer's uid rather than the socket's mode, because that is what the
 # card's access_uid is set from.
 SocketMode=0666

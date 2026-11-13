@@ -10,24 +10,24 @@ KERNEL=="uhid", GROUP="input", MODE="0660", TAG+="uaccess"
 # physical identity, then pass that marker through input/input-event and hidraw
 # children. This also grants the client-visible hidraw node without matching a
 # real controller that happens to have the same name.
-SUBSYSTEM=="hid", ENV{HID_PHYS}=="libvirtualhid/uhid/*", ENV{HERMES_VIRTUAL_INPUT}="1"
-SUBSYSTEM=="hid", ENV{HID_PHYS}=="hermes-kms-[0-9]*", ENV{HERMES_VIRTUAL_INPUT}="1", ENV{ID_SEAT}="$env{HID_PHYS}"
+SUBSYSTEM=="hid", ENV{HID_PHYS}=="libvirtualhid/uhid/*", ENV{ARES_VIRTUAL_INPUT}="1"
+SUBSYSTEM=="hid", ENV{HID_PHYS}=="hermes-kms-[0-9]*", ENV{ARES_VIRTUAL_INPUT}="1", ENV{ID_SEAT}="$env{HID_PHYS}"
 
 # A UHID controller's input device is two levels below the HID parent. Running
 # the same import for inputN and then eventN/jsN propagates both properties to
 # the node consumed by libinput, SDL and games. hidraw is a direct HID child.
 # Imports must be unconditional: ATTR{phys} does not exist on event/js nodes,
 # and even a negative ATTR comparison does not match a missing attribute.
-SUBSYSTEM=="input", IMPORT{parent}="HERMES_VIRTUAL_INPUT"
+SUBSYSTEM=="input", IMPORT{parent}="ARES_VIRTUAL_INPUT"
 SUBSYSTEM=="input", IMPORT{parent}="ID_SEAT"
-SUBSYSTEM=="hidraw", IMPORT{parent}="HERMES_VIRTUAL_INPUT"
+SUBSYSTEM=="hidraw", IMPORT{parent}="ARES_VIRTUAL_INPUT"
 SUBSYSTEM=="hidraw", IMPORT{parent}="ID_SEAT"
 
 # Match inputN itself, where phys exists, then its children import this value.
 # This supports broker-allocated seats beyond the old 1..8 pool.
-SUBSYSTEM=="input", ATTR{phys}=="hermes-kms-[0-9]*", ENV{HERMES_VIRTUAL_INPUT}="1", ENV{ID_SEAT}="$attr{phys}"
-SUBSYSTEM=="input", ENV{HERMES_VIRTUAL_INPUT}=="1", GROUP:="input", MODE:="0660", TAG+="uaccess"
-SUBSYSTEM=="hidraw", ENV{HERMES_VIRTUAL_INPUT}=="1", GROUP:="input", MODE:="0660", TAG+="uaccess"
+SUBSYSTEM=="input", ATTR{phys}=="hermes-kms-[0-9]*", ENV{ARES_VIRTUAL_INPUT}="1", ENV{ID_SEAT}="$attr{phys}"
+SUBSYSTEM=="input", ENV{ARES_VIRTUAL_INPUT}=="1", GROUP:="input", MODE:="0660", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ENV{ARES_VIRTUAL_INPUT}=="1", GROUP:="input", MODE:="0660", TAG+="uaccess"
 
 # Legacy name-based joypad rules also cover the uinput fallback and older
 # installations. UHID devices use the identity rules above.
@@ -49,9 +49,9 @@ SUBSYSTEM=="input", ENV{ID_SEAT}=="hermes-kms-*", TAG+="seat", GROUP:="input", M
 # could not open too. A client's gamepads made for a detached desktop carry its
 # tag in phys. Keep them off every seat and closed to every user; Hermes gives
 # the desktop its own copies of their nodes in its private /dev.
-SUBSYSTEM=="hid", ENV{HID_PHYS}=="ares-detached-*", ENV{HERMES_DETACHED_INPUT}="1", ENV{ID_SEAT}="$env{HID_PHYS}"
-SUBSYSTEM=="input", ATTR{phys}=="ares-detached-*", ENV{HERMES_DETACHED_INPUT}="1", ENV{ID_SEAT}="$attr{phys}"
-SUBSYSTEM=="input|hidraw", IMPORT{parent}="HERMES_DETACHED_INPUT"
-SUBSYSTEM=="input|hidraw", ENV{HERMES_DETACHED_INPUT}=="1", TAG+="seat", OWNER:="root", GROUP:="root", MODE:="0600"
+SUBSYSTEM=="hid", ENV{HID_PHYS}=="ares-detached-*", ENV{ARES_DETACHED_INPUT}="1", ENV{ID_SEAT}="$env{HID_PHYS}"
+SUBSYSTEM=="input", ATTR{phys}=="ares-detached-*", ENV{ARES_DETACHED_INPUT}="1", ENV{ID_SEAT}="$attr{phys}"
+SUBSYSTEM=="input|hidraw", IMPORT{parent}="ARES_DETACHED_INPUT"
+SUBSYSTEM=="input|hidraw", ENV{ARES_DETACHED_INPUT}=="1", TAG+="seat", OWNER:="root", GROUP:="root", MODE:="0600"
 # The Steam Input pads a Steam in a detached desktop makes, likewise.
 SUBSYSTEM=="input", ENV{ID_SEAT}=="ares-detached-*", TAG+="seat", OWNER:="root", GROUP:="root", MODE:="0600"

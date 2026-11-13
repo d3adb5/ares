@@ -30,7 +30,7 @@ namespace platf::session_broker {
     std::string socket_path() {
       // Overridable so the suite can point at a broker of its own rather than
       // at the machine's.
-      if (const char *override_path = std::getenv("HERMES_SESSION_BROKER_SOCKET")) {
+      if (const char *override_path = std::getenv("ARES_SESSION_BROKER_SOCKET")) {
         return override_path;
       }
       return default_socket_path;
@@ -106,8 +106,8 @@ namespace platf::session_broker {
         account.home.erase(0, 1);
       }
       const auto parsed = std::from_chars(uid_text.data(), uid_text.data() + uid_text.size(), account.uid);
-      const bool name = account.user.starts_with("hermes-s") && account.user.size() >= 9 && account.user.size() <= 16 &&
-                        std::ranges::all_of(std::string_view {account.user}.substr(8), [](char ch) {
+      const bool name = account.user.starts_with("ares-s") && account.user.size() >= 7 && account.user.size() <= 16 &&
+                        std::ranges::all_of(std::string_view {account.user}.substr(6), [](char ch) {
                           return ch >= '0' && ch <= '9';
                         });
       if (!name || account.home.empty() || account.home.front() != '/' ||
@@ -224,7 +224,7 @@ namespace platf::session_broker {
     if (!parts || parts->size() != 2) {
       return std::nullopt;
     }
-    constexpr std::string_view prefix {"hermes-session-"}, suffix {".service"};
+    constexpr std::string_view prefix {"ares-session-"}, suffix {".service"};
     const std::string_view unit {parts->back()};
     if (!unit.starts_with(prefix) || !unit.ends_with(suffix) || unit.size() <= prefix.size() + suffix.size() ||
         !std::ranges::all_of(unit.substr(prefix.size(), unit.size() - prefix.size() - suffix.size()), [](char ch) {

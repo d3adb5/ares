@@ -56,9 +56,9 @@ RULE_INSTALLED=1
 udevadm control --reload-rules
 
 cc -O2 -Wall -Wextra \
-	"$REPO/scripts/hermes-uinput-seat-probe.c" \
-	-o "$TEST_ROOT/hermes-uinput-seat-probe"
-"$TEST_ROOT/hermes-uinput-seat-probe" >"$TEST_ROOT/probe.log" 2>&1 &
+	"$REPO/scripts/ares-uinput-seat-probe.c" \
+	-o "$TEST_ROOT/ares-uinput-seat-probe"
+"$TEST_ROOT/ares-uinput-seat-probe" >"$TEST_ROOT/probe.log" 2>&1 &
 PROBE_PID="$!"
 
 for attempt in $(seq 1 100); do
@@ -111,7 +111,7 @@ if [ "$#" -gt 0 ]; then
 	wait "$PROBE_PID"
 	PROBE_PID=""
 	cd "$TEST_ROOT"
-	HERMES_TEST_KERNEL_INPUT=1 "$TEST_BINARY" \
+	ARES_TEST_KERNEL_INPUT=1 "$TEST_BINARY" \
 		--gtest_color=no \
 		--gtest_filter='VirtualHidInputTest.*:ControllerProfiles/VirtualHidKernelTest.*:XboxEventProfiles/VirtualHidEventKernelTest.*'
 fi

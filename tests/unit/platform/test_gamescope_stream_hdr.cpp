@@ -1,6 +1,6 @@
 /**
  * @file tests/unit/platform/test_gamescope_stream_hdr.cpp
- * @brief Opt-in tests of HDR capture from a live `gamescope --backend=hermes --hermes-hdr --hdr-enabled`.
+ * @brief Opt-in tests of HDR capture from a live `gamescope --backend=ares --ares-hdr --hdr-enabled`.
  */
 #include "../../tests_common.h"
 
@@ -16,7 +16,7 @@
 
 namespace {
   const char *stream_socket() {
-    const char *socket = std::getenv("HERMES_STREAM_TEST_SOCKET");
+    const char *socket = std::getenv("ARES_STREAM_TEST_SOCKET");
     return socket && *socket ? socket : nullptr;
   }
 
@@ -93,7 +93,7 @@ namespace {
 TEST(GamescopeStreamHdr, FramesArePqAndMatchTheSdrPicture) {
   const char *socket = stream_socket();
   if (!socket) {
-    GTEST_SKIP() << "Set HERMES_STREAM_TEST_SOCKET to a gamescope started with --hermes-hdr --hdr-enabled";
+    GTEST_SKIP() << "Set ARES_STREAM_TEST_SOCKET to a gamescope started with --ares-hdr --hdr-enabled";
   }
   ASSERT_EQ(gbm::init(), 0);
 
@@ -133,7 +133,7 @@ TEST(GamescopeStreamHdr, FramesArePqAndMatchTheSdrPicture) {
 TEST(GamescopeStreamHdr, CaptureReadinessEncodesHdr) {
   const char *socket = stream_socket();
   if (!socket) {
-    GTEST_SKIP() << "Set HERMES_STREAM_TEST_SOCKET to a gamescope started with --hermes-hdr --hdr-enabled";
+    GTEST_SKIP() << "Set ARES_STREAM_TEST_SOCKET to a gamescope started with --ares-hdr --hdr-enabled";
   }
   ASSERT_EQ(video::probe_encoders_without_display(), 0);
   auto config = stream_config(socket, true);

@@ -47,7 +47,7 @@ if(SUNSHINE_BUILD_SESSION_BROKER)
             RENAME "session-broker.allow.example")
 endif()
 
-# Isolated sessions run as their own user, in the hermes-session group. The
+# Isolated sessions run as their own user, in the ares-session group. The
 # polkit rule below is what keeps that from being an escalation: a session on a
 # local seat is "active and local" to polkit, a category a stock desktop grants
 # well over a hundred passwordless actions. Both files install together on
@@ -110,9 +110,9 @@ else()
         # modprobe.d has no pkg-config variable. It sits beside modules-load.d
         # (/usr/lib on every distribution, lib64 or not), where kmod reads it
         # whatever prefix Hermes itself was built with.
-        get_filename_component(HERMES_MODULES_CONFIG_DIR "${SYSTEMD_MODULES_LOAD_DIR}" DIRECTORY)
+        get_filename_component(ARES_MODULES_CONFIG_DIR "${SYSTEMD_MODULES_LOAD_DIR}" DIRECTORY)
         install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-evdi-modprobe.conf"
-                DESTINATION "${HERMES_MODULES_CONFIG_DIR}/modprobe.d" RENAME "ares-evdi.conf")
+                DESTINATION "${ARES_MODULES_CONFIG_DIR}/modprobe.d" RENAME "ares-evdi.conf")
         # A system unit, unlike sunshine.service: it runs as root because
         # configfs is root's, and is socket-activated so it is not running
         # while nobody is asking for a card.

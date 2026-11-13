@@ -29,12 +29,12 @@ namespace {
       ASSERT_NE(directory, nullptr);
       root = directory;
       path = (root / "socket").string();
-      if (const auto *value = ::getenv("HERMES_SESSION_BROKER_SOCKET")) {
+      if (const auto *value = ::getenv("ARES_SESSION_BROKER_SOCKET")) {
         old_path = value;
       }
-      ::setenv("HERMES_SESSION_BROKER_SOCKET", path.c_str(), 1);
+      ::setenv("ARES_SESSION_BROKER_SOCKET", path.c_str(), 1);
       listener = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-      if (listener < 0 && errno == EPERM && !::getenv("HERMES_TEST_REQUIRE_UNIX_SOCKETS")) {
+      if (listener < 0 && errno == EPERM && !::getenv("ARES_TEST_REQUIRE_UNIX_SOCKETS")) {
         GTEST_SKIP() << "This namespace denies Unix sockets; IPC tests run in the broker CI job";
       }
       ASSERT_GE(listener, 0);
@@ -54,9 +54,9 @@ namespace {
         ::close(listener);
       }
       if (old_path) {
-        ::setenv("HERMES_SESSION_BROKER_SOCKET", old_path->c_str(), 1);
+        ::setenv("ARES_SESSION_BROKER_SOCKET", old_path->c_str(), 1);
       } else {
-        ::unsetenv("HERMES_SESSION_BROKER_SOCKET");
+        ::unsetenv("ARES_SESSION_BROKER_SOCKET");
       }
       std::filesystem::remove_all(root);
     }
@@ -105,10 +105,10 @@ namespace {
   };
 
   TEST_F(SessionBrokerClientTest, AcceptsOnlyACompleteReplyAndPreservesTheRequest) {
-    answer("OK active hermes-session-01.service\n");
+    answer("OK active ares-session-01.service\n");
     const auto reply = broker::detail::exchange(path, "STATUS abcd-1234\n", 1s);
     ASSERT_TRUE(reply.reply) << reply.error;
-    EXPECT_EQ(*reply.reply, "OK active hermes-session-01.service");
+    EXPECT_EQ(*reply.reply, "OK active ares-session-01.service");
     join();
     EXPECT_EQ(received, "STATUS abcd-1234\n");
   }
@@ -117,12 +117,12 @@ namespace {
     serve([](int peer) {
       ::send(peer, "OK act", 6, MSG_NOSIGNAL);
       std::this_thread::sleep_for(10ms);
-      constexpr std::string_view end {"ive hermes-session-01.service\n"};
+      constexpr std::string_view end {"ive ares-session-01.service\n"};
       ::send(peer, end.data(), end.size(), MSG_NOSIGNAL);
     });
     const auto reply = broker::detail::exchange(path, "STATUS abcd\n", 1s);
     ASSERT_TRUE(reply.reply) << reply.error;
-    EXPECT_EQ(*reply.reply, "OK active hermes-session-01.service");
+    EXPECT_EQ(*reply.reply, "OK active ares-session-01.service");
   }
 
   TEST_F(SessionBrokerClientTest, RejectsPartialEmptyEmbeddedNulAndOversizedReplies) {
@@ -190,16 +190,16 @@ namespace {
 
   TEST_F(SessionBrokerClientTest, LivenessSeparatesStoppedFromUnavailableAndUnknown) {
     for (const auto *state : {"active", "activating", "reloading"}) {
-      answer(std::string {"OK "} + state + " hermes-session-01.service\n");
+      answer(std::string {"OK "} + state + " ares-session-01.service\n");
       EXPECT_EQ(broker::query_active("abcd-1234"), std::optional {true});
       join();
     }
-    for (const auto *reply : {"OK inactive hermes-session-01.service\n", "OK failed hermes-session-01.service\n", "OK deactivating hermes-session-01.service\n", "ERR notfound no account is mapped\n"}) {
+    for (const auto *reply : {"OK inactive ares-session-01.service\n", "OK failed ares-session-01.service\n", "OK deactivating ares-session-01.service\n", "ERR notfound no account is mapped\n"}) {
       answer(reply);
       EXPECT_EQ(broker::query_active("abcd-1234"), std::optional {false});
       join();
     }
-    for (const auto *reply : {"ERR busy try later\n", "ERR state unavailable\n", "OK maintenance hermes-session-01.service\n", "OK active\n", "OK active wrong.service\n"}) {
+    for (const auto *reply : {"ERR busy try later\n", "ERR state unavailable\n", "OK maintenance ares-session-01.service\n", "OK active\n", "OK active wrong.service\n"}) {
       answer(reply);
       EXPECT_EQ(broker::query_active("abcd-1234"), std::nullopt);
       join();
@@ -211,15 +211,15 @@ namespace {
 
   TEST_F(SessionBrokerClientTest, AccountParsingRejectsRootSentinelAndPartialNumericUids) {
     for (const auto *uid : {"0", "-1", "+12", "123garbage", "4294967295", "4294967296"}) {
-      answer(std::string {"OK hermes-s01 "} + uid + " /var/lib/hermes/sessions/hermes-s01\n");
+      answer(std::string {"OK ares-s01 "} + uid + " /var/lib/ares/sessions/ares-s01\n");
       EXPECT_FALSE(broker::ensure("abcd-1234"));
       join();
     }
-    answer("OK hermes-s01 12001 /var/lib/hermes/session homes/hermes-s01\n");
+    answer("OK ares-s01 12001 /var/lib/ares/session homes/ares-s01\n");
     const auto account = broker::ensure("abcd-1234");
     ASSERT_TRUE(account);
     EXPECT_EQ(account->uid, 12001U);
-    EXPECT_EQ(account->home, "/var/lib/hermes/session homes/hermes-s01");
+    EXPECT_EQ(account->home, "/var/lib/ares/session homes/ares-s01");
   }
 
   TEST_F(SessionBrokerClientTest, RejectsProtocolInjectionAndInvalidRequestsBeforeConnecting) {

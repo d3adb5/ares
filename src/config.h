@@ -92,9 +92,9 @@ namespace config {
     std::string output_name;
     std::string virtual_display_backend;
     bool hermes_kms_multi_output;
-    bool hermes_kms_isolated_sessions;
+    bool isolated_sessions;
     std::string gamescope_backend;
-    std::string hermes_kms_session_compositor;
+    std::string session_compositor;
     std::string isolation_method;
     bool vsync_double_buffer;
 
@@ -325,6 +325,12 @@ namespace config {
 
   int parse(int argc, char *argv[]);
   std::unordered_map<std::string, std::string> parse_config(const std::string_view &file_content);
+
+  /**
+   * @brief ares.conf with the options Hermes named (hermes_kms_isolated_sessions...) under
+   *        their Ares names; a key already present under its new name drops the old line.
+   */
+  std::string migrate_option_names(std::string_view file_content);
 
   /**
    * @brief Keys the Web UI's config response carries but that are never

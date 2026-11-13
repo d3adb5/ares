@@ -19,8 +19,8 @@ BROKER="${1:-$REPO/build/ares-session-broker}"
 CLIENT_A="5f3ab1c2-0000-4000-8000-000000000001"
 CLIENT_B="5f3ab1c2-0000-4000-8000-000000000002"
 SOCKET="/run/ares/session-broker.sock"
-STATE="/var/lib/hermes/session-users.map"
-HOMES="/var/lib/hermes/sessions"
+STATE="/var/lib/ares/session-users.map"
+HOMES="/var/lib/ares/sessions"
 INPUT_PROBE_PID=""
 HID_PROBE_PID=""
 SDL_A_PID=""
@@ -122,15 +122,15 @@ install -Dm644 "$REPO/src_assets/linux/misc/99-ares-session-input.rules" /run/ud
 udevadm control --reload-rules
 # The unit lists this under ReadWritePaths, and systemd refuses to start a unit
 # whose ReadWritePaths does not exist.
-mkdir -p /var/lib/hermes
+mkdir -p /var/lib/ares
 systemd-sysusers
-getent group hermes-session >/dev/null || fail 'sysusers did not create the hermes-session group'
-ok 'the sysusers file creates the hermes-session group'
+getent group ares-session >/dev/null || fail 'sysusers did not create the ares-session group'
+ok 'the sysusers file creates the ares-session group'
 
-printf '# the test runs as root\n0\n' >/etc/hermes/session-broker.allow 2>/dev/null || {
-	mkdir -p /etc/hermes && printf '# the test runs as root\n0\n' >/etc/hermes/session-broker.allow
+printf '# the test runs as root\n0\n' >/etc/ares/session-broker.allow 2>/dev/null || {
+	mkdir -p /etc/ares && printf '# the test runs as root\n0\n' >/etc/ares/session-broker.allow
 }
-chmod 644 /etc/hermes/session-broker.allow
+chmod 644 /etc/ares/session-broker.allow
 
 systemctl daemon-reload
 systemctl start ares-session-broker.socket
@@ -144,56 +144,56 @@ expect 'a malformed client id is rejected'     $'LOOKUP ../../etc/passwd\n' 'ERR
 expect 'an unmapped client has no account'     $'LOOKUP '"$CLIENT_A"$'\n'  'ERR notfound*'
 
 # ---------------------------------------------------------------- accounts ---
-expect 'the first client is given slot 1' $'ENSURE '"$CLIENT_A"$'\n' "OK hermes-s01 * $HOMES/hermes-s01"
-getent passwd hermes-s01 >/dev/null || fail 'ENSURE did not create the account'
+expect 'the first client is given slot 1' $'ENSURE '"$CLIENT_A"$'\n' "OK ares-s01 * $HOMES/ares-s01"
+getent passwd ares-s01 >/dev/null || fail 'ENSURE did not create the account'
 ok 'the account exists in passwd'
 
-UID_A="$(id -u hermes-s01)"
-[ "$(stat -c '%a %U' "$HOMES/hermes-s01")" = "700 hermes-s01" ] \
-	|| fail 'the session home is not private' "$(stat -c '%a %U' "$HOMES/hermes-s01")"
+UID_A="$(id -u ares-s01)"
+[ "$(stat -c '%a %U' "$HOMES/ares-s01")" = "700 ares-s01" ] \
+	|| fail 'the session home is not private' "$(stat -c '%a %U' "$HOMES/ares-s01")"
 ok 'the session home is 0700 and owned by the session user'
 
 [ "$(stat -c '%a' "$HOMES")" = "711" ] \
 	|| fail 'the home root is listable' "$(stat -c '%a' "$HOMES")"
 ok 'the home root is traversable but not listable'
 
-case "$(getent passwd hermes-s01 | cut -d: -f7)" in
+case "$(getent passwd ares-s01 | cut -d: -f7)" in
 	*nologin | *false) ok 'the account has no shell' ;;
-	*) fail 'the account has a shell' "$(getent passwd hermes-s01)" ;;
+	*) fail 'the account has a shell' "$(getent passwd ares-s01)" ;;
 esac
 
-id -nG hermes-s01 | tr ' ' '\n' | grep -qx hermes-session || fail 'the account is not in hermes-session'
-ok 'the account is in hermes-session'
+id -nG ares-s01 | tr ' ' '\n' | grep -qx ares-session || fail 'the account is not in ares-session'
+ok 'the account is in ares-session'
 
 for group in wheel sudo video input render; do
-	if id -nG hermes-s01 | tr ' ' '\n' | grep -qx "$group"; then
+	if id -nG ares-s01 | tr ' ' '\n' | grep -qx "$group"; then
 		fail "the account is in $group"
 	fi
 done
 ok 'the account is in none of wheel, sudo, video, input or render'
 
-expect 'ENSURE is idempotent'   $'ENSURE '"$CLIENT_A"$'\n' "OK hermes-s01 $UID_A *"
-expect 'LOOKUP finds it'        $'LOOKUP '"$CLIENT_A"$'\n' "OK hermes-s01 $UID_A *"
+expect 'ENSURE is idempotent'   $'ENSURE '"$CLIENT_A"$'\n' "OK ares-s01 $UID_A *"
+expect 'LOOKUP finds it'        $'LOOKUP '"$CLIENT_A"$'\n' "OK ares-s01 $UID_A *"
 
 # ---------------------------------------------------------------- sessions ---
-expect 'nothing is running yet' $'STATUS '"$CLIENT_A"$'\n' 'OK inactive hermes-session-01.service'
+expect 'nothing is running yet' $'STATUS '"$CLIENT_A"$'\n' 'OK inactive ares-session-01.service'
 
-START=$'START '"$CLIENT_A"$'\nARG /usr/bin/sleep\nARG 600\nENV HERMES_TEST=yes\nENV XDG_SEAT=hermes-kms-1\nEND\n'
-expect 'START asks systemd for a unit' "$START" 'OK hermes-session-01.service'
+START=$'START '"$CLIENT_A"$'\nARG /usr/bin/sleep\nARG 600\nENV ARES_TEST=yes\nENV XDG_SEAT=hermes-kms-1\nEND\n'
+expect 'START asks systemd for a unit' "$START" 'OK ares-session-01.service'
 
 for _ in $(seq 50); do
-	[ "$(systemctl show -p ActiveState --value hermes-session-01.service)" = active ] && break
+	[ "$(systemctl show -p ActiveState --value ares-session-01.service)" = active ] && break
 	sleep 0.1
 done
-[ "$(systemctl show -p ActiveState --value hermes-session-01.service)" = active ] \
-	|| fail 'the session unit is not active' "$(systemctl status hermes-session-01.service --no-pager 2>&1 | tail -10)"
+[ "$(systemctl show -p ActiveState --value ares-session-01.service)" = active ] \
+	|| fail 'the session unit is not active' "$(systemctl status ares-session-01.service --no-pager 2>&1 | tail -10)"
 ok 'the session unit is active'
 
-[ "$(systemctl show -p User --value hermes-session-01.service)" = hermes-s01 ] \
+[ "$(systemctl show -p User --value ares-session-01.service)" = ares-s01 ] \
 	|| fail 'the unit does not run as the session account'
 ok 'the unit runs as the session account'
 
-pgrep -u hermes-s01 -x sleep >/dev/null || fail 'no process is running as the session account'
+pgrep -u ares-s01 -x sleep >/dev/null || fail 'no process is running as the session account'
 ok 'the command really runs under the session uid'
 
 [ -d "/run/user/$UID_A" ] || fail 'lingering did not create the runtime directory'
@@ -203,7 +203,7 @@ for _ in $(seq 50); do
 	[[ "$(ask $'STATUS '"$CLIENT_A"$'\n')" == 'OK active '* ]] && break
 	sleep 0.1
 done
-expect 'STATUS reports it active' $'STATUS '"$CLIENT_A"$'\n' 'OK active hermes-session-01.service'
+expect 'STATUS reports it active' $'STATUS '"$CLIENT_A"$'\n' 'OK active ares-session-01.service'
 
 # Simulate a slow account-database operation by holding its real mutation lock.
 # A second ENSURE must queue, while the active client's liveness remains usable.
@@ -228,15 +228,15 @@ SECOND_ACCOUNT="$(python3 - "$SOCKET" "$CLIENT_A" "$CLIENT_B" <<-'PY'
 	    with connect('ENSURE ' + sys.argv[3] + '\n', 180) as pending:
 	        assert not select.select([pending], [], [], 0.05)[0], 'ENSURE did not queue behind the mutation lock'
 	        with connect('STATUS ' + sys.argv[2] + '\n', 2) as status:
-	            assert response(status) == 'OK active hermes-session-01.service', 'liveness was blocked or lost'
+	            assert response(status) == 'OK active ares-session-01.service', 'liveness was blocked or lost'
 	        fcntl.flock(lock, fcntl.LOCK_UN)
 	        print(response(pending))
 PY
 )"
-[[ "$SECOND_ACCOUNT" == "OK hermes-s02 "* ]] || fail 'the second account was not provisioned' "$SECOND_ACCOUNT"
+[[ "$SECOND_ACCOUNT" == "OK ares-s02 "* ]] || fail 'the second account was not provisioned' "$SECOND_ACCOUNT"
 ok 'a second client gets slot 2'
 ok 'an active session remains queryable during queued account provisioning'
-expect 'LIST reports both' $'LIST\n' "OK $CLIENT_A=hermes-s01 $CLIENT_B=hermes-s02"
+expect 'LIST reports both' $'LIST\n' "OK $CLIENT_A=ares-s01 $CLIENT_B=ares-s02"
 expect 'no Wayland socket yet'    $'SOCKET '"$CLIENT_A"$'\n' 'ERR notfound*'
 
 python3 -c "
@@ -247,8 +247,8 @@ s.listen(1)
 " && expect 'a Wayland socket is found by name' $'SOCKET '"$CLIENT_A"$'\n' 'OK wayland-1'
 
 SCOPED=$'START '"$CLIENT_A"$'\nARG /usr/bin/sleep\nARG 600\nSCOPE app\nEND\n'
-expect 'a scoped unit is a second unit' "$SCOPED" 'OK hermes-session-01-app.service'
-[ "$(systemctl show -p PartOf --value hermes-session-01-app.service)" = hermes-session-01.service ] \
+expect 'a scoped unit is a second unit' "$SCOPED" 'OK ares-session-01-app.service'
+[ "$(systemctl show -p PartOf --value ares-session-01-app.service)" = ares-session-01.service ] \
 	|| fail 'the scoped unit is not bound to the session'
 ok 'the scoped unit is PartOf the session unit'
 
@@ -260,22 +260,22 @@ expect 'a relative command is rejected' $'START '"$CLIENT_A"$'\nARG true\nEND\n'
 expect 'a duplicate input lease is rejected' "$START" 'ERR input*'
 expect 'a malformed seat is rejected' $'START '"$CLIENT_B"$'\nARG /usr/bin/true\nENV XDG_SEAT=../../dev/input\nEND\n' 'ERR request*'
 expect 'a second client cannot take an occupied seat' $'START '"$CLIENT_B"$'\nARG /usr/bin/sleep\nARG 600\nENV XDG_SEAT=hermes-kms-1\nEND\n' 'ERR input*'
-expect 'a second session registers its own seat' $'START '"$CLIENT_B"$'\nARG /usr/bin/sleep\nARG 600\nENV XDG_SEAT=hermes-kms-2\nEND\n' 'OK hermes-session-02.service'
+expect 'a second session registers its own seat' $'START '"$CLIENT_B"$'\nARG /usr/bin/sleep\nARG 600\nENV XDG_SEAT=hermes-kms-2\nEND\n' 'OK ares-session-02.service'
 expect 'a scoped app cannot cross to another seat' $'START '"$CLIENT_B"$'\nARG /usr/bin/true\nSCOPE wrong\nENV XDG_SEAT=hermes-kms-1\nEND\n' 'ERR input*'
 
-UID_B="$(id -u hermes-s02)"
+UID_B="$(id -u ares-s02)"
 INPUT_TEST_ROOT="$(mktemp -d /tmp/hermes-broker-input.XXXXXX)"
 chmod 755 "$INPUT_TEST_ROOT"
-cc -O2 -Wall -Wextra "$REPO/scripts/hermes-uinput-seat-probe.c" -o "$INPUT_TEST_ROOT/probe"
-cc -O2 -Wall -Wextra -Werror "$REPO/scripts/hermes-uhid-seat-probe.c" -o "$INPUT_TEST_ROOT/hid-probe"
-cc -O2 -Wall -Wextra -Werror "$REPO/scripts/hermes-sdl-hotplug-probe.c" \
+cc -O2 -Wall -Wextra "$REPO/scripts/ares-uinput-seat-probe.c" -o "$INPUT_TEST_ROOT/probe"
+cc -O2 -Wall -Wextra -Werror "$REPO/scripts/ares-uhid-seat-probe.c" -o "$INPUT_TEST_ROOT/hid-probe"
+cc -O2 -Wall -Wextra -Werror "$REPO/scripts/ares-sdl-hotplug-probe.c" \
 	$(pkg-config --cflags --libs sdl2) -o "$INPUT_TEST_ROOT/sdl-probe"
 
 start_sdl_probes() {
-	runuser -u hermes-s01 -- "$INPUT_TEST_ROOT/sdl-probe" \
+	runuser -u ares-s01 -- "$INPUT_TEST_ROOT/sdl-probe" \
 		hermes-kms-1 hermes-kms-2 >"$INPUT_TEST_ROOT/sdl-a.log" 2>&1 &
 	SDL_A_PID="$!"
-	runuser -u hermes-s02 -- "$INPUT_TEST_ROOT/sdl-probe" \
+	runuser -u ares-s02 -- "$INPUT_TEST_ROOT/sdl-probe" \
 		hermes-kms-2 hermes-kms-1 >"$INPUT_TEST_ROOT/sdl-b.log" 2>&1 &
 	SDL_B_PID="$!"
 	for _ in $(seq 100); do
@@ -348,8 +348,8 @@ can_open_input() {
 
 wait_input_access() {
 	for _ in $(seq 100); do
-		if can_open_input hermes-s01 "$NODE_A" && can_open_input hermes-s02 "$NODE_B" && \
-		   can_open_input hermes-s01 "$HID_A" && can_open_input hermes-s02 "$HID_B"; then return; fi
+		if can_open_input ares-s01 "$NODE_A" && can_open_input ares-s02 "$NODE_B" && \
+		   can_open_input ares-s01 "$HID_A" && can_open_input ares-s02 "$HID_B"; then return; fi
 		sleep 0.1
 	done
 	fail 'the broker did not grant the two accounts their own input nodes' "$(journalctl -u ares-session-broker --no-pager -n 30)"
@@ -372,10 +372,10 @@ wait_sdl_probes
 systemctl thaw ares-session-broker.service
 BROKER_FROZEN=0
 ok 'udev grants hotplug access while broker reconciliation is paused'
-! can_open_input hermes-s01 "$NODE_B" || fail 'client A can open client B input'
-! can_open_input hermes-s02 "$NODE_A" || fail 'client B can open client A input'
-! can_open_input hermes-s01 "$HID_B" || fail 'client A can open client B hidraw'
-! can_open_input hermes-s02 "$HID_A" || fail 'client B can open client A hidraw'
+! can_open_input ares-s01 "$NODE_B" || fail 'client A can open client B input'
+! can_open_input ares-s02 "$NODE_A" || fail 'client B can open client A input'
+! can_open_input ares-s01 "$HID_B" || fail 'client A can open client B hidraw'
+! can_open_input ares-s02 "$HID_A" || fail 'client B can open client A hidraw'
 ok 'the broker grants only each account own virtual input nodes'
 
 kill -TERM "$INPUT_PROBE_PID"
@@ -400,18 +400,18 @@ setfacl -x "u:$UID_A" "$NODE_A"
 setfacl -x "u:$UID_A" "$HID_A"
 systemctl restart ares-session-broker.service
 wait_input_access
-! can_open_input hermes-s01 "$NODE_B" || fail 'a broker restart crossed input seats'
+! can_open_input ares-s01 "$NODE_B" || fail 'a broker restart crossed input seats'
 ok 'persisted leases recover correct access after a broker restart'
 
 # ------------------------------------------------------------------ polkit ---
 systemctl start polkit 2>/dev/null || true
 if command -v pkcheck >/dev/null && systemctl is-active --quiet polkit; then
 	set +e
-	systemd-run --quiet --uid=hermes-s01 --pipe --wait --collect \
+	systemd-run --quiet --uid=ares-s01 --pipe --wait --collect \
 		/usr/bin/pkcheck --action-id org.freedesktop.login1.reboot --process $$ >/dev/null 2>&1
 	DENIED=$?
 	set -e
-	[ "$DENIED" -ne 0 ] || fail 'polkit authorized a hermes-session account'
+	[ "$DENIED" -ne 0 ] || fail 'polkit authorized a ares-session account'
 	ok 'polkit refuses the session account'
 
 	if journalctl -b -t polkitd --no-pager 2>/dev/null | grep -q 'Error evaluating'; then
@@ -425,21 +425,21 @@ fi
 
 # ------------------------------------------------------------------- teardown -
 expect 'STOP ends the session' $'STOP '"$CLIENT_A"$'\n' 'OK'
-! can_open_input hermes-s01 "$NODE_A" || fail 'STOP left client A input ACL in place'
-! can_open_input hermes-s01 "$HID_A" || fail 'STOP left client A hidraw ACL in place'
-can_open_input hermes-s02 "$NODE_B" || fail 'STOP revoked another session input ACL'
-can_open_input hermes-s02 "$HID_B" || fail 'STOP revoked another session hidraw ACL'
+! can_open_input ares-s01 "$NODE_A" || fail 'STOP left client A input ACL in place'
+! can_open_input ares-s01 "$HID_A" || fail 'STOP left client A hidraw ACL in place'
+can_open_input ares-s02 "$NODE_B" || fail 'STOP revoked another session input ACL'
+can_open_input ares-s02 "$HID_B" || fail 'STOP revoked another session hidraw ACL'
 ok 'STOP revokes only the stopped session input access'
-[ "$(systemctl show -p ActiveState --value hermes-session-01.service)" != active ] \
+[ "$(systemctl show -p ActiveState --value ares-session-01.service)" != active ] \
 	|| fail 'the session unit survived STOP'
 ok 'the session unit is gone'
 
-[ "$(systemctl show -p ActiveState --value hermes-session-01-app.service)" != active ] \
+[ "$(systemctl show -p ActiveState --value ares-session-01-app.service)" != active ] \
 	|| fail 'the scoped unit survived the session it was bound to'
 ok 'the scoped unit went with the session'
 
-loginctl show-user hermes-s01 -p Linger --value 2>/dev/null | grep -qx no \
-	|| [ -z "$(loginctl show-user hermes-s01 -p Linger --value 2>/dev/null)" ] \
+loginctl show-user ares-s01 -p Linger --value 2>/dev/null | grep -qx no \
+	|| [ -z "$(loginctl show-user ares-s01 -p Linger --value 2>/dev/null)" ] \
 	|| fail 'lingering was left enabled after STOP'
 ok 'lingering was turned back off'
 
@@ -447,13 +447,13 @@ expect 'STOP is idempotent' $'STOP '"$CLIENT_A"$'\n' 'OK'
 
 # --------------------------------------------------------------------- purge -
 expect 'PURGE removes the account' $'PURGE '"$CLIENT_A"$'\n' 'OK'
-! getent passwd hermes-s01 >/dev/null || fail 'PURGE left the account behind'
-[ ! -d "$HOMES/hermes-s01" ] || fail 'PURGE left the home behind'
+! getent passwd ares-s01 >/dev/null || fail 'PURGE left the account behind'
+[ ! -d "$HOMES/ares-s01" ] || fail 'PURGE left the home behind'
 ok 'the account and its home are gone'
 
 expect 'PURGE of an unmapped client fails' $'PURGE '"$CLIENT_A"$'\n' 'ERR notfound*'
-expect 'the freed slot is reused' $'ENSURE '"$CLIENT_A"$'\n' 'OK hermes-s01 * *'
-! can_open_input hermes-s01 "$NODE_A" || fail 'a recreated account inherited stale input access'
+expect 'the freed slot is reused' $'ENSURE '"$CLIENT_A"$'\n' 'OK ares-s01 * *'
+! can_open_input ares-s01 "$NODE_A" || fail 'a recreated account inherited stale input access'
 expect 'PURGE stops the second session and revokes its lease' $'PURGE '"$CLIENT_B"$'\n' 'OK'
 if getfacl -cpn "$NODE_B" | grep -q "^user:$UID_B:"; then
 	fail 'PURGE left a named ACL for a deleted account'

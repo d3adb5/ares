@@ -1,9 +1,9 @@
 /**
  * @file src/platform/linux/gamescope_stream.cpp
- * @brief Zero-copy capture from a Gamescope running `--backend hermes`.
+ * @brief Zero-copy capture from a Gamescope running `--backend ares`.
  *
  * Gamescope composites into a pool of dma-bufs it shares over a Unix socket
- * (hermes_stream_v1.h) and sends a fence with each frame. The frames take the
+ * (ares_stream_v1.h) and sends a fence with each frame. The frames take the
  * same EGL import and VA-API path as a Hermes-KMS capture, and their colour
  * (SDR, or PQ/BT.2020 with HDR metadata) the same snapshot type.
  */
@@ -11,7 +11,7 @@
 
 #include "graphics.h"
 #include "hermes_kms_color.h"
-#include "hermes_stream_v1.h"
+#include "ares_stream_v1.h"
 #include "misc.h"
 #include "src/logging.h"
 #include "src/video.h"
@@ -61,9 +61,9 @@ namespace platf::gamescope_stream {
       return result;
     }
 
-    color::color_t color_of(const hermes_server_frame &frame) {
-      auto result = make_color(frame.transfer == HERMES_TRANSFER_PQ && frame.primaries == HERMES_PRIMARIES_BT2020);
-      if (result.pq() && (frame.flags & HERMES_FRAME_FLAG_HDR)) {
+    color::color_t color_of(const ares_server_frame &frame) {
+      auto result = make_color(frame.transfer == ARES_TRANSFER_PQ && frame.primaries == ARES_PRIMARIES_BT2020);
+      if (result.pq() && (frame.flags & ARES_FRAME_FLAG_HDR)) {
         for (int i = 0; i < 3; ++i) {
           result.primaries[i] = {frame.hdr_display_primaries_x[i], frame.hdr_display_primaries_y[i]};
         }
@@ -112,7 +112,7 @@ namespace platf::gamescope_stream {
     };
 
     struct frame_message_t {
-      hermes_server_frame message;
+      ares_server_frame message;
       file_t fence;
     };
 
@@ -197,7 +197,7 @@ namespace platf::gamescope_stream {
 
         // Gamescope paints only for a change, and a static scene would hold back
         // both the pool and the first frame.
-        auto request = make_message<hermes_client_request_frame>(HERMES_CLIENT_REQUEST_FRAME);
+        auto request = make_message<ares_client_request_frame>(ARES_CLIENT_REQUEST_FRAME);
         if (!send_message(&request, sizeof(request))) {
           return capture_e::error;
         }
@@ -267,16 +267,16 @@ namespace platf::gamescope_stream {
       }
 
       bool read_hello() {
-        hermes_server_hello hello {};
+        ares_server_hello hello {};
         if (!poll_fd(connection.el, POLLIN, 2000) ||
             ::recv(connection.el, &hello, sizeof(hello), 0) != static_cast<ssize_t>(sizeof(hello)) ||
-            hello.hdr.type != HERMES_SERVER_HELLO) {
+            hello.hdr.type != ARES_SERVER_HELLO) {
           BOOST_LOG(::error) << "Gamescope stream capture: no greeting from Gamescope";
           return false;
         }
-        if (hello.version_major != HERMES_STREAM_VERSION_MAJOR) {
+        if (hello.version_major != ARES_STREAM_VERSION_MAJOR) {
           BOOST_LOG(::error) << "Gamescope stream capture: protocol " << hello.version_major << ", expected "
-                             << HERMES_STREAM_VERSION_MAJOR;
+                             << ARES_STREAM_VERSION_MAJOR;
           return false;
         }
         width = env_width = static_cast<int>(hello.width);
@@ -289,15 +289,15 @@ namespace platf::gamescope_stream {
           BOOST_LOG(warning) << "Gamescope composites on a different GPU than Ares encodes on; frames will cross devices";
         }
         // Zero from a 1.0 Gamescope, which offers HDR only once configured.
-        hello_pq = hello.state_flags & HERMES_STATE_HDR_ACTIVE;
+        hello_pq = hello.state_flags & ARES_STATE_HDR_ACTIVE;
         color = make_color(hello_pq);
         return true;
       }
 
       bool configure() {
-        auto client_hello = make_message<hermes_client_hello>(HERMES_CLIENT_HELLO);
-        client_hello.version_major = HERMES_STREAM_VERSION_MAJOR;
-        client_hello.version_minor = HERMES_STREAM_VERSION_MINOR;
+        auto client_hello = make_message<ares_client_hello>(ARES_CLIENT_HELLO);
+        client_hello.version_major = ARES_STREAM_VERSION_MAJOR;
+        client_hello.version_minor = ARES_STREAM_VERSION_MINOR;
         std::strncpy(client_hello.client_name, "ares", sizeof(client_hello.client_name) - 1);
         if (!send_message(&client_hello, sizeof(client_hello))) {
           return false;
@@ -306,19 +306,19 @@ namespace platf::gamescope_stream {
         // Linear: every GPU's EGL imports it, and Gamescope only writes it once. PQ needs
         // ten bits; 8-bit stays second, for a GPU that cannot export them.
         struct {
-          hermes_client_configure configure;
-          hermes_format_modifier formats[2];
+          ares_client_configure configure;
+          ares_format_modifier formats[2];
         } request {};
-        request.configure.hdr.type = HERMES_CLIENT_CONFIGURE;
+        request.configure.hdr.type = ARES_CLIENT_CONFIGURE;
         request.configure.refresh_mhz = refresh_mhz;
         request.configure.slot_count = pool_slots;
-        request.configure.flags = hdr ? HERMES_CONFIGURE_HDR : 0;
+        request.configure.flags = hdr ? ARES_CONFIGURE_HDR : 0;
         request.configure.num_formats = 0;
         if (hdr) {
           request.formats[request.configure.num_formats++] = {DRM_FORMAT_XBGR2101010, 0, DRM_FORMAT_MOD_LINEAR};
         }
         request.formats[request.configure.num_formats++] = {DRM_FORMAT_XRGB8888, 0, DRM_FORMAT_MOD_LINEAR};
-        request.configure.hdr.size = sizeof(request.configure) + request.configure.num_formats * sizeof(hermes_format_modifier);
+        request.configure.hdr.size = sizeof(request.configure) + request.configure.num_formats * sizeof(ares_format_modifier);
         return send_message(&request, request.configure.hdr.size);
       }
 
@@ -348,7 +348,7 @@ namespace platf::gamescope_stream {
           if (color.pq() == hdr) {
             return true;
           }
-          auto request = make_message<hermes_client_request_frame>(HERMES_CLIENT_REQUEST_FRAME);
+          auto request = make_message<ares_client_request_frame>(ARES_CLIENT_REQUEST_FRAME);
           send_message(&request, sizeof(request));
         }
         if (!seen) {
@@ -369,7 +369,7 @@ namespace platf::gamescope_stream {
 
       // Nothing to report means keep capturing. A FRAME is handed back in frame.
       std::optional<capture_e> read_message(std::optional<frame_message_t> &frame) {
-        std::array<std::uint8_t, HERMES_MAX_MESSAGE_SIZE> data;
+        std::array<std::uint8_t, ARES_MAX_MESSAGE_SIZE> data;
         std::array<char, CMSG_SPACE(sizeof(int))> control;
         iovec io {data.data(), data.size()};
         msghdr message {};
@@ -394,10 +394,10 @@ namespace platf::gamescope_stream {
           }
         }
 
-        if (static_cast<std::size_t>(size) < sizeof(hermes_msg_header)) {
+        if (static_cast<std::size_t>(size) < sizeof(ares_msg_header)) {
           return capture_e::error;
         }
-        hermes_msg_header header;
+        ares_msg_header header;
         std::memcpy(&header, data.data(), sizeof(header));
 
         const auto view = [&]<typename T>(T &out) {
@@ -409,8 +409,8 @@ namespace platf::gamescope_stream {
         };
 
         switch (header.type) {
-          case HERMES_SERVER_POOL: {
-            hermes_server_pool pool;
+          case ARES_SERVER_POOL: {
+            ares_server_pool pool;
             if (!view(pool)) {
               return capture_e::error;
             }
@@ -424,24 +424,24 @@ namespace platf::gamescope_stream {
             slots.resize(pool.slot_count);
             return std::nullopt;
           }
-          case HERMES_SERVER_BUFFER: {
-            hermes_server_buffer buffer;
+          case ARES_SERVER_BUFFER: {
+            ares_server_buffer buffer;
             if (!view(buffer) || buffer.pool_id != current_pool || buffer.slot >= slots.size() || received.el < 0) {
               return capture_e::error;
             }
             slots[buffer.slot] = {std::move(received), buffer.offsets[0], buffer.strides[0]};
             return std::nullopt;
           }
-          case HERMES_SERVER_FRAME: {
-            hermes_server_frame message;
+          case ARES_SERVER_FRAME: {
+            ares_server_frame message;
             if (!view(message)) {
               return capture_e::error;
             }
             frame.emplace(message, std::move(received));
             return std::nullopt;
           }
-          case HERMES_SERVER_ERROR: {
-            hermes_server_error error;
+          case ARES_SERVER_ERROR: {
+            ares_server_error error;
             if (!view(error)) {
               return capture_e::error;
             }
@@ -454,7 +454,7 @@ namespace platf::gamescope_stream {
         }
       }
 
-      std::optional<capture_e> on_frame(const hermes_server_frame &frame, file_t fence, const push_captured_image_cb_t &push, const pull_free_image_cb_t &pull) {
+      std::optional<capture_e> on_frame(const ares_server_frame &frame, file_t fence, const push_captured_image_cb_t &push, const pull_free_image_cb_t &pull) {
         if (frame.pool_id != current_pool || frame.slot >= slots.size() || slots[frame.slot].fd.el < 0) {
           return capture_e::error;
         }
@@ -501,7 +501,7 @@ namespace platf::gamescope_stream {
       }
 
       void release(std::uint32_t pool_id, std::uint32_t slot) {
-        auto message = make_message<hermes_client_release>(HERMES_CLIENT_RELEASE);
+        auto message = make_message<ares_client_release>(ARES_CLIENT_RELEASE);
         message.pool_id = pool_id;
         message.slot = slot;
         send_message(&message, sizeof(message));

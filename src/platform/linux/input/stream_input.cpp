@@ -9,7 +9,7 @@
 
 #include "src/logging.h"
 #include "src/platform/linux/gamescope_stream.h"
-#include "src/platform/linux/hermes_stream_v1.h"
+#include "src/platform/linux/ares_stream_v1.h"
 
 #include <algorithm>
 #include <array>
@@ -47,24 +47,24 @@ namespace platf::stream_input {
   }
 
   void move(input_raw_t *raw, int delta_x, int delta_y) {
-    hermes_client_pointer_motion message {};
+    ares_client_pointer_motion message {};
     message.dx = delta_x;
     message.dy = delta_y;
-    send(raw, message, HERMES_CLIENT_POINTER_MOTION);
+    send(raw, message, ARES_CLIENT_POINTER_MOTION);
   }
 
   void move_abs(input_raw_t *raw, const touch_port_t &touch_port, float x, float y) {
     if (touch_port.width <= 0 || touch_port.height <= 0) {
       return;
     }
-    hermes_client_pointer_absolute message {};
+    ares_client_pointer_absolute message {};
     message.x = std::clamp(double(x) / touch_port.width, 0.0, 1.0);
     message.y = std::clamp(double(y) / touch_port.height, 0.0, 1.0);
-    send(raw, message, HERMES_CLIENT_POINTER_ABSOLUTE);
+    send(raw, message, ARES_CLIENT_POINTER_ABSOLUTE);
   }
 
   void button(input_raw_t *raw, int button, bool release) {
-    hermes_client_pointer_button message {};
+    ares_client_pointer_button message {};
     switch (button) {
       case BUTTON_LEFT:
         message.button = BTN_LEFT;
@@ -85,36 +85,36 @@ namespace platf::stream_input {
         return;
     }
     message.pressed = release ? 0 : 1;
-    send(raw, message, HERMES_CLIENT_POINTER_BUTTON);
+    send(raw, message, ARES_CLIENT_POINTER_BUTTON);
   }
 
   void scroll(input_raw_t *raw, int high_resolution_distance, bool horizontal) {
-    hermes_client_pointer_axis message {};
+    ares_client_pointer_axis message {};
     // Moonlight scrolls up with a positive distance, the protocol grows downwards.
     if (horizontal) {
       message.value120_x = high_resolution_distance;
     } else {
       message.value120_y = -high_resolution_distance;
     }
-    send(raw, message, HERMES_CLIENT_POINTER_AXIS);
+    send(raw, message, ARES_CLIENT_POINTER_AXIS);
   }
 
   void key(input_raw_t *raw, std::uint16_t key_code, bool release) {
     if (const auto code = evdev_key_for_client_key(key_code)) {
-      hermes_client_key message {};
+      ares_client_key message {};
       message.keycode = static_cast<std::uint32_t>(*code);
       message.pressed = release ? 0 : 1;
-      send(raw, message, HERMES_CLIENT_KEY);
+      send(raw, message, ARES_CLIENT_KEY);
     }
   }
 
   void unicode(input_raw_t *raw, const char *utf8, int size) {
-    if (!utf8 || size <= 0 || size > HERMES_MAX_TEXT) {
+    if (!utf8 || size <= 0 || size > ARES_MAX_TEXT) {
       return;
     }
-    std::array<std::uint8_t, sizeof(hermes_client_text) + HERMES_MAX_TEXT> data {};
-    hermes_client_text message {};
-    message.hdr.type = HERMES_CLIENT_TEXT;
+    std::array<std::uint8_t, sizeof(ares_client_text) + ARES_MAX_TEXT> data {};
+    ares_client_text message {};
+    message.hdr.type = ARES_CLIENT_TEXT;
     message.hdr.size = static_cast<std::uint32_t>(sizeof(message) + size);
     message.length = static_cast<std::uint32_t>(size);
     std::memcpy(data.data(), &message, sizeof(message));
@@ -123,28 +123,28 @@ namespace platf::stream_input {
   }
 
   void touch(input_raw_t *raw, const touch_input_t &touch) {
-    hermes_client_touch message {};
+    ares_client_touch message {};
     message.id = static_cast<std::int32_t>(touch.pointerId);
     message.x = std::clamp(double(touch.x), 0.0, 1.0);
     message.y = std::clamp(double(touch.y), 0.0, 1.0);
     switch (touch.eventType) {
       case LI_TOUCH_EVENT_DOWN:
-        message.type = HERMES_TOUCH_DOWN;
+        message.type = ARES_TOUCH_DOWN;
         break;
       case LI_TOUCH_EVENT_MOVE:
-        message.type = HERMES_TOUCH_MOTION;
+        message.type = ARES_TOUCH_MOTION;
         break;
       case LI_TOUCH_EVENT_UP:
-        message.type = HERMES_TOUCH_UP;
+        message.type = ARES_TOUCH_UP;
         break;
       case LI_TOUCH_EVENT_CANCEL:
       case LI_TOUCH_EVENT_CANCEL_ALL:
-        message.type = HERMES_TOUCH_CANCEL;
+        message.type = ARES_TOUCH_CANCEL;
         break;
       default:
         // Hover has no equivalent.
         return;
     }
-    send(raw, message, HERMES_CLIENT_TOUCH);
+    send(raw, message, ARES_CLIENT_TOUCH);
   }
 }  // namespace platf::stream_input

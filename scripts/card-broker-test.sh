@@ -77,7 +77,7 @@ printf '# comment\n%s\n' "$(id -u)" >"$ALLOW"
 expect 'a listed uid is served' 'LIST' 'OK'
 expect 'sweeping nothing removes nothing' 'SWEEP' 'OK 0'
 expect 'an unknown request is rejected' 'HELLO' 'ERR request*'
-expect "another user's card cannot be removed" "REMOVE hermes-u0-1" 'ERR denied*'
+expect "another user's card cannot be removed" "REMOVE ares-u0-1" 'ERR denied*'
 expect 'a path is not a card name' "REMOVE ../../etc/passwd" 'ERR denied*'
 
 # Seat 1 is taken by the static card above, so allocation must land on 2 and
@@ -99,10 +99,10 @@ done
 expect 'a full pool is reported as exhausted' 'CREATE' 'ERR exhausted*'
 
 # Ownership is by name, so a card the user "has" is listed and swept.
-mkdir -p "$CONFIGFS/hermes-u$(id -u)-3" "$CONFIGFS/hermes-u0-4" "$CONFIGFS/static-card"
-expect "only this user's cards are listed" 'LIST' "OK hermes-u$(id -u)-3"
+mkdir -p "$CONFIGFS/ares-u$(id -u)-3" "$CONFIGFS/ares-u0-4" "$CONFIGFS/static-card"
+expect "only this user's cards are listed" 'LIST' "OK ares-u$(id -u)-3"
 expect "sweeping removes only this user's cards" 'SWEEP' 'OK 1'
-if [ ! -d "$CONFIGFS/hermes-u0-4" ] || [ ! -d "$CONFIGFS/static-card" ]; then
+if [ ! -d "$CONFIGFS/ares-u0-4" ] || [ ! -d "$CONFIGFS/static-card" ]; then
 	printf "FAIL sweep removed a card it does not own\n" >&2
 	exit 1
 fi

@@ -350,7 +350,7 @@ list(APPEND PLATFORM_TARGET_FILES
         "${CMAKE_SOURCE_DIR}/src/platform/linux/graphics.cpp"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/gamescope_stream.h"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/gamescope_stream.cpp"
-        "${CMAKE_SOURCE_DIR}/src/platform/linux/hermes_stream_v1.h"
+        "${CMAKE_SOURCE_DIR}/src/platform/linux/ares_stream_v1.h"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/input/stream_input.h"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/input/stream_input.cpp"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/misc.h"

@@ -77,7 +77,7 @@ The opt-in GPU test exercises the actual upload and conversion code with known
 synthetic images; it does not capture the desktop or change display settings:
 
 ```sh
-HERMES_HDR_TEST_RENDER_NODE=/dev/dri/renderDN \
+ARES_HDR_TEST_RENDER_NODE=/dev/dri/renderDN \
   test_sunshine --gtest_filter='HermesHdrGpu.*'
 ```
 
@@ -91,7 +91,7 @@ On an NVIDIA GPU, a CUDA build also runs the converter itself and a one-frame
 HEVC Main10 encode, keeping the bitstream for `ffprobe`:
 
 ```sh
-HERMES_HDR_TEST_CUDA=1 test_sunshine --gtest_filter='HermesHdrCuda.*'
+ARES_HDR_TEST_CUDA=1 test_sunshine --gtest_filter='HermesHdrCuda.*'
 ```
 
 Before release, validate live KDE HDR toggles, metadata-only updates, reconnects,

@@ -23,5 +23,5 @@ jobs:
         run: g++ -std=c++23 -Wall -Wextra -Werror -I. tests/window_placement/script.cc -o /tmp/hermes-placement-script
       - name: Preserve unrelated local windows and fullscreen state
         env:
-          HERMES_PLACEMENT_SCRIPT_GENERATOR: /tmp/hermes-placement-script
+          ARES_PLACEMENT_SCRIPT_GENERATOR: /tmp/hermes-placement-script
         run: node --test tests/window_placement/kwin_script.cjs

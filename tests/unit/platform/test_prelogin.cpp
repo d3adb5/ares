@@ -2,7 +2,7 @@
  * @file tests/unit/platform/test_prelogin.cpp
  * @brief Test the setup and the checks for reaching a host before login.
  *
- * `hermes --prelogin enable` rewrites the unit Hermes starts from, and the
+ * `ares --prelogin enable` rewrites the unit Hermes starts from, and the
  * checks decide whether a host is told it will be reachable after a reboot
  * with nobody at it. A wrong unit keeps Hermes from starting; a wrong "ready"
  * is found out with the machine already out of reach.
@@ -235,7 +235,7 @@ TEST(PreloginChecks, AFreshInstallIsNotEnabledAndSaysHowToBe) {
   EXPECT_FALSE(report.enabled);
   EXPECT_FALSE(report.ready);
   EXPECT_EQ(check(report, "unit").state, state_e::missing);
-  EXPECT_NE(check(report, "unit").fix.find("hermes --prelogin enable"), std::string::npos);
+  EXPECT_NE(check(report, "unit").fix.find("ares --prelogin enable"), std::string::npos);
   EXPECT_EQ(check(report, "linger").state, state_e::missing);
 }
 

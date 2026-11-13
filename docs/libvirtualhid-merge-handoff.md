@@ -76,7 +76,7 @@ nosso fork. Os hashes e resultados nas seções seguintes são históricos.
 - O broker descobre somente char devices virtuais com phys e dev_t corretos,
   revalida depois de abrir com O_NOFOLLOW e aplica ACL pelo fd. Máscaras ACL
   não podem ampliar os direitos efetivos de outro usuário/grupo.
-- A regra 99-hermes-session-input aplica ACL via helper root antes do evento
+- A regra 99-ares-session-input aplica ACL via helper root antes do evento
   udev chegar ao SDL/libinput, usando um lock curto separado das operações
   demoradas de conta/systemd. Um loop de 500 ms reconcilia hotplug e reinícios.
   STOP/PURGE e falhas de launch encerram as unidades gerenciadas antes de revogar; uma

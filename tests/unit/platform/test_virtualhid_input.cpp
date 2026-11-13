@@ -763,7 +763,7 @@ namespace {
   protected:
     void SetUp() override {
       VirtualHidInputTest::SetUp();
-      if (!std::getenv("HERMES_TEST_KERNEL_INPUT")) {
+      if (!std::getenv("ARES_TEST_KERNEL_INPUT")) {
         GTEST_SKIP() << "Run scripts/vm-isolated-input-test.sh in a disposable VM for kernel/udev tests";
       }
     }
@@ -772,7 +772,7 @@ namespace {
   class VirtualHidEventKernelTest: public VirtualHidKernelTest {};
 
   TEST_P(VirtualHidEventKernelTest, AutomaticXboxRumbleWorksForOnlyTheAuthorizedUidWithoutHidraw) {
-  #ifndef HERMES_TEST_HID_CONSUMER
+  #ifndef ARES_TEST_HID_CONSUMER
     GTEST_SKIP() << "Build tests with SDL2 >= 2.24 for the unprivileged SDL consumer";
   #else
     ASSERT_EQ(::geteuid(), 0);
@@ -831,7 +831,7 @@ namespace {
     };
     ASSERT_EQ(run({"/usr/bin/setfacl", "-m", "u:65534:rw", "--", own}), 0);
     ASSERT_EQ(run({"/usr/bin/setfacl", "-m", "u:65533:rw", "--", foreign}), 0);
-    ASSERT_EQ(run({"/usr/bin/setpriv", "--reuid=65534", "--regid=65534", "--clear-groups", HERMES_TEST_HID_CONSUMER, own, foreign}), 0);
+    ASSERT_EQ(run({"/usr/bin/setpriv", "--reuid=65534", "--regid=65534", "--clear-groups", ARES_TEST_HID_CONSUMER, own, foreign}), 0);
     bool observed_rumble = false;
     while (const auto message = feedback->pop(50ms)) {
       if (message->type == platf::gamepad_feedback_e::rumble && message->data.rumble.lowfreq == 0x1234 && message->data.rumble.highfreq == 0x5678) {

@@ -53,7 +53,7 @@ const configFlagEnabled = (value) => {
   return ['true', '1', 'enabled', 'enable', 'yes', 'on'].includes(`${value}`.toLowerCase().trim())
 }
 const hermesKmsMultiOutputEnabled = computed(() => configFlagEnabled(props.config.hermes_kms_multi_output))
-const hermesKmsIsolatedSessionsEnabled = computed(() => configFlagEnabled(props.config.hermes_kms_isolated_sessions))
+const hermesKmsIsolatedSessionsEnabled = computed(() => configFlagEnabled(props.config.isolated_sessions))
 const hermesKmsSharedMultiOutputEnabled = computed(
   () => hermesKmsMultiOutputEnabled.value
 )
@@ -486,16 +486,16 @@ const validateFallbackMode = (event) => {
     </div>
 
     <Checkbox class="mb-3"
-              id="hermes_kms_isolated_sessions"
+              id="isolated_sessions"
               locale-prefix="config"
-              v-model="config.hermes_kms_isolated_sessions"
+              v-model="config.isolated_sessions"
               default="true"
               v-if="platform === 'linux'"
     ></Checkbox>
 
     <div class="alert alert-warning small"
          v-if="platform === 'linux' && hermesKmsIsolatedSessionsEnabled">
-      {{ $t('config.hermes_kms_isolated_sessions_warning') }}
+      {{ $t('config.isolated_sessions_warning') }}
     </div>
 
     <Checkbox class="mb-3"

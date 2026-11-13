@@ -83,7 +83,7 @@ namespace {
   };
 
   const char *render_node() {
-    const char *node = std::getenv("HERMES_PYROWAVE_TEST_RENDER_NODE");
+    const char *node = std::getenv("ARES_PYROWAVE_TEST_RENDER_NODE");
     return node && *node ? node : nullptr;
   }
 
@@ -244,7 +244,7 @@ namespace {
   void expect_ram_bars(uint32_t (*pixel)(int), uint32_t fourcc) {
     const char *node = render_node();
     if (!node) {
-      GTEST_SKIP() << "Set HERMES_PYROWAVE_TEST_RENDER_NODE to opt into the PyroWave GPU tests";
+      GTEST_SKIP() << "Set ARES_PYROWAVE_TEST_RENDER_NODE to opt into the PyroWave GPU tests";
     }
     ASSERT_EQ(gbm::init(), 0);
     file_t fd {open(node, O_RDWR | O_CLOEXEC)};
@@ -262,7 +262,7 @@ namespace {
 TEST(PyroWaveGpu, CapturedFrameIsEncodedWithoutLeavingTheGpu) {
   const char *node = render_node();
   if (!node) {
-    GTEST_SKIP() << "Set HERMES_PYROWAVE_TEST_RENDER_NODE to opt into the PyroWave GPU tests";
+    GTEST_SKIP() << "Set ARES_PYROWAVE_TEST_RENDER_NODE to opt into the PyroWave GPU tests";
   }
   file_t fd {open(node, O_RDWR | O_CLOEXEC)};
   ASSERT_GE(fd.el, 0);

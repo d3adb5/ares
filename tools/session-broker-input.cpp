@@ -88,8 +88,8 @@ namespace hermes::session_broker::input_access {
                             return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') ||
                                    (ch >= 'A' && ch <= 'F') || ch == '-';
                           });
-      return client && owner.account.starts_with("hermes-s") && owner.account.size() <= 16 &&
-             digits(std::string_view {owner.account}.substr(8)) && owner.uid > 0 &&
+      return client && owner.account.starts_with("ares-s") && owner.account.size() <= 16 &&
+             digits(std::string_view {owner.account}.substr(6)) && owner.uid > 0 &&
              owner.uid != std::numeric_limits<uid_t>::max() && valid_seat(owner.seat);
     }
 
@@ -203,7 +203,7 @@ namespace hermes::session_broker::input_access {
     for (const auto &value : environment) {
       for (const auto &[prefix, slot] : {
              std::pair {std::string_view {"XDG_SEAT="}, &xdg},
-             std::pair {std::string_view {"HERMES_SESSION_SEAT="}, &hermes}
+             std::pair {std::string_view {"ARES_SESSION_SEAT="}, &hermes}
            }) {
         if (value.starts_with(prefix)) {
           if (*slot) {

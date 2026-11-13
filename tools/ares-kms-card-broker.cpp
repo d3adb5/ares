@@ -17,7 +17,7 @@
  *
  * Authorization is the peer's uid, taken from SO_PEERCRED (which the kernel
  * fills in, so it cannot be spoofed) and checked against an allow file that
- * only root can write. A card is named hermes-u<peer-uid>-<index> - so a
+ * only root can write. A card is named ares-u<peer-uid>-<index> - so a
  * request can only ever remove a card the same uid created, and never a
  * statically configured one - while its access_uid is the uid the card
  * actually belongs to: the caller's own for a bare CREATE, or, for
@@ -25,7 +25,7 @@
  * session needs: the session's compositor runs as hermes-sNN, and the
  * driver's udev rules hand the card's device nodes to its access_uid, so a
  * card created with the host user's uid is one the session can never open.
- * The gate is the hermes-session group: an account outside it cannot be
+ * The gate is the ares-session group: an account outside it cannot be
  * named, which keeps a caller in the allow file from minting cards for
  * arbitrary users.
  *
@@ -69,7 +69,7 @@ namespace {
   namespace fs = std::filesystem;
 
   constexpr const char *default_socket_path = "/run/ares/card-broker.sock";
-  constexpr const char *default_allow_file = "/etc/hermes/card-broker.allow";
+  constexpr const char *default_allow_file = "/etc/ares/card-broker.allow";
   constexpr const char *default_configfs_root = "/sys/kernel/config/hermes-kms";
   constexpr const char *default_platform_root = "/sys/devices/platform";
   constexpr const char *default_lock_file = "/run/ares/card-broker.lock";
@@ -78,7 +78,7 @@ namespace {
   // file that creates the group. `CREATE <uid>` may only name an account in
   // it: any wider gate would let a caller in the allow file hand cards to
   // arbitrary users.
-  constexpr const char *session_group = "hermes-session";
+  constexpr const char *session_group = "ares-session";
 
   // The driver maps session indices 1..8 onto private seats; there is no ninth
   // seat rule, so a ninth card would land on seat0 with the host compositor.
@@ -206,12 +206,12 @@ namespace {
   }
 
   std::string card_name(uid_t uid, unsigned int session_index) {
-    return "hermes-u" + std::to_string(uid) + "-" + std::to_string(session_index);
+    return "ares-u" + std::to_string(uid) + "-" + std::to_string(session_index);
   }
 
   /** @brief Whether `name` is a card this broker created for `uid`. */
   bool owned_by(const std::string &name, uid_t uid) {
-    const std::string prefix = "hermes-u" + std::to_string(uid) + "-";
+    const std::string prefix = "ares-u" + std::to_string(uid) + "-";
     if (name.size() <= prefix.size() || name.rfind(prefix, 0) != 0) {
       return false;
     }
@@ -224,7 +224,7 @@ namespace {
    * @brief Whether `uid` is a Hermes session account.
    *
    * The gate on `CREATE <uid>`: the account must exist and be in the
-   * hermes-session group, either as its primary group or as a member. An
+   * ares-session group, either as its primary group or as a member. An
    * account outside it is refused, because creating a card for one would be
    * handing its GPU access to whoever the caller names.
    */

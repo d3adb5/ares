@@ -1176,7 +1176,7 @@ alias; new configurations should use the key above.
             builds that support it). The microphone reaches an independent client session only, as
             the only source of that session's private audio server; it never reaches the host's
             desktop. Experimental.
-            @note{Applies to Linux independent client sessions (hermes_kms_isolated_sessions).}
+            @note{Applies to Linux independent client sessions (isolated_sessions).}
         </td>
     </tr>
     <tr>
@@ -1443,7 +1443,7 @@ alias; new configurations should use the key above.
             <br><br>
             Several features exist only with <code>hermes_kms</code>: zero-copy capture on AMD/Intel,
             HDR10 on a virtual display, <code>hermes_kms_multi_output</code>,
-            <code>hermes_kms_isolated_sessions</code>, streaming before login, and the driver's
+            <code>isolated_sessions</code>, streaming before login, and the driver's
             capture counters in diagnostics. It needs Hermes-KMS v0.4.0 or newer; Ares does not fall
             back to EVDI when it is selected but unavailable.
             <br><br>
@@ -1496,7 +1496,7 @@ alias; new configurations should use the key above.
     </tr>
 </table>
 
-### hermes_kms_isolated_sessions
+### isolated_sessions
 
 <table>
     <tr>
@@ -1509,7 +1509,7 @@ alias; new configurations should use the key above.
             it never falls back to the host.
 
             <b>What every isolated session gets.</b> The Plasma
-            desktop (<code>hermes_kms_session_compositor = plasma</code>) runs
+            desktop (<code>session_compositor = plasma</code>) runs
             on a virtual KWin output instead; every
             other isolated session gets its own Hermes-KMS DRM card
             on its own private DRM seat, its own compositor, its own Wayland
@@ -1517,7 +1517,7 @@ alias; new configurations should use the key above.
             devices, tagged so that one client's keyboard and mouse cannot enter
             another client's desktop. Sessions isolated with Gamescope use Gamescope;
             KWin virtual ones use a session compositor chosen with
-            <code>hermes_kms_session_compositor</code>. This half is what
+            <code>session_compositor</code>. This half is what
             separates what each client <i>sees and controls</i>, and it does not
             depend on the session broker.
 
@@ -1597,7 +1597,7 @@ alias; new configurations should use the key above.
         <td>Example</td>
         <td colspan="2">@code{}
             virtual_display_backend = hermes_kms
-            hermes_kms_isolated_sessions = true
+            isolated_sessions = true
             @endcode
             Install the driver's broker (<code>hermes-kms-seatd-git</code>, or
             <code>sudo make INSTALL_BROKER=1 dkms-install</code> from a clone)
@@ -1686,7 +1686,7 @@ alias; new configurations should use the key above.
     </tr>
 </table>
 
-### hermes_kms_session_compositor
+### session_compositor
 
 <table>
     <tr>
@@ -1749,7 +1749,7 @@ alias; new configurations should use the key above.
     <tr>
         <td>Example</td>
         <td colspan="2">@code{}
-            hermes_kms_session_compositor = weston
+            session_compositor = weston
             @endcode</td>
     </tr>
 </table>
@@ -1760,7 +1760,7 @@ alias; new configurations should use the key above.
     <tr>
         <td>Description</td>
         <td colspan="2">
-            How a session is isolated, with <code>hermes_kms_isolated_sessions</code>
+            How a session is isolated, with <code>isolated_sessions</code>
             enabled. An app's <code>isolation-method</code> overrides it.
             <ul>
                 <li><code>gamescope_stream</code>: Gamescope hands each frame straight
@@ -1774,7 +1774,7 @@ alias; new configurations should use the key above.
                 app with no command gets the <code>kwin_virtual</code> desktop.</li>
                 <li><code>kwin_virtual</code>: KWin's virtual backend, a virtual
                 output with input through KWin's fake-input protocol, running the
-                desktop chosen by <code>hermes_kms_session_compositor</code>. The
+                desktop chosen by <code>session_compositor</code>. The
                 app's command starts inside it.</li>
             </ul>
             @note{An app on the <code>default</code> method with an explicit

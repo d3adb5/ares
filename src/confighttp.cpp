@@ -138,7 +138,7 @@ namespace confighttp {
       // which Chromium reports as ERR_SSL_PROTOCOL_ERROR and fetch() as a bare
       // "Failed to fetch". That is why logging in worked in Firefox but not in
       // Brave, and why only requests made after the page had loaded ever broke.
-      static const unsigned char session_id_context[] = "hermes-confighttp";
+      static const unsigned char session_id_context[] = "ares-confighttp";
       SSL_CTX_set_session_id_context(
         context.native_handle(),
         session_id_context,
@@ -1671,7 +1671,7 @@ namespace confighttp {
         {"client_fps_matching", true},
         {"hdr_mode_control", true},
         {"scale_factor", true},
-        {"gamescope_session", !boost::process::v1::search_path("gamescope").empty()},
+        {"gamescope_session", !boost::process::v1::search_path("gamescope-ares").empty() || !boost::process::v1::search_path("gamescope").empty()},
         {"server_commands", true},
         {"clipboard_sync", platf::clipboard_available()},
         {"permission_system", true},
@@ -3520,7 +3520,7 @@ printf "evdi\\n" > /etc/modules-load.d/evdi.conf')EVDI";
       entry["running"] = session.running;
       entry["uptime_seconds"] = session.uptime_seconds;
       // Absent rather than empty where the session has none, so the UI can tell
-      // "runs as the Hermes user" from "runs as hermes-s01" without comparing
+      // "runs as the Hermes user" from "runs as ares-s01" without comparing
       // against a magic empty string.
       if (!session.account_user.empty()) {
         entry["account_user"] = session.account_user;

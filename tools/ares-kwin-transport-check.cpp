@@ -1,4 +1,4 @@
-/** @file tools/hermes-kwin-transport-check.cpp
+/** @file tools/ares-kwin-transport-check.cpp
  *  @brief Exercise Hermes' native transport against an explicit test session.
  */
 #include "kwin_session.h"
@@ -10,13 +10,13 @@
 
 int main(int argc, char **argv) {
   if (argc != 3) {
-    std::cerr << "Usage: hermes-kwin-transport-check ABSOLUTE_WAYLAND_SOCKET ABSOLUTE_PIPEWIRE_SOCKET\n";
+    std::cerr << "Usage: ares-kwin-transport-check ABSOLUTE_WAYLAND_SOCKET ABSOLUTE_PIPEWIRE_SOCKET\n";
     return 2;
   }
   // This executable is a diagnostic, not a route selector. Refuse host sockets
   // even when someone runs it by hand in their regular desktop environment.
   const std::string socket = argv[1];
-  if (!socket.starts_with("/run/hermes-plasma-probe-") || socket.find("/../") != std::string::npos) {
+  if (!socket.starts_with("/run/ares-plasma-probe-") || socket.find("/../") != std::string::npos) {
     std::cerr << "Refusing to capture outside a temporary Ares Plasma probe\n";
     return 2;
   }

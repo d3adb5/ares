@@ -6,10 +6,10 @@ cmake_minimum_required(VERSION 3.20)
 
 # Single source of truth for the Hermes version: the top-level VERSION file.
 # Bump it (or run scripts/bump-version.sh) to change the version everywhere.
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" HERMES_VERSION)
-string(STRIP "${HERMES_VERSION}" HERMES_VERSION)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" ARES_VERSION)
+string(STRIP "${ARES_VERSION}" ARES_VERSION)
 
-project(Ares VERSION ${HERMES_VERSION}
+project(Ares VERSION ${ARES_VERSION}
         DESCRIPTION "Self-hosted game stream host for Athena, Hestia and Artemis"
         HOMEPAGE_URL "https://github.com/d3adb5/ares")
 

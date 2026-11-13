@@ -83,7 +83,7 @@ namespace platf::gamescope {
   }
 
   /**
-   * HERMES_ISOLATED_GAMESCOPE_DRM_FLAG, for a build whose --help does not
+   * ARES_ISOLATED_GAMESCOPE_DRM_FLAG, for a build whose --help does not
    * list the option it accepts. "none" launches without one, which is only
    * useful to reproduce what an unpatched Gamescope does.
    */
@@ -199,7 +199,7 @@ namespace platf::gamescope {
   inline std::optional<std::string> session_option_override(std::span<const std::string> arguments) {
     constexpr std::string_view reserved[] {
       "--backend",
-      "--hermes-socket",
+      "--ares-socket",
       "--prefer-drm",
       "--drm-device",
       "--output-width",
@@ -276,7 +276,7 @@ namespace platf::gamescope {
     auto command = std::format(
       "{} {} -W {} -H {} -w {} -h {} -r {}",
       launch.binary.empty() ? std::string {"gamescope"} : launch.binary,
-      launch.stream_socket.empty() ? std::string {"--backend=drm"} : "--backend=hermes --hermes-socket " + launch.stream_socket,
+      launch.stream_socket.empty() ? std::string {"--backend=drm"} : "--backend=ares --ares-socket " + launch.stream_socket,
       launch.width,
       launch.height,
       launch.width,
@@ -284,7 +284,7 @@ namespace platf::gamescope {
       launch.refresh_hz
     );
     if (launch.hdr && !launch.stream_socket.empty()) {
-      command += " --hermes-hdr --hdr-enabled";
+      command += " --ares-hdr --hdr-enabled";
     }
     if (!launch.vk_device.empty()) {
       command += " --prefer-vk-device " + launch.vk_device;

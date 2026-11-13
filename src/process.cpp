@@ -150,6 +150,22 @@ namespace proc {
              session_route_e::isolated_application;
   }
 
+  namespace {
+    /// Scripts written for Hermes read an app's and client's values under its prefix.
+    void add_hermes_env_aliases(boost::process::v1::environment &env) {
+      std::vector<std::pair<std::string, std::string>> aliases;
+      for (const auto &entry : env) {
+        if (const auto name = entry.get_name(); name.starts_with("ARES_APP_") || name.starts_with("ARES_CLIENT_")) {
+          aliases.emplace_back("HERMES_" + name.substr(5), entry.to_string());
+        }
+      }
+      for (const auto &[name, value] : aliases) {
+        env[name] = value;
+      }
+    }
+
+  }  // namespace
+
 #ifndef _WIN32
   namespace {
     VDISPLAY::virtual_display_layout_e linux_virtual_display_layout(const std::string &layout) {
@@ -778,10 +794,10 @@ namespace proc {
     /**
      * @brief Where the Gamescope an application session runs lives.
      *
-     * Hermes' own build (MrOz59/gamescope, branch hermes) installs into a
+     * Ares' own build (gamescope-ares, d3adb5/gamescope) installs into a
      * prefix of its own instead of over the system's Gamescope, which a
      * Steam Deck-style session or a desktop user may depend on. It is looked
-     * for there first; HERMES_GAMESCOPE names a binary outright; otherwise
+     * for there first; ARES_GAMESCOPE names a binary outright; otherwise
      * whichever gamescope PATH finds is used and the probe below decides
      * whether it can do the job.
      */
@@ -801,14 +817,14 @@ namespace proc {
                ::access(path.c_str(), X_OK) == 0;
       };
 
-      if (const char *forced = std::getenv("HERMES_GAMESCOPE"); forced && *forced) {
+      if (const char *forced = std::getenv("ARES_GAMESCOPE"); forced && *forced) {
         if (usable(forced)) {
           return {forced, prefix_of(forced)};
         }
-        BOOST_LOG(warning) << "[IsolatedSession] Ignoring HERMES_GAMESCOPE=" << forced
+        BOOST_LOG(warning) << "[IsolatedSession] Ignoring ARES_GAMESCOPE=" << forced
                            << ": not an executable path without spaces.";
       }
-      for (const auto *prefix : {"/usr/lib/hermes-gamescope", "/opt/hermes-gamescope"}) {
+      for (const auto *prefix : {"/usr/lib/ares-gamescope", "/opt/ares-gamescope"}) {
         const auto binary = (std::filesystem::path {prefix} / "bin" / "gamescope").string();
         if (usable(binary)) {
           return {binary, prefix};
@@ -860,13 +876,13 @@ namespace proc {
       }
       const auto binary = find_gamescope().binary;
       const auto help = binary.empty() ? std::nullopt : gamescope_help_text(binary);
-      if (!help || !platf::gamescope::help_lists_option(*help, "--hermes-socket")) {
+      if (!help || !platf::gamescope::help_lists_option(*help, "--ares-socket")) {
         BOOST_LOG(warning) << "[IsolatedSession] " << (binary.empty() ? "gamescope" : binary)
                            << " has no stream backend; using a Hermes-KMS card. Install Ares' Gamescope (scripts/install.sh).";
         return false;
       }
-      if (launch.enable_hdr && !platf::gamescope::help_lists_option(*help, "--hermes-hdr")) {
-        BOOST_LOG(info) << "[IsolatedSession] This Gamescope streams SDR only (no --hermes-hdr); this HDR session uses a Hermes-KMS card.";
+      if (launch.enable_hdr && !platf::gamescope::help_lists_option(*help, "--ares-hdr")) {
+        BOOST_LOG(info) << "[IsolatedSession] This Gamescope streams SDR only (no --ares-hdr); this HDR session uses a Hermes-KMS card.";
         return false;
       }
       return true;
@@ -1142,23 +1158,24 @@ namespace proc {
       env["APOLLO_CLIENT_RENDER_HEIGHT"] = std::to_string(render_height);
       env["APOLLO_CLIENT_FPS"] = fps_buffer;
 
-      env["HERMES_APP_ID"] = app.id;
-      env["HERMES_APP_NAME"] = app.name;
-      env["HERMES_APP_UUID"] = app.uuid;
-      env["HERMES_APP_STATUS"] = "STARTING";
-      env["HERMES_CLIENT_UUID"] = session.unique_id;
-      env["HERMES_CLIENT_NAME"] = session.device_name;
-      env["HERMES_CLIENT_WIDTH"] = std::to_string(render_width);
-      env["HERMES_CLIENT_HEIGHT"] = std::to_string(render_height);
-      env["HERMES_CLIENT_RENDER_WIDTH"] = std::to_string(render_width);
-      env["HERMES_CLIENT_RENDER_HEIGHT"] = std::to_string(render_height);
-      env["HERMES_CLIENT_FPS"] = fps_buffer;
-      env["HERMES_SESSION_ID"] = runtime.runtime_id;
-      env["HERMES_SESSION_SEAT"] = runtime.seat_id;
-      env["HERMES_SEATD_SOCKET"] = runtime.seatd_socket;
-      env["HERMES_SESSION_PROFILE"] = runtime.profile;
-      env["HERMES_DRM_DEVICE"] = runtime.drm_device_path;
-      env["HERMES_WAYLAND_DISPLAY"] = runtime.wayland_display;
+      env["ARES_APP_ID"] = app.id;
+      env["ARES_APP_NAME"] = app.name;
+      env["ARES_APP_UUID"] = app.uuid;
+      env["ARES_APP_STATUS"] = "STARTING";
+      env["ARES_CLIENT_UUID"] = session.unique_id;
+      env["ARES_CLIENT_NAME"] = session.device_name;
+      env["ARES_CLIENT_WIDTH"] = std::to_string(render_width);
+      env["ARES_CLIENT_HEIGHT"] = std::to_string(render_height);
+      env["ARES_CLIENT_RENDER_WIDTH"] = std::to_string(render_width);
+      env["ARES_CLIENT_RENDER_HEIGHT"] = std::to_string(render_height);
+      env["ARES_CLIENT_FPS"] = fps_buffer;
+      env["ARES_SESSION_ID"] = runtime.runtime_id;
+      env["ARES_SESSION_SEAT"] = runtime.seat_id;
+      env["ARES_SEATD_SOCKET"] = runtime.seatd_socket;
+      env["ARES_SESSION_PROFILE"] = runtime.profile;
+      env["ARES_DRM_DEVICE"] = runtime.drm_device_path;
+      env["ARES_WAYLAND_DISPLAY"] = runtime.wayland_display;
+      add_hermes_env_aliases(env);
 
       if (!session.enable_hdr) {
         env["DXVK_HDR"] = "0";
@@ -1497,7 +1514,7 @@ namespace proc {
       }
       auto stopping_env = runtime->env;
       stopping_env["APOLLO_APP_STATUS"] = "TERMINATING";
-      stopping_env["HERMES_APP_STATUS"] = "TERMINATING";
+      stopping_env["ARES_APP_STATUS"] = "TERMINATING";
 
       for (size_t index = runtime->prep_completed; index > 0; --index) {
         const auto &cmd = runtime->app.prep_cmds[index - 1];
@@ -1597,8 +1614,8 @@ namespace proc {
     runtime->client_uuid = client_uuid;
     runtime->app.id = "123";
     runtime->app.uuid = "runtime-test-app";
-    runtime->unit = "hermes-session-01.service";
-    runtime->env["HERMES_REGISTRY_TEST"] = "ready";
+    runtime->unit = "ares-session-01.service";
+    runtime->env["ARES_REGISTRY_TEST"] = "ready";
     std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
     isolated_runtimes[id] = runtime;
   }
@@ -1800,7 +1817,7 @@ namespace proc {
 #else
     if (config::video.virtual_display_backend != "hermes_kms" ||
         (isolated_session ?
-           !config::video.hermes_kms_isolated_sessions :
+           !config::video.isolated_sessions :
            !config::video.hermes_kms_multi_output)) {
       return 0;
     }
@@ -1941,7 +1958,7 @@ namespace proc {
     (void) launch_session;
     return -1;
 #else
-    if (!config::video.hermes_kms_isolated_sessions) {
+    if (!config::video.isolated_sessions) {
       launch_session->launch_error_message = "Independent-session capability is unavailable.";
       return 503;
     }
@@ -2043,7 +2060,7 @@ namespace proc {
     // A detached Plasma desktop is the user's own, by definition, so it never
     // takes a helper account; every other isolated session still does.
     const bool own_plasma_desktop =
-      runtime->profile == "desktop" && config::video.hermes_kms_session_compositor == "plasma";
+      runtime->profile == "desktop" && config::video.session_compositor == "plasma";
     if (!own_plasma_desktop && platf::session_broker::available()) {
       runtime->account = platf::session_broker::ensure(runtime->client_uuid);
       if (!runtime->account) {
@@ -2142,7 +2159,7 @@ namespace proc {
       runtime->session_bus = start_session_bus(runtime->runtime_dir);
     }
 
-    // hermes_kms_session_compositor = plasma, the default: the user's own
+    // session_compositor = plasma, the default: the user's own
     // Plasma, detached.
     //
     // A detached desktop is stock KWin on a virtual output of its own, run as
@@ -2152,7 +2169,7 @@ namespace proc {
     // monitor, and no libinput, so the keyboard and mouse at the machine never
     // reach it. Hermes captures it and drives its input over two explicit
     // sockets, and never falls back to the host desktop.
-    if (runtime->profile == "desktop" && config::video.hermes_kms_session_compositor == "plasma") {
+    if (runtime->profile == "desktop" && config::video.session_compositor == "plasma") {
       if (!app.prep_cmds.empty()) {
         // They exist to rearrange the host's displays for a stream, which is
         // exactly what a detached desktop must leave alone.
@@ -2164,7 +2181,7 @@ namespace proc {
       // can fail names it - for the client and in the log alike.
       const auto plasma_failed = [&](const std::string &reason) {
         constexpr std::string_view fallback {
-          " To use Weston instead, if it is installed, set hermes_kms_session_compositor = weston."
+          " To use Weston instead, if it is installed, set session_compositor = weston."
         };
         launch_session->launch_error_message = "The KWin virtual desktop " + reason + '.' + std::string {fallback};
         BOOST_LOG(error) << "[IsolatedSession] " << launch_session->launch_error_message;
@@ -2437,7 +2454,7 @@ namespace proc {
       std::filesystem::remove(runtime->gamescope_stream_socket, stale_ec);
       runtime->env = _env;
       populate_session_environment(runtime->env, app, *launch_session, *runtime);
-      for (const auto *name : {"XDG_SEAT", "LIBSEAT_BACKEND", "SEATD_SOCK", "WLR_DRM_DEVICES", "WLR_LIBINPUT_NO_DEVICES", "HERMES_SEATD_SOCKET", "HERMES_DRM_DEVICE"}) {
+      for (const auto *name : {"XDG_SEAT", "LIBSEAT_BACKEND", "SEATD_SOCK", "WLR_DRM_DEVICES", "WLR_LIBINPUT_NO_DEVICES", "ARES_SEATD_SOCKET", "ARES_DRM_DEVICE"}) {
         runtime->env.erase(name);
       }
       // Under FIFO each swapchain image past two queues a finished frame: a whole refresh of latency, more
@@ -2576,7 +2593,7 @@ namespace proc {
       runtime->wayland_display.clear();
       for (const auto *name : {"WAYLAND_DISPLAY", "WAYLAND_SOCKET",
                                "_WAYLAND_DISPLAY", "DISPLAY",
-                               "HERMES_WAYLAND_DISPLAY"}) {
+                               "ARES_WAYLAND_DISPLAY"}) {
         runtime->env.erase(name);
       }
     };
@@ -2590,8 +2607,8 @@ namespace proc {
       const auto gamescope = find_gamescope();
       const auto &gamescope_binary = gamescope.binary;
       if (gamescope_binary.empty()) {
-        BOOST_LOG(error) << "[IsolatedSession] Application profile requires gamescope; Ares' own build "
-                            "installs to /usr/lib/hermes-gamescope (see scripts/install.sh).";
+        BOOST_LOG(error) << "[IsolatedSession] Application profile requires gamescope; Ares' own build, "
+                            "the gamescope-ares package, installs to /usr/lib/ares-gamescope.";
         return -1;
       }
       if (!gamescope.prefix.empty()) {
@@ -2626,9 +2643,9 @@ namespace proc {
         //
         // The card is this session's, never a process-wide setting: two
         // sessions are two cards.
-        if (const char *legacy_device = std::getenv("HERMES_ISOLATED_GAMESCOPE_DRM_DEVICE");
+        if (const char *legacy_device = std::getenv("ARES_ISOLATED_GAMESCOPE_DRM_DEVICE");
             legacy_device && *legacy_device) {
-          BOOST_LOG(warning) << "[IsolatedSession] HERMES_ISOLATED_GAMESCOPE_DRM_DEVICE is no longer read; "
+          BOOST_LOG(warning) << "[IsolatedSession] ARES_ISOLATED_GAMESCOPE_DRM_DEVICE is no longer read; "
                              << "each session scans out on its own card, here "
                              << runtime->drm_device_path << '.';
         }
@@ -2638,11 +2655,11 @@ namespace proc {
           return 503;
         }
 
-        if (const char *forced = std::getenv("HERMES_ISOLATED_GAMESCOPE_DRM_FLAG");
+        if (const char *forced = std::getenv("ARES_ISOLATED_GAMESCOPE_DRM_FLAG");
             forced && *forced) {
           selector = platf::gamescope::drm_selector_from_override(forced);
           if (!selector) {
-            BOOST_LOG(warning) << "[IsolatedSession] Ignoring HERMES_ISOLATED_GAMESCOPE_DRM_FLAG=" << forced
+            BOOST_LOG(warning) << "[IsolatedSession] Ignoring ARES_ISOLATED_GAMESCOPE_DRM_FLAG=" << forced
                                << "; expected --prefer-drm, --drm-device or none.";
           }
         }
@@ -2655,13 +2672,13 @@ namespace proc {
                               "would open the host GPU's display instead of this session's card. Install "
                               "Ares' Gamescope (scripts/install.sh), use one with --prefer-drm "
                               "(ValveSoftware/gamescope#2220), or set "
-                              "HERMES_ISOLATED_GAMESCOPE_DRM_FLAG for a build whose --help does not "
+                              "ARES_ISOLATED_GAMESCOPE_DRM_FLAG for a build whose --help does not "
                               "list the option it accepts.";
           return 503;
         }
         if (*selector == platf::gamescope::drm_selector_e::none) {
           BOOST_LOG(warning) << "[IsolatedSession] Launching Gamescope without a scanout device "
-                                "(HERMES_ISOLATED_GAMESCOPE_DRM_FLAG=none); it will pick the GPU it "
+                                "(ARES_ISOLATED_GAMESCOPE_DRM_FLAG=none); it will pick the GPU it "
                                 "renders with, not " << runtime->drm_device_path << '.';
         } else {
           // Also read by #2220 when the flag is absent. Setting both costs
@@ -2687,7 +2704,7 @@ namespace proc {
         BOOST_LOG(error) << "[IsolatedSession] Invalid gamescope-args: " << exception.what();
         return 400;
       }
-      if (const char *forced_steam_mode = std::getenv("HERMES_ISOLATED_GAMESCOPE_STEAM_MODE");
+      if (const char *forced_steam_mode = std::getenv("ARES_ISOLATED_GAMESCOPE_STEAM_MODE");
           forced_steam_mode && std::string_view {forced_steam_mode} == "1") {
         steam_mode = true;
       }
@@ -2721,7 +2738,7 @@ namespace proc {
       });
       BOOST_LOG(info) << "[IsolatedSession] " << launch_command;
     } else {
-      const auto profile = load_compositor_profile(config::video.hermes_kms_session_compositor);
+      const auto profile = load_compositor_profile(config::video.session_compositor);
       if (!profile) {
         return -1;
       }
@@ -3051,7 +3068,7 @@ namespace proc {
       if (!compositor_socket.empty()) {
         runtime->wayland_display = compositor_socket;
         runtime->env["WAYLAND_DISPLAY"] = compositor_socket;
-        runtime->env["HERMES_WAYLAND_DISPLAY"] = compositor_socket;
+        runtime->env["ARES_WAYLAND_DISPLAY"] = compositor_socket;
         BOOST_LOG(debug) << "[IsolatedSession] Discovered Wayland socket " << compositor_socket;
       } else {
         BOOST_LOG(error) << "[IsolatedSession] "
@@ -3077,7 +3094,7 @@ namespace proc {
     }
 
     runtime->env["APOLLO_APP_STATUS"] = "RUNNING";
-    runtime->env["HERMES_APP_STATUS"] = "RUNNING";
+    runtime->env["ARES_APP_STATUS"] = "RUNNING";
     for (size_t index = 0; index < app.detached.size(); ++index) {
       std::error_code ec;
       // One scope per command, because each becomes a unit and two units
@@ -3945,27 +3962,28 @@ namespace proc {
     _env["APOLLO_CLIENT_HOST_AUDIO"] = launch_session->host_audio ? "true" : "false";
     _env["APOLLO_CLIENT_ENABLE_SOPS"] = launch_session->enable_sops ? "true" : "false";
 
-    // Hermes-branded env vars (mirror the APOLLO_* lineage contract). New
+    // Ares-branded env vars (mirror the APOLLO_* lineage contract). New
     // tooling (e.g. ares-gamescope-launch) reads these; APOLLO_*/SUNSHINE_*
-    // remain for client/lineage compatibility.
-    _env["HERMES_APP_ID"] = _app.id;
-    _env["HERMES_APP_NAME"] = _app.name;
-    _env["HERMES_APP_UUID"] = _app.uuid;
-    _env["HERMES_APP_STATUS"] = "STARTING";
-    _env["HERMES_CLIENT_UUID"] = launch_session->unique_id;
-    _env["HERMES_CLIENT_NAME"] = launch_session->device_name;
-    _env["HERMES_CLIENT_WIDTH"] = std::to_string(render_width);
-    _env["HERMES_CLIENT_HEIGHT"] = std::to_string(render_height);
-    _env["HERMES_CLIENT_RENDER_WIDTH"] = std::to_string(launch_session->width);
-    _env["HERMES_CLIENT_RENDER_HEIGHT"] = std::to_string(launch_session->height);
-    _env["HERMES_CLIENT_SCALE_FACTOR"] = std::to_string(scale_factor);
-    _env["HERMES_CLIENT_FPS"] = fps_str;
-    _env["HERMES_CLIENT_HDR"] = launch_session->enable_hdr ? "true" : "false";
-    _env["HERMES_CLIENT_GCMAP"] = std::to_string(launch_session->gcmap);
-    _env["HERMES_CLIENT_HOST_AUDIO"] = launch_session->host_audio ? "true" : "false";
-    _env["HERMES_CLIENT_ENABLE_SOPS"] = launch_session->enable_sops ? "true" : "false";
-    _env["HERMES_GAMESCOPE_BACKEND"] = config::video.gamescope_backend;
-    _env["HERMES_SESSION_ENVIRONMENT"] = session_env.describe();
+    // and the HERMES_* aliases remain for client/lineage compatibility.
+    _env["ARES_APP_ID"] = _app.id;
+    _env["ARES_APP_NAME"] = _app.name;
+    _env["ARES_APP_UUID"] = _app.uuid;
+    _env["ARES_APP_STATUS"] = "STARTING";
+    _env["ARES_CLIENT_UUID"] = launch_session->unique_id;
+    _env["ARES_CLIENT_NAME"] = launch_session->device_name;
+    _env["ARES_CLIENT_WIDTH"] = std::to_string(render_width);
+    _env["ARES_CLIENT_HEIGHT"] = std::to_string(render_height);
+    _env["ARES_CLIENT_RENDER_WIDTH"] = std::to_string(launch_session->width);
+    _env["ARES_CLIENT_RENDER_HEIGHT"] = std::to_string(launch_session->height);
+    _env["ARES_CLIENT_SCALE_FACTOR"] = std::to_string(scale_factor);
+    _env["ARES_CLIENT_FPS"] = fps_str;
+    _env["ARES_CLIENT_HDR"] = launch_session->enable_hdr ? "true" : "false";
+    _env["ARES_CLIENT_GCMAP"] = std::to_string(launch_session->gcmap);
+    _env["ARES_CLIENT_HOST_AUDIO"] = launch_session->host_audio ? "true" : "false";
+    _env["ARES_CLIENT_ENABLE_SOPS"] = launch_session->enable_sops ? "true" : "false";
+    _env["ARES_GAMESCOPE_BACKEND"] = config::video.gamescope_backend;
+    _env["ARES_SESSION_ENVIRONMENT"] = session_env.describe();
+    add_hermes_env_aliases(_env);
     if (!launch_session->enable_hdr) {
       _env["DXVK_HDR"] = "0";
       _env["PROTON_ENABLE_HDR"] = "0";
@@ -5131,7 +5149,7 @@ namespace proc {
           // Hermes' own detached entries exist only with independent sessions,
           // which are what makes a desktop detached.
           if ((ctx.uuid == DETACHED_DESKTOP_UUID || ctx.uuid == DETACHED_STEAM_UUID) &&
-              !config::video.hermes_kms_isolated_sessions) {
+              !config::video.isolated_sessions) {
             continue;
           }
 

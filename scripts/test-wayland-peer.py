@@ -28,12 +28,12 @@ def main():
     parser.add_argument("--no-listener", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
-    with tempfile.TemporaryDirectory(prefix="hermes-wayland-peer-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="ares-wayland-peer-") as temporary:
         work = Path(temporary)
         helper = work / "ares-detached-session"
-        probe = work / "hermes-wayland-peer-check"
+        probe = work / "ares-wayland-peer-check"
         compiler = shlex.split(os.environ.get("CXX", "c++"))
-        for source, binary in (("ares-detached-session.cpp", helper), ("hermes-wayland-peer-check.cpp", probe)):
+        for source, binary in (("ares-detached-session.cpp", helper), ("ares-wayland-peer-check.cpp", probe)):
             checked(compiler + ["-std=c++20", "-Wall", "-Wextra", "-Werror", "-pthread", str(root / "tools" / source), "-o", str(binary)])
         print("PASS: actual supervisor/helper and production connection consumer compile")
 
@@ -44,7 +44,7 @@ def main():
 import array, os, socket
 channel = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET, fileno=3)
 assert set(os.listdir('/proc/self/fd')) <= {'0', '3'}
-assert not any(k.startswith(('LD_', 'WAYLAND_', 'PIPEWIRE_', 'HERMES_TEST_')) for k in os.environ)
+assert not any(k.startswith(('LD_', 'WAYLAND_', 'PIPEWIRE_', 'ARES_TEST_')) for k in os.environ)
 client, server = socket.socketpair()
 channel.sendmsg([b'\\x01'], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array('i', [client.fileno()]))])
 client.close()
@@ -60,7 +60,7 @@ channel.recv(1)
         os.set_inheritable(leak, True)
         try:
             result = subprocess.run([str(probe), 'relay', str(fixture), str(work / 'unused')], pass_fds=(leak,), capture_output=True, text=True, timeout=10,
-                                    env={**os.environ, 'HERMES_TEST_SECRET': 'must-not-reach-helper'})
+                                    env={**os.environ, 'ARES_TEST_SECRET': 'must-not-reach-helper'})
             assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
         finally:
             os.close(leak)

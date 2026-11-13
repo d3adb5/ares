@@ -2,7 +2,7 @@
 /** @file test_session_input_access.cpp
  *  @brief Input lease, sysfs identity and ACL tests without touching host devices.
  */
-#if defined(__linux__) && defined(HERMES_TEST_SESSION_INPUT)
+#if defined(__linux__) && defined(ARES_TEST_SESSION_INPUT)
   #include "tools/session-broker-input.h"
 
   #include <acl/libacl.h>
@@ -106,7 +106,7 @@ namespace {
 
     fs::path root, state;
     access::roots paths;
-    access::lease owner {"abcd-1234", "hermes-s01", 12001, "hermes-kms-1"};
+    access::lease owner {"abcd-1234", "ares-s01", 12001, "hermes-kms-1"};
   };
 
   TEST_F(SessionInputAccessTest, AcceptsOnlyCanonicalNonzeroSeats) {
@@ -122,12 +122,12 @@ namespace {
     std::string seat;
     EXPECT_TRUE(access::seat_from_environment({"DISPLAY=:0"}, seat));
     EXPECT_TRUE(seat.empty());
-    EXPECT_TRUE(access::seat_from_environment({"XDG_SEAT=hermes-kms-12", "HERMES_SESSION_SEAT=hermes-kms-12"}, seat));
+    EXPECT_TRUE(access::seat_from_environment({"XDG_SEAT=hermes-kms-12", "ARES_SESSION_SEAT=hermes-kms-12"}, seat));
     EXPECT_EQ(seat, "hermes-kms-12");
     EXPECT_FALSE(access::seat_from_environment({"XDG_SEAT=hermes-kms-1", "XDG_SEAT=hermes-kms-1"}, seat));
-    EXPECT_FALSE(access::seat_from_environment({"XDG_SEAT=hermes-kms-1", "HERMES_SESSION_SEAT=hermes-kms-2"}, seat));
+    EXPECT_FALSE(access::seat_from_environment({"XDG_SEAT=hermes-kms-1", "ARES_SESSION_SEAT=hermes-kms-2"}, seat));
     EXPECT_FALSE(access::seat_from_environment({"XDG_SEAT=seat0"}, seat));
-    EXPECT_FALSE(access::seat_from_environment({"HERMES_SESSION_SEAT="}, seat));
+    EXPECT_FALSE(access::seat_from_environment({"ARES_SESSION_SEAT="}, seat));
   }
 
   TEST_F(SessionInputAccessTest, PersistsLeasesPrivatelyAndReadsThemAfterRestart) {
@@ -152,7 +152,7 @@ namespace {
 
   TEST_F(SessionInputAccessTest, RefusesCollidingClientsAccountsUidsAndSeatsWithoutLosingState) {
     ASSERT_TRUE(access::write_leases(state, {owner}));
-    const access::lease other {"abcd-5678", "hermes-s02", 12002, "hermes-kms-2"};
+    const access::lease other {"abcd-5678", "ares-s02", 12002, "hermes-kms-2"};
     for (int field = 0; field < 4; ++field) {
       auto conflict = other;
       if (field == 0) {
@@ -192,14 +192,14 @@ namespace {
   }
 
   TEST_F(SessionInputAccessTest, RefusesDamagedRootOrOversizedLeaseRecords) {
-    for (const auto &record : {"abcd hermes-s01 0 hermes-kms-1\n", "abcd root 123 hermes-kms-1\n", "abcd hermes-s01 12suffix hermes-kms-1\n", "abcd hermes-s01 123 seat0\n", "abcd hermes-s01 123 hermes-kms-1 extra\n"}) {
+    for (const auto &record : {"abcd ares-s01 0 hermes-kms-1\n", "abcd root 123 hermes-kms-1\n", "abcd ares-s01 12suffix hermes-kms-1\n", "abcd ares-s01 123 seat0\n", "abcd ares-s01 123 hermes-kms-1 extra\n"}) {
       put(state, record);
       ASSERT_EQ(::chmod(state.c_str(), 0600), 0);
       EXPECT_FALSE(access::read_leases(state)) << record;
     }
     put(state, std::string(65537, 'a'));
     EXPECT_FALSE(access::read_leases(state));
-    put(state, std::string {"abcd"} + '\0' + " hermes-s01 123 hermes-kms-1\n");
+    put(state, std::string {"abcd"} + '\0' + " ares-s01 123 hermes-kms-1\n");
     EXPECT_FALSE(access::read_leases(state));
   }
 

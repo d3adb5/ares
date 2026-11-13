@@ -7,7 +7,7 @@
  * rests on several things outside Hermes - its unit starting with the user
  * manager, that manager running at boot, a greeter that lights a new output by
  * itself, and devices it can open with no session of its own. This is the one
- * place that knows the list: `hermes --prelogin` sets up the part that is
+ * place that knows the list: `ares --prelogin` sets up the part that is
  * Hermes' to set up, and the same checks feed the log and the Web UI.
  */
 #pragma once
@@ -113,7 +113,7 @@ namespace platf::prelogin {
   void log_report();
 
   /**
-   * @brief `hermes --prelogin status|enable|disable`.
+   * @brief `ares --prelogin status|enable|disable`.
    *
    * Runs before logging starts and prints to the terminal: starting the log
    * rotates the log file, and this is a command to run while Hermes is up.

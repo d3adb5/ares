@@ -8,15 +8,15 @@ mkdir -p "$LOG_DIR"
 
 # Prefer HERMES_* env vars; fall back to APOLLO_* for compatibility with the
 # Apollo lineage env contract that existing clients/tooling may still set.
-FPS="${HERMES_CLIENT_FPS:-${APOLLO_CLIENT_FPS:-60}}"
+FPS="${ARES_CLIENT_FPS:-${APOLLO_CLIENT_FPS:-60}}"
 FPS="${FPS%.*}"
 
-WIDTH="${HERMES_CLIENT_WIDTH:-${APOLLO_CLIENT_WIDTH:-1280}}"
-HEIGHT="${HERMES_CLIENT_HEIGHT:-${APOLLO_CLIENT_HEIGHT:-800}}"
+WIDTH="${ARES_CLIENT_WIDTH:-${APOLLO_CLIENT_WIDTH:-1280}}"
+HEIGHT="${ARES_CLIENT_HEIGHT:-${APOLLO_CLIENT_HEIGHT:-800}}"
 
 # Backend: "auto" (or unset) nests in the current Wayland compositor. Set
-# HERMES_GAMESCOPE_BACKEND to wayland/sdl/drm to override.
-BACKEND="${HERMES_GAMESCOPE_BACKEND:-auto}"
+# ARES_GAMESCOPE_BACKEND to wayland/sdl/drm to override.
+BACKEND="${ARES_GAMESCOPE_BACKEND:-auto}"
 if [ "$BACKEND" = "auto" ] || [ -z "$BACKEND" ]; then
   BACKEND="wayland"
 fi
@@ -26,7 +26,7 @@ fi
   echo "--- $(date --iso-8601=seconds) gamescope launch ---"
   echo "WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} XDG_SESSION_TYPE=${XDG_SESSION_TYPE:-}"
   echo "GAMESCOPE_WAYLAND_DISPLAY=${GAMESCOPE_WAYLAND_DISPLAY:-}"
-  echo "HERMES_CLIENT_WIDTH=$WIDTH HERMES_CLIENT_HEIGHT=$HEIGHT HERMES_CLIENT_FPS=$FPS BACKEND=$BACKEND"
+  echo "ARES_CLIENT_WIDTH=$WIDTH ARES_CLIENT_HEIGHT=$HEIGHT ARES_CLIENT_FPS=$FPS BACKEND=$BACKEND"
 
   # If we are already inside a standalone Gamescope session (e.g. SteamOS Game
   # Mode), nesting another Gamescope is redundant: launch Steam directly.

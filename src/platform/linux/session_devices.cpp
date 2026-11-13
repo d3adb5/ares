@@ -63,7 +63,7 @@ namespace platf::session_devices {
     constexpr std::uint32_t needed_caps = (1u << CAP_SYS_ADMIN) | (1u << CAP_MKNOD) | (1u << CAP_SYS_CHROOT);
 
     [[noreturn]] void fail(const char *what) noexcept {
-      constexpr char prefix[] = "hermes: session /dev setup failed at ";
+      constexpr char prefix[] = "ares: session /dev setup failed at ";
       (void) !::write(STDERR_FILENO, prefix, sizeof prefix - 1);
       (void) !::write(STDERR_FILENO, what, std::strlen(what));
       (void) !::write(STDERR_FILENO, "\n", 1);

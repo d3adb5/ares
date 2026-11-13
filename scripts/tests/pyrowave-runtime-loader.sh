@@ -64,7 +64,7 @@ function(pkg_get_variable output package variable)
 endfunction()
 add_executable(sunshine main.c)
 target_link_libraries(sunshine PRIVATE "${SDK}/lib/libpyrowave-shared.so")
-include("${HERMES_SOURCE}/cmake/targets/pyrowave-runtime.cmake")
+include("${ARES_SOURCE}/cmake/targets/pyrowave-runtime.cmake")
 sunshine_bundle_pyrowave_runtime(sunshine)
 install(TARGETS sunshine DESTINATION bin)
 CMAKE

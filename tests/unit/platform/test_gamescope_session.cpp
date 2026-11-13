@@ -134,8 +134,8 @@ namespace {
 
   TEST(GamescopeSession, RunsTheGivenBinary) {
     auto launch = session(drm_selector_e::prefer_drm, false);
-    launch.binary = "/usr/lib/hermes-gamescope/bin/gamescope";
-    EXPECT_TRUE(launch_command(launch).starts_with("/usr/lib/hermes-gamescope/bin/gamescope --backend=drm "));
+    launch.binary = "/usr/lib/ares-gamescope/bin/gamescope";
+    EXPECT_TRUE(launch_command(launch).starts_with("/usr/lib/ares-gamescope/bin/gamescope --backend=drm "));
     launch.binary.clear();
     EXPECT_TRUE(launch_command(launch).starts_with("gamescope --backend=drm "));
   }
@@ -222,14 +222,14 @@ TEST(GamescopeSession, StreamHasNoCardOrConnector) {
 
   EXPECT_EQ(
     command,
-    "/usr/bin/gamescope --backend=hermes --hermes-socket /run/user/1000/ares/sessions/s1/gamescope-stream "
+    "/usr/bin/gamescope --backend=ares --ares-socket /run/user/1000/ares/sessions/s1/gamescope-stream "
     "-W 1920 -H 1080 -w 1920 -h 1080 -r 120 --prefer-vk-device 1002:744c --xwayland-count 1 "
     "--expose-wayland --force-windows-fullscreen -- game"
   );
 }
 
 TEST(GamescopeSession, AppCannotRedirectTheStreamSocket) {
-  const std::vector<std::string> arguments {"--hermes-socket=/tmp/other"};
+  const std::vector<std::string> arguments {"--ares-socket=/tmp/other"};
   EXPECT_TRUE(platf::gamescope::session_option_override(arguments).has_value());
 }
 
@@ -245,8 +245,8 @@ TEST(GamescopeSession, HdrStreamOffersHdrFromTheStart) {
 
   EXPECT_EQ(
     command,
-    "gamescope --backend=hermes --hermes-socket /run/s1/gamescope-stream -W 1920 -H 1080 -w 1920 -h 1080 -r 60 "
-    "--hermes-hdr --hdr-enabled --xwayland-count 1 --expose-wayland --force-windows-fullscreen -- game"
+    "gamescope --backend=ares --ares-socket /run/s1/gamescope-stream -W 1920 -H 1080 -w 1920 -h 1080 -r 60 "
+    "--ares-hdr --hdr-enabled --xwayland-count 1 --expose-wayland --force-windows-fullscreen -- game"
   );
 }
 

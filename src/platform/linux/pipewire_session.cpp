@@ -158,7 +158,7 @@ namespace platf::kwin {
     auto state = std::make_unique<impl_t>();
     state->width = width;
     state->height = height;
-    state->loop = pw_thread_loop_new("hermes-private-capture", nullptr);
+    state->loop = pw_thread_loop_new("ares-private-capture", nullptr);
     if (!state->loop) {
       error = "Could not create private PipeWire loop";
       return nullptr;

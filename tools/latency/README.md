@@ -30,9 +30,9 @@ Test apps: `apps.example.json` has every app the scripts name by UUID. Use a thr
 cfg=$(mktemp -d)/ares; mkdir -p "$cfg"
 sed "s#@BENCH@#$PWD#g" apps.example.json > "$cfg/apps.json"
 cp -r ~/.config/ares/{credentials,ares_state.json} "$cfg"/   # pairing: delete afterwards
-printf 'hermes_kms_isolated_sessions = true\ngamepad = switch\n' > "$cfg/ares.conf"
+printf 'isolated_sessions = true\ngamepad = switch\n' > "$cfg/ares.conf"
 systemctl --user stop ares
-XDG_CONFIG_HOME=${cfg%/ares} HERMES_GAMESCOPE=/usr/lib/hermes-gamescope/bin/gamescope ../../build/sunshine
+XDG_CONFIG_HOME=${cfg%/ares} ARES_GAMESCOPE=/usr/lib/ares-gamescope/bin/gamescope ../../build/sunshine
 ```
 
 The dev build has no capabilities, so no private /dev and no gamepads, and it logs fatal-looking errors about KMS

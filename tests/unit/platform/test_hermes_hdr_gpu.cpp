@@ -16,9 +16,9 @@
 #include <vector>
 
 TEST(HermesHdrGpu, PaddedTenBitRgbToP010) {
-  const char *node = std::getenv("HERMES_HDR_TEST_RENDER_NODE");
+  const char *node = std::getenv("ARES_HDR_TEST_RENDER_NODE");
   if (!node || !*node) {
-    GTEST_SKIP() << "Set HERMES_HDR_TEST_RENDER_NODE to opt into offscreen GPU testing";
+    GTEST_SKIP() << "Set ARES_HDR_TEST_RENDER_NODE to opt into offscreen GPU testing";
   }
   file_t fd {open(node, O_RDWR | O_CLOEXEC)};
   ASSERT_GE(fd.el, 0);
@@ -107,8 +107,8 @@ extern "C" {
 }
 
 TEST(HermesHdrCuda, CpuUploadToCudaAndNvencMain10) {
-  if (!std::getenv("HERMES_HDR_TEST_CUDA")) {
-    GTEST_SKIP() << "Set HERMES_HDR_TEST_CUDA=1 for synthetic CUDA/NVENC HDR testing on CUDA device 0";
+  if (!std::getenv("ARES_HDR_TEST_CUDA")) {
+    GTEST_SKIP() << "Set ARES_HDR_TEST_CUDA=1 for synthetic CUDA/NVENC HDR testing on CUDA device 0";
   }
   constexpr int width = 128, height = 64;
   // The CPU-copy path's converter for DRM_FORMAT_XRGB2101010 scanout.

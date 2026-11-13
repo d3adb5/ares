@@ -1,4 +1,4 @@
-// Hermes isolated sessions: refuse every polkit action.
+// Ares isolated sessions: refuse every polkit action.
 //
 // An isolated session is a real logind session on a local seat. That is what
 // lets its compositor take the seat and what gives the client a user of its
@@ -19,8 +19,8 @@
 // the network, and powering off the host that other people may be streaming
 // from.
 polkit.addRule(function(action, subject) {
-    if (subject.isInGroup("hermes-session")) {
-        polkit.log("hermes: denied " + action.id + " to session user " + subject.user);
+    if (subject.isInGroup("ares-session")) {
+        polkit.log("ares: denied " + action.id + " to session user " + subject.user);
         return polkit.Result.NO;
     }
 });

@@ -28,7 +28,7 @@ only.
 2. Ares' Gamescope build (below), PipeWire with WirePlumber, and seatd.
 3. `cap_sys_admin,cap_mknod,cap_sys_chroot+p` on `/usr/bin/ares` for a
    private `/dev` (the packages in this branch set them).
-4. `hermes_kms_isolated_sessions = enabled` and
+4. `isolated_sessions = enabled` and
    `virtual_display_backend = hermes_kms`, with `isolation_method = gamescope`
    or the app's `isolation-method`.
 
@@ -49,11 +49,11 @@ the libinput seat from `XDG_SEAT` and `wl_touch.frame` after passthrough touch
 distribution's Gamescope; a source build goes to `/opt/hermes-gamescope`.
 
 Ares looks for Gamescope in those two prefixes first, then on `PATH`
-(`HERMES_GAMESCOPE` names a binary outright). It runs `gamescope --help` once
+(`ARES_GAMESCOPE` names a binary outright). It runs `gamescope --help` once
 per binary and passes the session's card with `--prefer-drm` or
 `--drm-device` (d3adb5's downstream patch), whichever the build lists, and
 exports it as `GAMESCOPE_PREFER_DRM`. A build with neither is refused rather
-than started against the host's display; `HERMES_ISOLATED_GAMESCOPE_DRM_FLAG`
+than started against the host's display; `ARES_ISOLATED_GAMESCOPE_DRM_FLAG`
 (`--prefer-drm`, `--drm-device` or `none`) skips the probe. From a prefix, the
 session's `PATH` starts with that build's `bin` (Gamescope finds
 `gamescopereaper` on `PATH`) and `VK_ADD_IMPLICIT_LAYER_PATH` points at its WSI
@@ -102,8 +102,8 @@ layer.
 On the stream route, games keep the swapchain images they ask for. `vsync_double_buffer`, or a client asking at
 launch, holds them to two ([numbers](latency-measurements.md)).
 
-Server environment: `HERMES_GAMESCOPE`, `HERMES_ISOLATED_GAMESCOPE_DRM_FLAG`,
-and `HERMES_ISOLATED_GAMESCOPE_STEAM_MODE=1` (Steam mode for every app).
+Server environment: `ARES_GAMESCOPE`, `ARES_ISOLATED_GAMESCOPE_DRM_FLAG`,
+and `ARES_ISOLATED_GAMESCOPE_STEAM_MODE=1` (Steam mode for every app).
 
 `gamescope-args` may choose rendering, HDR, scaling and Xwayland behavior, but
 cannot replace the DRM backend, scanout card, negotiated dimensions/refresh,
@@ -121,7 +121,7 @@ network/clipboard regression suite on push. The compiler job also runs
 PipeWire/WirePlumber instances, checks concurrent graphs against a simulated
 host graph, records silence through the production capture path twice, restarts
 a runtime, and rejects a session manager that exits during startup. It uses
-`HERMES_TEST_REQUIRE_PRIVATE_AUDIO=1`; missing dependencies are failures in that
+`ARES_TEST_REQUIRE_PRIVATE_AUDIO=1`; missing dependencies are failures in that
 job, not silently skipped tests. These checks supplement the hardware scenarios
 below; they do not certify DRM scanout or real controller behavior.
 

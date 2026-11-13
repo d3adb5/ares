@@ -68,7 +68,7 @@ else()
             # any other branch gets the short commit hash appended.
             if((NOT GIT_DESCRIBE_BRANCH STREQUAL "master") AND (NOT GIT_DESCRIBE_BRANCH STREQUAL "main"))
                 set(PROJECT_VERSION ${PROJECT_VERSION}.${GIT_DESCRIBE_VERSION})
-                MESSAGE("Hermes Version: ${GIT_DESCRIBE_VERSION}")
+                MESSAGE("Ares Version: ${GIT_DESCRIBE_VERSION}")
             endif()
             if(GIT_IS_DIRTY)
                 set(PROJECT_VERSION ${PROJECT_VERSION}.dirty)

@@ -1,6 +1,6 @@
 // Only the standalone network target supplies these process globals. The
 // complete Hermes test executable already links their production definitions.
-#ifdef HERMES_NETWORK_LIFECYCLE_TESTS
+#ifdef ARES_NETWORK_LIFECYCLE_TESTS
   #include <src/config.h>
   #include <src/logging.h>
 

@@ -64,13 +64,13 @@
  * The account name is derived here, never received. A client-supplied UUID is
  * hostile input: it is validated to hex and dashes, used only as a lookup key,
  * and never reaches a command line or a path. Names come from the first free
- * slot, so they are `hermes-s01` through the configured maximum by
+ * slot, so they are `ares-s01` through the configured maximum by
  * construction and cannot be steered.
  *
  * What the account deliberately is not: it has no shell, no sudo, and is in
  * none of `wheel`, `video`, `input`, `render` or the host user's groups. Its
  * access to a GPU comes from the Hermes-KMS card's own access_uid, which is
- * per-card. It is in `hermes-session`, which the shipped polkit rule refuses
+ * per-card. It is in `ares-session`, which the shipped polkit rule refuses
  * every action to - without that rule a session on a local seat would count as
  * "active and local" to polkit and be handed over a hundred passwordless
  * actions, including powering the host off and mounting its disks.
@@ -110,11 +110,11 @@ namespace {
   namespace fs = std::filesystem;
   namespace input_access = hermes::session_broker::input_access;
 
-  constexpr const char *default_allow_file = "/etc/hermes/session-broker.allow";
-  constexpr const char *default_state_file = "/var/lib/hermes/session-users.map";
-  constexpr const char *default_home_root = "/var/lib/hermes/sessions";
+  constexpr const char *default_allow_file = "/etc/ares/session-broker.allow";
+  constexpr const char *default_state_file = "/var/lib/ares/session-users.map";
+  constexpr const char *default_home_root = "/var/lib/ares/sessions";
   constexpr const char *default_lock_file = "/run/ares/session-broker.lock";
-  constexpr const char *session_group = "hermes-session";
+  constexpr const char *session_group = "ares-session";
   constexpr const char *nologin_shell = "/usr/bin/nologin";
 
   // Eight matches the driver's seat pool, which is the real ceiling on
@@ -199,10 +199,10 @@ namespace {
   }
 
   bool valid_account_name(std::string_view name) {
-    if (name.size() < 9 || name.size() > 16 || !name.starts_with("hermes-s")) {
+    if (name.size() < 7 || name.size() > 16 || !name.starts_with("ares-s")) {
       return false;
     }
-    return std::ranges::all_of(name.substr(8), [](unsigned char ch) {
+    return std::ranges::all_of(name.substr(6), [](unsigned char ch) {
       return std::isdigit(ch);
     });
   }
@@ -240,7 +240,7 @@ namespace {
    * name is a fixed shape no caller ever chooses.
    */
   std::string unit_for_account(const std::string &account) {
-    return "hermes-session-" + account.substr(8) + ".service";
+    return "ares-session-" + account.substr(6) + ".service";
   }
 
   /**
@@ -262,7 +262,7 @@ namespace {
 
   std::string account_for_slot(int slot) {
     char name[32] {};
-    std::snprintf(name, sizeof(name), "hermes-s%02d", slot);
+    std::snprintf(name, sizeof(name), "ares-s%02d", slot);
     return name;
   }
 
@@ -784,7 +784,7 @@ namespace {
     }
     if (!seat.empty()) {
       argv.push_back("--setenv=XDG_SEAT=" + seat);
-      argv.push_back("--setenv=HERMES_SESSION_SEAT=" + seat);
+      argv.push_back("--setenv=ARES_SESSION_SEAT=" + seat);
     }
     argv.push_back("--setenv=XDG_RUNTIME_DIR=/run/user/" + uid);
     // HOME, USER, LOGNAME and SHELL come from the passwd entry, because systemd

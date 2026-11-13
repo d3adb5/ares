@@ -3914,7 +3914,7 @@ namespace VDISPLAY {
         return;
       }
 
-      const auto plugin = "hermes-place-" + output;
+      const auto plugin = "ares-place-" + output;
       const auto directory = std::filesystem::path {"/run/user"} / std::to_string(::getuid()) / "ares";
       const auto script = directory / (plugin + ".js");
       std::error_code ec;
@@ -6125,7 +6125,7 @@ namespace VDISPLAY {
     facts.hermes_kms_multi_output = hermes_kms.multi_output_capable;
     facts.hermes_kms_multi_device = hermes_kms.multi_device_capable;
     facts.drm_seat_isolation = hermesKmsSeatIsolationActive();
-    facts.isolated_sessions_requested = config::video.hermes_kms_isolated_sessions;
+    facts.isolated_sessions_requested = config::video.isolated_sessions;
 
     return facts;
   }
@@ -6271,7 +6271,7 @@ namespace VDISPLAY {
       .required_uapi_version = hermes_kms::required_uapi_version(),
       .experimental_multi_output_enabled = hermes_kms::multi_output_requested(),
       .multi_output_capable = probe.multi_output_capable,
-      .experimental_isolated_sessions_enabled = config::video.hermes_kms_isolated_sessions,
+      .experimental_isolated_sessions_enabled = config::video.isolated_sessions,
       .multi_device_capable = probe.multi_device_capable,
       .device_count = probe.device_count,
       .output_count = probe.output_count,

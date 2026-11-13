@@ -42,7 +42,7 @@ namespace {
     {"card", "card4"},
     {"card_path", "/dev/dri/card4"},
     {"seat", "hermes-kms-1"},
-    {"socket", "hermes-session-1"},
+    {"socket", "ares-session-1"},
     {"log", "/run/user/1000/hermes/session-1/compositor.log"},
     {"runtime_dir", "/run/user/1000/hermes/session-1"},
     {"render_node", "/dev/dri/renderD128"},
@@ -170,7 +170,7 @@ TEST(SessionCompositorProfile, WestonStillTakesTheSocketItIsGiven) {
 
   EXPECT_FALSE(weston.discover_socket) << "Ares names weston's socket";
   EXPECT_EQ(weston.required_binary, "weston");
-  EXPECT_NE(weston.command.find("--socket=hermes-session-1"), std::string::npos);
+  EXPECT_NE(weston.command.find("--socket=ares-session-1"), std::string::npos);
   EXPECT_NE(weston.command.find("--drm-device=card4"), std::string::npos);
   EXPECT_NE(weston.command.find("--seat=hermes-kms-1"), std::string::npos);
   EXPECT_EQ(weston.config_target, "/run/user/1000/hermes/session-1/weston.ini");

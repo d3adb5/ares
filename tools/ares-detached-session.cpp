@@ -457,18 +457,18 @@ namespace {
       }
       // The authorization overlay is KWin's alone. Plasma and everything it
       // starts read the user's real data and cache directories.
-      restore("XDG_DATA_DIRS", "HERMES_DETACHED_DATA_DIRS");
-      restore("XDG_CACHE_HOME", "HERMES_DETACHED_CACHE_HOME");
-      restore("XDG_CONFIG_HOME", "HERMES_DETACHED_CONFIG_HOME");
-      restore("XDG_CONFIG_DIRS", "HERMES_DETACHED_CONFIG_DIRS");
-      const int width = dimension(env("HERMES_DETACHED_WIDTH").c_str());
-      const int height = dimension(env("HERMES_DETACHED_HEIGHT").c_str());
-      const int refresh = refresh_rate(env("HERMES_DETACHED_REFRESH_MHZ"));
+      restore("XDG_DATA_DIRS", "ARES_DETACHED_DATA_DIRS");
+      restore("XDG_CACHE_HOME", "ARES_DETACHED_CACHE_HOME");
+      restore("XDG_CONFIG_HOME", "ARES_DETACHED_CONFIG_HOME");
+      restore("XDG_CONFIG_DIRS", "ARES_DETACHED_CONFIG_DIRS");
+      const int width = dimension(env("ARES_DETACHED_WIDTH").c_str());
+      const int height = dimension(env("ARES_DETACHED_HEIGHT").c_str());
+      const int refresh = refresh_rate(env("ARES_DETACHED_REFRESH_MHZ"));
       report(root, "applying the requested private output mode");
       configure_output(root, width, height, refresh);
-      ::unsetenv("HERMES_DETACHED_WIDTH");
-      ::unsetenv("HERMES_DETACHED_HEIGHT");
-      ::unsetenv("HERMES_DETACHED_REFRESH_MHZ");
+      ::unsetenv("ARES_DETACHED_WIDTH");
+      ::unsetenv("ARES_DETACHED_HEIGHT");
+      ::unsetenv("ARES_DETACHED_REFRESH_MHZ");
       report(root, "starting Plasma on " + socket);
       plasma = spawn({which("startplasma-wayland")});
       const auto ready_deadline = std::chrono::steady_clock::now() + 35s;
@@ -536,7 +536,7 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-  const bool child = env("HERMES_DETACHED_STAGE") == "session";
+  const bool child = env("ARES_DETACHED_STAGE") == "session";
   try {
     // No umask of our own: KWin and every program in the desktop inherit it,
     // and files the user makes there must get the same permissions as at the
@@ -550,15 +550,15 @@ int main(int argc, char **argv) {
       return 0;
     }
     if ((argc != 5 && argc != 6) || std::string(argv[1]) != "--bootstrap") {
-      throw std::runtime_error("Usage: ares-detached-session --bootstrap WIDTH HEIGHT HERMES_EXECUTABLE [REFRESH_MHZ]");
+      throw std::runtime_error("Usage: ares-detached-session --bootstrap WIDTH HEIGHT ARES_EXECUTABLE [REFRESH_MHZ]");
     }
     const auto width = std::to_string(dimension(argv[2]));
     const auto height = std::to_string(dimension(argv[3]));
     const auto refresh = std::to_string(argc == 6 ? refresh_rate(argv[5]) : 60000);
     which("kscreen-doctor");
-    set("HERMES_DETACHED_WIDTH", width);
-    set("HERMES_DETACHED_HEIGHT", height);
-    set("HERMES_DETACHED_REFRESH_MHZ", refresh);
+    set("ARES_DETACHED_WIDTH", width);
+    set("ARES_DETACHED_HEIGHT", height);
+    set("ARES_DETACHED_REFRESH_MHZ", refresh);
     const auto executable = fs::canonical(argv[4]);
     if (!executable.is_absolute() || ::access(executable.c_str(), X_OK)) {
       throw std::runtime_error("Ares executable is unavailable");
@@ -568,12 +568,12 @@ int main(int argc, char **argv) {
     }
     fs::create_directories(root / "data/applications");
     fs::create_directories(root / "cache");
-    write_private(root / "data/applications/org.hermes.DetachedTransport.desktop", "[Desktop Entry]\nType=Application\nName=Ares Detached Transport\nExec=" + desktop_exec(executable.string()) + "\nX-KDE-Wayland-Interfaces=org_kde_kwin_fake_input,zkde_screencast_unstable_v1\n");
+    write_private(root / "data/applications/org.ares.DetachedTransport.desktop", "[Desktop Entry]\nType=Application\nName=Ares Detached Transport\nExec=" + desktop_exec(executable.string()) + "\nX-KDE-Wayland-Interfaces=org_kde_kwin_fake_input,zkde_screencast_unstable_v1\n");
     // A packaged Hermes retains capabilities needed by ordinary KMS capture.
     // KWin cannot read that process's /proc/<pid>/exe. Its private connection
     // is therefore opened by this capability-free helper and passed back.
     const auto connector = fs::canonical("/proc/self/exe");
-    write_private(root / "data/applications/org.hermes.DetachedPeer.desktop", "[Desktop Entry]\nType=Application\nName=Ares Detached Connection\nExec=" + desktop_exec(connector.string()) + "\nX-KDE-Wayland-Interfaces=org_kde_kwin_fake_input,zkde_screencast_unstable_v1\n");
+    write_private(root / "data/applications/org.ares.DetachedPeer.desktop", "[Desktop Entry]\nType=Application\nName=Ares Detached Connection\nExec=" + desktop_exec(connector.string()) + "\nX-KDE-Wayland-Interfaces=org_kde_kwin_fake_input,zkde_screencast_unstable_v1\n");
     // A second PowerDevil would manage the physical monitors and the machine's
     // sleep from a desktop nobody is sitting at. The host's stays in charge.
     fs::create_directories(root / "xdg/autostart");
@@ -599,8 +599,8 @@ int main(int argc, char **argv) {
       config_dirs = "/etc/xdg";
     }
     set("XDG_CONFIG_DIRS", (root / "xdg").string() + ":" + config_dirs);
-    remember("XDG_DATA_DIRS", "HERMES_DETACHED_DATA_DIRS");
-    remember("XDG_CACHE_HOME", "HERMES_DETACHED_CACHE_HOME");
+    remember("XDG_DATA_DIRS", "ARES_DETACHED_DATA_DIRS");
+    remember("XDG_CACHE_HOME", "ARES_DETACHED_CACHE_HOME");
     set("XDG_CACHE_HOME", (root / "cache").string());
     auto data_dirs = env("XDG_DATA_DIRS");
     if (data_dirs.empty()) {
@@ -612,8 +612,8 @@ int main(int argc, char **argv) {
     // KWin persists output changes below XDG_CONFIG_HOME. Keep those writes
     // private while retaining the user's other settings as read-only defaults.
     // The session child restores both variables before starting Plasma/apps.
-    remember("XDG_CONFIG_HOME", "HERMES_DETACHED_CONFIG_HOME");
-    remember("XDG_CONFIG_DIRS", "HERMES_DETACHED_CONFIG_DIRS");
+    remember("XDG_CONFIG_HOME", "ARES_DETACHED_CONFIG_HOME");
+    remember("XDG_CONFIG_DIRS", "ARES_DETACHED_CONFIG_DIRS");
     auto config_home = env("XDG_CONFIG_HOME");
     if (config_home.empty()) {
       config_home = (fs::path {env("HOME")} / ".config").string();
@@ -625,7 +625,7 @@ int main(int argc, char **argv) {
     write_private(root / "kwin-config/kwinoutputconfig.json", "[]\n");
     set("XDG_CONFIG_HOME", (root / "kwin-config").string());
     set("XDG_CONFIG_DIRS", (root / "xdg").string() + ":" + config_home + ":" + config_dirs);
-    set("HERMES_DETACHED_STAGE", "session");
+    set("ARES_DETACHED_STAGE", "session");
     const auto self = fs::canonical("/proc/self/exe").string();
     std::vector<std::string> args {which("kwin_wayland_wrapper"), "--virtual", "--width", width, "--height", height, "--output-count", "1", "--xwayland", "--no-lockscreen", "--exit-with-session", self};
     report(root, "starting KWin");

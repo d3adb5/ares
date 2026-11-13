@@ -79,7 +79,7 @@ namespace nvhttp {
 
   bool experimental_isolated_sessions_enabled() {
 #ifdef __linux__
-    return config::video.hermes_kms_isolated_sessions;
+    return config::video.isolated_sessions;
 #else
     return false;
 #endif

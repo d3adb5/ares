@@ -76,25 +76,25 @@ namespace wl {
       // Where both exist, screencopy stays the default: it is the path every
       // working deployment is on today, and nothing is gained by moving them.
       // ext-image-copy-capture fills the gap rather than replacing anything.
-      // HERMES_WAYLAND_CAPTURE forces one for testing the other on a session
+      // ARES_WAYLAND_CAPTURE forces one for testing the other on a session
       // that offers both.
       const bool have_screencopy = interface[wl::interface_t::WLR_EXPORT_DMABUF];
       const bool have_icc = interface[wl::interface_t::IMAGE_COPY_CAPTURE] &&
                             interface[wl::interface_t::IMAGE_CAPTURE_SOURCE] &&
                             interface[wl::interface_t::LINUX_DMABUF];
 
-      const char *forced = std::getenv("HERMES_WAYLAND_CAPTURE");
+      const char *forced = std::getenv("ARES_WAYLAND_CAPTURE");
       if (forced && !std::strcmp(forced, "icc")) {
         use_icc = have_icc;
         if (!use_icc) {
-          BOOST_LOG(error) << "HERMES_WAYLAND_CAPTURE=icc, but this compositor does not offer "sv
+          BOOST_LOG(error) << "ARES_WAYLAND_CAPTURE=icc, but this compositor does not offer "sv
                            << "ext-image-copy-capture with linux-dmabuf."sv;
           return -1;
         }
       } else if (forced && !std::strcmp(forced, "screencopy")) {
         use_icc = false;
         if (!have_screencopy) {
-          BOOST_LOG(error) << "HERMES_WAYLAND_CAPTURE=screencopy, but this compositor does not offer "sv
+          BOOST_LOG(error) << "ARES_WAYLAND_CAPTURE=screencopy, but this compositor does not offer "sv
                            << "wlr-screencopy."sv;
           return -1;
         }

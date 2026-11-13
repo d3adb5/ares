@@ -110,7 +110,7 @@ context.objects = [
   { name = libpipewire-module-metadata }
 ]
 wireplumber.profiles = {
-  hermes-session = {
+  ares-session = {
     inherits = [ policy, mixin.systemwide-session, mixin.stateless ]
     hardware.audio = disabled
     hardware.bluetooth = disabled
@@ -220,7 +220,7 @@ wireplumber.profiles = {
           pw_init(nullptr, nullptr);
         });
 
-        loop = pw_thread_loop_new("hermes-mic", nullptr);
+        loop = pw_thread_loop_new("ares-mic", nullptr);
         context = pw_context_new(pw_thread_loop_get_loop(loop), nullptr, 0);
         // PIPEWIRE_REMOTE overrides a remote name, so connect the socket ourselves.
         const int fd = connect_socket(remote);
@@ -431,9 +431,9 @@ wireplumber.profiles = {
 
     const fs::path dir = fs::path {runtime_dir} / "audio";
     // Not named pipewire.conf, so no system or user fragments apply.
-    const auto conf = dir / "hermes-session.conf";
+    const auto conf = dir / "ares-session.conf";
     if (!write_file(conf, pipewire_conf(sink, channels)) ||
-        !write_file(dir / "config/wireplumber/wireplumber.conf.d/hermes-session.conf", wireplumber_conf)) {
+        !write_file(dir / "config/wireplumber/wireplumber.conf.d/ares-session.conf", wireplumber_conf)) {
       BOOST_LOG(warning) << "Couldn't write the private audio server's config to "sv << dir.string();
       return nullptr;
     }
@@ -465,7 +465,7 @@ wireplumber.profiles = {
       std::this_thread::sleep_for(20ms);
     }
 
-    server->wireplumber = bp::child(wireplumber, "-p", "hermes-session", env, bp::std_in < bp::null, bp::limit_handles, ec);
+    server->wireplumber = bp::child(wireplumber, "-p", "ares-session", env, bp::std_in < bp::null, bp::limit_handles, ec);
     if (ec) {
       BOOST_LOG(warning) << "Couldn't start WirePlumber: "sv << ec.message();
       return nullptr;

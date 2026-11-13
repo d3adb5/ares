@@ -35,7 +35,9 @@ namespace platf::prelogin {
 
   namespace {
 
-    constexpr auto generated_marker = "# hermes-prelogin: generated"sv;
+    constexpr auto generated_marker = "# ares-prelogin: generated"sv;
+    // What Hermes wrote before; a file carrying it is as much ours to replace.
+    constexpr auto hermes_generated_marker = "# hermes-prelogin: generated"sv;
 
     /** Targets that only exist once somebody has logged in. */
     constexpr std::array session_targets {
@@ -308,7 +310,7 @@ namespace platf::prelogin {
         }
         const auto marker = linger_marker();
         fs::create_directories(marker.parent_path(), ec);
-        std::ofstream {marker} << "enabled by hermes --prelogin\n";
+        std::ofstream {marker} << "enabled by ares --prelogin\n";
       }
 
       const auto result = report();
@@ -365,7 +367,7 @@ namespace platf::prelogin {
 
   bool is_generated_unit(std::string_view unit) {
     for (const auto line : lines_of(unit)) {
-      if (trim(line) == generated_marker) {
+      if (trim(line) == generated_marker || trim(line) == hermes_generated_marker) {
         return true;
       }
     }
@@ -395,9 +397,9 @@ namespace platf::prelogin {
   std::string from_boot_unit(std::string_view packaged_unit, std::string_view source_path) {
     std::ostringstream out;
     out << generated_marker << '\n'
-        << "# Written by `hermes --prelogin enable` from " << source_path << ": the same\n"
+        << "# Written by `ares --prelogin enable` from " << source_path << ": the same\n"
         << "# service, started with the user manager instead of the graphical session, so\n"
-        << "# that it is running before anyone logs in. `hermes --prelogin disable`\n"
+        << "# that it is running before anyone logs in. `ares --prelogin disable`\n"
         << "# removes this file; changes made here are lost the next time it is written.\n";
 
     std::string section;
@@ -505,7 +507,7 @@ namespace platf::prelogin {
     } else if (report.enabled) {
       ready &= add("unit", state_e::ready, "Start at boot", facts.unit_name + (facts.unit_generated ? " starts with the user manager." : " is a unit of your own that starts with the user manager."));
     } else {
-      ready &= add("unit", state_e::missing, "Start at boot", facts.unit_name + " starts with the graphical session, and there is none before login.", "Run `hermes --prelogin enable`.");
+      ready &= add("unit", state_e::missing, "Start at boot", facts.unit_name + " starts with the graphical session, and there is none before login.", "Run `ares --prelogin enable`.");
     }
 
     if (!facts.linger) {
@@ -513,7 +515,7 @@ namespace platf::prelogin {
     } else if (*facts.linger) {
       ready &= add("linger", state_e::ready, "User manager at boot", "The user manager for " + user + " runs from boot.");
     } else {
-      ready &= add("linger", state_e::missing, "User manager at boot", "The user manager for " + user + " only runs while they are logged in.", "Run `hermes --prelogin enable`, or `loginctl enable-linger " + user + "`.");
+      ready &= add("linger", state_e::missing, "User manager at boot", "The user manager for " + user + " only runs while they are logged in.", "Run `ares --prelogin enable`, or `loginctl enable-linger " + user + "`.");
     }
 
     if (facts.display_manager.empty()) {

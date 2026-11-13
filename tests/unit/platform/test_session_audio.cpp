@@ -23,7 +23,7 @@ namespace {
   class SessionAudioLiveTest: public testing::Test {
   protected:
     void SetUp() override {
-      if (!std::getenv("HERMES_TEST_REQUIRE_PRIVATE_AUDIO")) {
+      if (!std::getenv("ARES_TEST_REQUIRE_PRIVATE_AUDIO")) {
         GTEST_SKIP() << "Private audio integration runs in the isolated-session CI job";
       }
       for (const char *name : {"XDG_RUNTIME_DIR", "PULSE_SERVER", "PULSE_SINK", "PULSE_SOURCE", "PIPEWIRE_REMOTE", "PATH"}) {
