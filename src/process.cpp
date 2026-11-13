@@ -390,10 +390,10 @@ namespace proc {
     std::string isolated_runtime_root() {
       if (const char *xdg_runtime_dir = std::getenv("XDG_RUNTIME_DIR");
           xdg_runtime_dir && *xdg_runtime_dir) {
-        return (std::filesystem::path {xdg_runtime_dir} / "hermes" / "sessions").string();
+        return (std::filesystem::path {xdg_runtime_dir} / "ares" / "sessions").string();
       }
       return (std::filesystem::path {"/tmp"} /
-              ("hermes-" + std::to_string(static_cast<unsigned long>(::getuid()))) /
+              ("ares-" + std::to_string(static_cast<unsigned long>(::getuid()))) /
               "sessions").string();
     }
 
@@ -1229,7 +1229,7 @@ namespace proc {
     }
 
     std::string detached_unit_name(const std::string &runtime_id) {
-      return "hermes-detached-" + runtime_id + ".scope";
+      return "ares-detached-" + runtime_id + ".scope";
     }
 
     /**
@@ -1642,7 +1642,7 @@ namespace proc {
     // process, so a Hermes that crashed or was killed leaves them running with
     // nothing to stream them. None of them can belong to this instance yet.
     if (const auto systemctl = find_program("systemctl"); !systemctl.empty()) {
-      run_program({systemctl, "--user", "--quiet", "stop", "hermes-detached-*.scope", "hermes-detached-*.service"}, 30s);
+      run_program({systemctl, "--user", "--quiet", "stop", "ares-detached-*.scope", "ares-detached-*.service", "hermes-detached-*.scope", "hermes-detached-*.service"}, 30s);
     }
 #endif
     return std::make_unique<deinit_t>();
@@ -2014,7 +2014,7 @@ namespace proc {
     runtime->client_name = launch_session->device_name;
     runtime->app = app;
     runtime->profile = choose_isolated_profile(app);
-    runtime->runtime_id = "hermes-s" + std::to_string(launch_session->id);
+    runtime->runtime_id = "ares-s" + std::to_string(launch_session->id);
     runtime->wayland_display = "wayland-" + runtime->runtime_id;
     runtime->assets_dir =
       (std::filesystem::path {isolated_runtime_root()} / runtime->runtime_id).string();
@@ -2332,11 +2332,11 @@ namespace proc {
         // off every seat and closed to the user's processes (60-ares.rules);
         // Hermes gives the desktop its own copies of their nodes instead.
         // Without it, gamepads are refused rather than shown to the host.
-        const auto tag = "hermes-detached-" + runtime->runtime_id;
+        const auto tag = "ares-detached-" + runtime->runtime_id;
         // For 60-ares.rules, as for isolated Gamescope sessions: the
         // desktop's /dev and Hermes' pid, so that the Steam Input
         // pads a Steam in this desktop makes are kept off the host too.
-        runtime->isolated_seat_flag = (std::filesystem::path {host_runtime_dir()} / "hermes" / "isolated" / tag).string();
+        runtime->isolated_seat_flag = (std::filesystem::path {host_runtime_dir()} / "ares" / "isolated" / tag).string();
         std::error_code flag_ec;
         std::filesystem::create_directories(std::filesystem::path {runtime->isolated_seat_flag}.parent_path(), flag_ec);
         std::ofstream {runtime->isolated_seat_flag} << platf::session_devices::seat_flag(runtime->namespace_pid);
@@ -2432,7 +2432,7 @@ namespace proc {
       // No card and no seat: frames and input go over this socket. The tag is the
       // detached desktop's, so its gamepads reach this session's /dev and no other.
       runtime->gamescope_stream_socket = (std::filesystem::path {runtime->runtime_dir} / "gamescope-stream").string();
-      runtime->seat_id = "hermes-detached-" + runtime->runtime_id;
+      runtime->seat_id = "ares-detached-" + runtime->runtime_id;
       std::error_code stale_ec;
       std::filesystem::remove(runtime->gamescope_stream_socket, stale_ec);
       runtime->env = _env;
@@ -2919,7 +2919,7 @@ namespace proc {
         // Before any of the seat's devices, which come with the stream. For
         // 60-ares.rules: the session's /dev and Hermes' pid, to
         // tell the Steam Input pads the session makes; for 74-: no ACL.
-        runtime->isolated_seat_flag = (std::filesystem::path {host_runtime_dir()} / "hermes" / "isolated" / runtime->seat_id).string();
+        runtime->isolated_seat_flag = (std::filesystem::path {host_runtime_dir()} / "ares" / "isolated" / runtime->seat_id).string();
         std::error_code flag_ec;
         std::filesystem::create_directories(std::filesystem::path {runtime->isolated_seat_flag}.parent_path(), flag_ec);
         std::ofstream {runtime->isolated_seat_flag} << platf::session_devices::seat_flag(runtime->namespace_pid);

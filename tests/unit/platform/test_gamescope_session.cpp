@@ -215,14 +215,14 @@ TEST(GamescopeSession, StreamHasNoCardOrConnector) {
     .width = 1920,
     .height = 1080,
     .refresh_hz = 120,
-    .stream_socket = "/run/user/1000/hermes/sessions/s1/gamescope-stream",
+    .stream_socket = "/run/user/1000/ares/sessions/s1/gamescope-stream",
     .vk_device = "1002:744c",
     .command = "game",
   });
 
   EXPECT_EQ(
     command,
-    "/usr/bin/gamescope --backend=hermes --hermes-socket /run/user/1000/hermes/sessions/s1/gamescope-stream "
+    "/usr/bin/gamescope --backend=hermes --hermes-socket /run/user/1000/ares/sessions/s1/gamescope-stream "
     "-W 1920 -H 1080 -w 1920 -h 1080 -r 120 --prefer-vk-device 1002:744c --xwayland-count 1 "
     "--expose-wayland --force-windows-fullscreen -- game"
   );

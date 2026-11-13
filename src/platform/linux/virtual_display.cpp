@@ -2890,9 +2890,9 @@ namespace VDISPLAY {
       const char *home = std::getenv("HOME");
       std::string base;
       if (xdg_state && xdg_state[0]) {
-        base = std::string {xdg_state} + "/hermes";
+        base = std::string {xdg_state} + "/ares";
       } else if (home && home[0]) {
-        base = std::string {home} + "/.local/state/hermes";
+        base = std::string {home} + "/.local/state/ares";
       } else {
         return {};
       }
@@ -3915,7 +3915,7 @@ namespace VDISPLAY {
       }
 
       const auto plugin = "hermes-place-" + output;
-      const auto directory = std::filesystem::path {"/run/user"} / std::to_string(::getuid()) / "hermes";
+      const auto directory = std::filesystem::path {"/run/user"} / std::to_string(::getuid()) / "ares";
       const auto script = directory / (plugin + ".js");
       std::error_code ec;
       std::filesystem::create_directories(directory, ec);
@@ -3975,7 +3975,7 @@ namespace VDISPLAY {
         sd_bus_unref(bus);
       }
       std::error_code ec;
-      std::filesystem::remove(std::filesystem::path {"/run/user"} / std::to_string(::getuid()) / "hermes" / (plugin + ".js"), ec);
+      std::filesystem::remove(std::filesystem::path {"/run/user"} / std::to_string(::getuid()) / "ares" / (plugin + ".js"), ec);
     }
 #else
     static void place_windows(const std::string &, const std::vector<std::string> &, const std::vector<std::uint32_t> &) {}
@@ -4908,9 +4908,9 @@ namespace VDISPLAY {
       const char *home = std::getenv("HOME");
       std::string base;
       if (xdg_state && xdg_state[0]) {
-        base = std::string {xdg_state} + "/hermes";
+        base = std::string {xdg_state} + "/ares";
       } else if (home && home[0]) {
-        base = std::string {home} + "/.local/state/hermes";
+        base = std::string {home} + "/.local/state/ares";
       } else {
         return {};
       }

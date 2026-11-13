@@ -286,7 +286,7 @@ namespace platf::kwin {
     state->selected = matches.front();
     state->geometry = state->selected->info;
     if (input) {
-      org_kde_kwin_fake_input_authenticate(state->input, "Hermes", "Remote input for this detached desktop");
+      org_kde_kwin_fake_input_authenticate(state->input, "Ares", "Remote input for this detached desktop");
       if (!state->sync()) {
         error = state->failure;
         return nullptr;

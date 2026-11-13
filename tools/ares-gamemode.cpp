@@ -74,7 +74,7 @@ namespace {
     if (!runtime_dir || !*runtime_dir) {
       return std::nullopt;
     }
-    std::ifstream in {std::string {runtime_dir} + "/hermes/local-api.token"};
+    std::ifstream in {std::string {runtime_dir} + "/ares/local-api.token"};
     if (!in) {
       return std::nullopt;
     }

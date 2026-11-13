@@ -38,7 +38,7 @@ and applications to Sunshine.
 > the primary output, so the desktop (and the Gamescope window on it) is cloned into the stream. Set the app's
 > `virtual-display-layout` to `exclusive` instead to hand the desktop to the virtual display and turn the
 > physical monitors off for the session (native resolution, no clone), or to `extend` for the default side-by-side
-> placement. Gamescope's own log is at `~/.local/state/hermes/gamescope.log`.
+> placement. Gamescope's own log is at `~/.local/state/ares/gamescope.log`.
 >
 > Keeping this entry is still useful for the opposite case: reaching the Steam on the host's own desktop.
 > If you do give this entry a virtual display, a `virtual-display-layout` of `mirror` will clone the desktop —

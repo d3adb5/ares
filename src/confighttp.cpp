@@ -231,7 +231,7 @@ namespace confighttp {
     if (!runtime_dir || !*runtime_dir) {
       return {};
     }
-    return std::filesystem::path {runtime_dir} / "hermes" / "local-api.token";
+    return std::filesystem::path {runtime_dir} / "ares" / "local-api.token";
   }
 
   /** Compare in constant time, so a wrong token cannot be found byte by byte. */

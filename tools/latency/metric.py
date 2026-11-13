@@ -1,5 +1,5 @@
 import json,os,ssl,sys,urllib.request
-t=open(os.environ['XDG_RUNTIME_DIR']+'/hermes/local-api.token').read().strip()
+t=open(os.environ['XDG_RUNTIME_DIR']+'/ares/local-api.token').read().strip()
 c=ssl._create_unverified_context()
 r=urllib.request.urlopen(urllib.request.Request('https://localhost:47990/api/metrics',headers={'Authorization':'Bearer '+t}),context=c,timeout=3)
 p=json.load(r).get('pipeline') or {}

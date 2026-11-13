@@ -118,7 +118,7 @@ namespace platf::prelogin {
 
     /** Remembers that `enable` turned linger on, so `disable` only undoes its own. */
     fs::path linger_marker() {
-      return fs::path {env_or("XDG_STATE_HOME", home() + "/.local/state")} / "hermes" / "prelogin-linger";
+      return fs::path {env_or("XDG_STATE_HOME", home() + "/.local/state")} / "ares" / "prelogin-linger";
     }
 
     struct packaged_unit_t {

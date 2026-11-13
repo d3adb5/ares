@@ -6,4 +6,4 @@
 # hidraw too: libvirtualhid's controllers are UHID devices, and Steam drives
 # PlayStation and Switch pads through hidraw. 60-ares.rules passes the seat
 # down to them, and to seats past 8 a session broker allocates.
-ACTION=="add|change", SUBSYSTEM=="input|hidraw", KERNEL=="event*|js*|hidraw*", ENV{ID_SEAT}=="hermes-kms-[0-9]*", RUN+="/bin/sh -c 'uid=$$(cat /etc/hermes-kms/session-user) && { [ -e /run/user/$$uid/hermes/isolated/$env{ID_SEAT} ] || exec setfacl -m u:$$uid:rw $env{DEVNAME}; }'"
+ACTION=="add|change", SUBSYSTEM=="input|hidraw", KERNEL=="event*|js*|hidraw*", ENV{ID_SEAT}=="hermes-kms-[0-9]*", RUN+="/bin/sh -c 'uid=$$(cat /etc/hermes-kms/session-user) && { [ -e /run/user/$$uid/ares/isolated/$env{ID_SEAT} ] || exec setfacl -m u:$$uid:rw $env{DEVNAME}; }'"

@@ -345,7 +345,7 @@ namespace platf::gamepad {
     std::map<std::string, kept_t> kept;
 
     bool keeps(const std::string &session_tag) {
-      return session_tag.starts_with("hermes-detached-");
+      return session_tag.starts_with("ares-detached-");
     }
 
     void close(const std::shared_ptr<joypad_state> &gamepad) {

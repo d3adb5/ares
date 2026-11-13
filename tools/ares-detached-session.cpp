@@ -332,7 +332,7 @@ namespace {
   void configure_existing(const fs::path &root, int width, int height, int refresh) {
     set("XDG_RUNTIME_DIR", root.string());
     runtime_dir();
-    if (root.parent_path() != fs::path {"/run/user"} / std::to_string(::getuid()) / "hermes/sessions") {
+    if (root.parent_path() != fs::path {"/run/user"} / std::to_string(::getuid()) / "ares/sessions") {
       throw std::runtime_error("Not a private Ares session directory");
     }
     std::ifstream ready(root / "ready");
