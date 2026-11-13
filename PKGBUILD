@@ -49,7 +49,7 @@ makedepends=(
 optdepends=(
   'cuda: NVIDIA GPU encoding support'
   'evdi: Virtual display support for streaming to headless clients (AUR)'
-  'gamescope: application-only experimental independent client sessions'
+  'gamescope-ares: isolated application sessions (d3adb5/gamescope, packaging/ares; plain gamescope as a fallback)'
   'hermes-kms: zero-copy Ares virtual displays and independent DRM devices'
   'kscreen: KDE Plasma Wayland virtual-display activation'
   'libva-mesa-driver: AMD GPU encoding support'
@@ -189,5 +189,25 @@ package() {
       mv "${pkgdir}/usr/lib/systemd/user/sunshine.service" \
          "${pkgdir}/usr/lib/systemd/user/ares.service"
     fi
+
+    _hermes_migration_notice
+}
+
+# Ares shares no path, group or account with Hermes, so both install side by side.
+# What Hermes made as root is left alone; these move it over when replacing Hermes.
+_hermes_migration_notice() {
+    cat <<'NOTICE'
+==> If migrating from Hermes (ares.conf's option names are renamed on Ares' first start):
+==>   sudo install -d /etc/ares && sudo cp -n /etc/hermes/*.allow /etc/ares/ 2>/dev/null
+==>   sudo systemd-sysusers   # creates the ares-session group
+==> Session broker accounts (only with ares-session-broker), with Ares stopped:
+==>   for u in $(getent passwd | cut -d: -f1 | grep '^hermes-s[0-9]'); do
+==>     sudo usermod -l "ares-${u#hermes-}" -g ares-session -d "/var/lib/ares/sessions/ares-${u#hermes-}" -m "$u"
+==>   done
+==>   sudo install -d /var/lib/ares
+==>   sudo sed 's/hermes-s/ares-s/g' /var/lib/hermes/session-users.map | sudo tee /var/lib/ares/session-users.map >/dev/null
+==> Gamescope: Ares looks in /usr/lib/ares-gamescope (package gamescope-ares) first;
+==>   gamescope-hermes-git can go once it is installed: sudo pacman -R gamescope-hermes-git
+NOTICE
 }
 
