@@ -246,6 +246,7 @@ namespace platf::gamescope {
     drm_selector_e selector = drm_selector_e::none;
     std::string scanout_card;  ///< The session card's primary node.
     std::string stream_socket;  ///< Stream frames over this socket instead: no card, no connector.
+    bool hdr = false;  ///< Offer the stream's games HDR10 from the start; stream only.
     std::string vk_device;  ///< The GPU to render on, as vendor:device; empty lets Gamescope pick.
     bool steam_mode = false;
     std::string args;  ///< The app's gamescope-args; empty means default_args.
@@ -282,6 +283,9 @@ namespace platf::gamescope {
       launch.height,
       launch.refresh_hz
     );
+    if (launch.hdr && !launch.stream_socket.empty()) {
+      command += " --hermes-hdr --hdr-enabled";
+    }
     if (!launch.vk_device.empty()) {
       command += " --prefer-vk-device " + launch.vk_device;
     }

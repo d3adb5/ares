@@ -842,16 +842,12 @@ namespace proc {
 
     /**
      * Whether this launch runs a Gamescope that streams its frames to Ares. Each
-     * refusal has the session card to go back to; HDR and a session with a uid of
-     * its own are what the stream cannot do yet (the socket would be its user's).
+     * refusal has the session card to go back to; a session with a uid of its own
+     * is what the stream cannot do yet (the socket would be its user's).
      */
     bool use_gamescope_stream(const ctx_t &app, const rtsp_stream::launch_session_t &launch, const isolated_runtime_t &runtime) {
       const auto &method = app.isolation_method == "default" ? config::video.isolation_method : app.isolation_method;
       if (method != "gamescope_stream" || runtime.profile != "application") {
-        return false;
-      }
-      if (launch.enable_hdr) {
-        BOOST_LOG(info) << "[IsolatedSession] The Gamescope stream is SDR only; this HDR session uses a Hermes-KMS card.";
         return false;
       }
       if (runtime.account) {
@@ -867,6 +863,10 @@ namespace proc {
       if (!help || !platf::gamescope::help_lists_option(*help, "--hermes-socket")) {
         BOOST_LOG(warning) << "[IsolatedSession] " << (binary.empty() ? "gamescope" : binary)
                            << " has no stream backend; using a Hermes-KMS card. Install Ares' Gamescope (scripts/install.sh).";
+        return false;
+      }
+      if (launch.enable_hdr && !platf::gamescope::help_lists_option(*help, "--hermes-hdr")) {
+        BOOST_LOG(info) << "[IsolatedSession] This Gamescope streams SDR only (no --hermes-hdr); this HDR session uses a Hermes-KMS card.";
         return false;
       }
       return true;
@@ -2713,6 +2713,7 @@ namespace proc {
         .selector = *selector,
         .scanout_card = runtime->drm_device_path,
         .stream_socket = runtime->gamescope_stream_socket,
+        .hdr = launch_session->enable_hdr,
         .vk_device = gamescope_stream ? encode_gpu_vk_device() : std::string {},
         .steam_mode = steam_mode,
         .args = app.gamescope_args,

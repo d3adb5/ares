@@ -232,3 +232,30 @@ TEST(GamescopeSession, AppCannotRedirectTheStreamSocket) {
   const std::vector<std::string> arguments {"--hermes-socket=/tmp/other"};
   EXPECT_TRUE(platf::gamescope::session_option_override(arguments).has_value());
 }
+
+TEST(GamescopeSession, HdrStreamOffersHdrFromTheStart) {
+  const auto command = platf::gamescope::launch_command({
+    .width = 1920,
+    .height = 1080,
+    .refresh_hz = 60,
+    .stream_socket = "/run/s1/gamescope-stream",
+    .hdr = true,
+    .command = "game",
+  });
+
+  EXPECT_EQ(
+    command,
+    "gamescope --backend=hermes --hermes-socket /run/s1/gamescope-stream -W 1920 -H 1080 -w 1920 -h 1080 -r 60 "
+    "--hermes-hdr --hdr-enabled --xwayland-count 1 --expose-wayland --force-windows-fullscreen -- game"
+  );
+}
+
+TEST(GamescopeSession, HdrLeavesTheSessionCardAlone) {
+  const auto command = platf::gamescope::launch_command({
+    .connector = "Virtual-2",
+    .hdr = true,
+    .command = "game",
+  });
+
+  EXPECT_EQ(command.find("hdr"), std::string::npos);
+}
