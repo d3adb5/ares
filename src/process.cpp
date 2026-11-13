@@ -2319,14 +2319,12 @@ namespace proc {
         // Without it, gamepads are refused rather than shown to the host.
         const auto tag = "hermes-detached-" + runtime->runtime_id;
         // For 60-ares.rules, as for isolated Gamescope sessions: the
-        // desktop's mount namespace and Hermes' pid, so that the Steam Input
+        // desktop's /dev and Hermes' pid, so that the Steam Input
         // pads a Steam in this desktop makes are kept off the host too.
         runtime->isolated_seat_flag = (std::filesystem::path {host_runtime_dir()} / "hermes" / "isolated" / tag).string();
         std::error_code flag_ec;
         std::filesystem::create_directories(std::filesystem::path {runtime->isolated_seat_flag}.parent_path(), flag_ec);
-        std::ofstream {runtime->isolated_seat_flag}
-          << std::filesystem::read_symlink("/proc/" + std::to_string(runtime->namespace_pid) + "/ns/mnt", flag_ec).string()
-          << ' ' << ::getpid() << '\n';
+        std::ofstream {runtime->isolated_seat_flag} << platf::session_devices::seat_flag(runtime->namespace_pid);
         runtime->device_mirror = platf::session_devices::mirror(runtime->namespace_pid, tag, config::input.isolated_hide_hid_gamepads);
         if (runtime->device_mirror) {
           runtime->seat_id = tag;
@@ -2903,14 +2901,12 @@ namespace proc {
       }
       if (devices->devices) {
         // Before any of the seat's devices, which come with the stream. For
-        // 60-ares.rules: the session's mount namespace and Hermes' pid, to
+        // 60-ares.rules: the session's /dev and Hermes' pid, to
         // tell the Steam Input pads the session makes; for 74-: no ACL.
         runtime->isolated_seat_flag = (std::filesystem::path {host_runtime_dir()} / "hermes" / "isolated" / runtime->seat_id).string();
         std::error_code flag_ec;
         std::filesystem::create_directories(std::filesystem::path {runtime->isolated_seat_flag}.parent_path(), flag_ec);
-        std::ofstream {runtime->isolated_seat_flag}
-          << std::filesystem::read_symlink("/proc/" + std::to_string(runtime->namespace_pid) + "/ns/mnt", flag_ec).string()
-          << ' ' << ::getpid() << '\n';
+        std::ofstream {runtime->isolated_seat_flag} << platf::session_devices::seat_flag(runtime->namespace_pid);
         runtime->device_mirror = platf::session_devices::mirror(runtime->namespace_pid, runtime->seat_id, config::input.isolated_hide_hid_gamepads);
         if (!runtime->device_mirror) {
           return -1;

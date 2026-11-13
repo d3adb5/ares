@@ -78,4 +78,10 @@ namespace platf::session_devices {
 
   /// Mirror into the /dev of pid's mount namespace; nullptr on failure.
   std::unique_ptr<mirror_t> mirror(pid_t pid, const std::string &seat, bool hide_hid_gamepads = false);
+
+  /**
+   * The seat flag's line for 60-ares.rules: the device number of the /dev process pid sees,
+   * and Hermes' pid. Steam's runtime containers share that /dev, not the mount namespace.
+   */
+  std::string seat_flag(pid_t pid);
 }  // namespace platf::session_devices

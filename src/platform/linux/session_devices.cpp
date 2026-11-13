@@ -299,10 +299,17 @@ namespace platf::session_devices {
       }
     };
 
-    // Whether only processes in mount namespace ns hold uinput, Hermes aside:
+    // The filesystem a process sees as /dev. Steam's runtime containers have mount
+    // namespaces of their own, but bind the session's /dev: this tells them apart from the host.
+    dev_t dev_of(const fs::path &proc) {
+      struct stat st {};
+      return ::stat((proc / "root" / "dev").c_str(), &st) ? 0 : st.st_dev;
+    }
+
+    // Whether only processes seeing the session's /dev hold uinput, Hermes aside:
     // a uinput device does not record who made it, and a Steam outside the
     // session (its virtual pads pass on the host's controllers) must not count.
-    bool only_session_holds_uinput(ino_t ns) {
+    bool only_session_holds_uinput(dev_t dev) {
       std::error_code ec;
       const auto self = std::to_string(::getpid());
       bool session = false;
@@ -317,8 +324,7 @@ namespace platf::session_devices {
           if (fs::read_symlink(fd.path(), link_ec) != "/dev/uinput") {
             continue;
           }
-          struct stat st {};
-          if (::stat((proc.path() / "ns" / "mnt").c_str(), &st) || st.st_ino != ns) {
+          if (dev_of(proc.path()) != dev) {
             return false;
           }
           session = true;
@@ -349,9 +355,9 @@ namespace platf::session_devices {
 
     class mirror_impl_t: public mirror_t {
     public:
-      mirror_impl_t(int dev_fd, ino_t ns, std::string seat, bool hide_hid_gamepads):
+      mirror_impl_t(int dev_fd, dev_t dev, std::string seat, bool hide_hid_gamepads):
           dev_fd {dev_fd},
-          ns {ns},
+          dev {dev},
           seat {std::move(seat)},
           hide_hid_gamepads {hide_hid_gamepads} {
       }
@@ -364,7 +370,7 @@ namespace platf::session_devices {
         if (hide_hid_gamepads && device.hid_gamepad_input()) {
           return false;
         }
-        return device.phys() == seat || (device.valve_virtual_pad() && only_session_holds_uinput(ns));
+        return device.phys() == seat || (device.valve_virtual_pad() && only_session_holds_uinput(dev));
       }
 
       void add(const device_t &device) {
@@ -383,7 +389,7 @@ namespace platf::session_devices {
       }
 
       int dev_fd;
-      ino_t ns;
+      dev_t dev;
       std::string seat;
       bool hide_hid_gamepads;
       std::set<std::string> nodes;
@@ -484,6 +490,10 @@ namespace platf::session_devices {
     }
   }  // namespace
 
+  std::string seat_flag(pid_t pid) {
+    return std::to_string(dev_of("/proc/" + std::to_string(pid))) + ' ' + std::to_string(::getpid()) + '\n';
+  }
+
   std::unique_ptr<mirror_t> mirror(pid_t pid, const std::string &seat, bool hide_hid_gamepads) {
     static std::once_flag started;
     std::call_once(started, [] {
@@ -493,7 +503,7 @@ namespace platf::session_devices {
     const auto proc = "/proc/" + std::to_string(pid);
     struct stat st {};
     const int dev_fd = ::open((proc + "/root/dev").c_str(), O_PATH | O_DIRECTORY | O_CLOEXEC);
-    if (dev_fd < 0 || ::stat((proc + "/ns/mnt").c_str(), &st)) {
+    if (dev_fd < 0 || ::fstat(dev_fd, &st)) {
       BOOST_LOG(error) << "Couldn't reach the /dev of session seat ["sv << seat << "]: "sv << std::strerror(errno);
       if (dev_fd >= 0) {
         ::close(dev_fd);
@@ -501,7 +511,7 @@ namespace platf::session_devices {
       return nullptr;
     }
 
-    auto mirror = std::make_unique<mirror_impl_t>(dev_fd, st.st_ino, seat, hide_hid_gamepads);
+    auto mirror = std::make_unique<mirror_impl_t>(dev_fd, st.st_dev, seat, hide_hid_gamepads);
     std::lock_guard lock {mirrors_mutex};
     sync(*mirror);
     mirrors.push_back(mirror.get());
