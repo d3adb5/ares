@@ -3361,6 +3361,9 @@ namespace video {
     return std::nullopt;
   }
 
+  // A display whose colour changes mid-check (a game or Steam turning HDR on) is alive: check again.
+  constexpr int capture_readiness_color_changed = 1;
+
   static int check_capture_path_impl(const config_t &stream, std::string &failure, capture_readiness_t &result) {
     using namespace std::literals;
     if (!chosen_encoder) {
@@ -3443,7 +3446,7 @@ namespace video {
     }
     if (disp->is_hdr() != display_hdr) {
       failure = "Capture color mode changed while checking " + label;
-      return -1;
+      return capture_readiness_color_changed;
     }
 
     config.width = disp->width;
@@ -3495,6 +3498,10 @@ namespace video {
         // A display that is up but has nothing new to show is not broken.
         BOOST_LOG(warning) << "Capture readiness: " << label << " produced no new frame within 5 seconds; continuing"sv;
         return 0;
+      }
+      if (status == platf::capture_e::reinit) {
+        failure = "The colour of " + label + " changed while it was checked";
+        return capture_readiness_color_changed;
       }
       failure = "Capture failed on " + label;
       return -1;
@@ -3550,7 +3557,18 @@ namespace video {
   int check_capture_path(const config_t &stream, std::string &failure, const std::string &client) {
     capture_readiness_t result;
     result.client = client;
-    const int status = check_capture_path_impl(stream, failure, result);
+    int status = check_capture_path_impl(stream, failure, result);
+    for (int retry = 0; status == capture_readiness_color_changed && retry < 3; ++retry) {
+      BOOST_LOG(info) << "Capture readiness: " << failure << "; checking again"sv;
+      result = {};
+      result.client = client;
+      status = check_capture_path_impl(stream, failure, result);
+    }
+    if (status == capture_readiness_color_changed) {
+      // Still changing: what the stream starts with is decided when it starts.
+      BOOST_LOG(warning) << "Capture readiness: " << failure << "; continuing"sv;
+      status = 0;
+    }
     result.checked = true;
     result.ok = status == 0;
     result.failure = status ? failure : std::string {};
