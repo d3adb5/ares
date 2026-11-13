@@ -12,6 +12,7 @@
 #include <string>
 
 // local includes
+#include "client_hdr.h"
 #include "crypto.h"
 #include "thread_safe.h"
 #include "uuid.h"
@@ -55,6 +56,7 @@ namespace rtsp_stream {
     int surround_info;
     std::string surround_params;
     bool enable_hdr;
+    client_hdr::display_t client_hdr_display;  ///< What the client's display reported; zero when nothing.
     bool enable_sops;
     bool virtual_display;
     bool vsync_double_buffer;

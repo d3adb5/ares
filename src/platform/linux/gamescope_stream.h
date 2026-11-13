@@ -1,9 +1,10 @@
 /**
  * @file src/platform/linux/gamescope_stream.h
- * @brief Frames and input for a Gamescope running `--backend hermes`, with no virtual display.
+ * @brief Frames and input for a Gamescope running `--backend ares`, with no virtual display.
  */
 #pragma once
 
+#include "src/client_hdr.h"
 #include "src/platform/common.h"
 
 #include <cstddef>
@@ -29,10 +30,14 @@ namespace platf::gamescope_stream {
     void detach(int fd);
     /** Send one message. False when nothing is connected or the send failed. */
     bool send(const void *message, std::size_t size);
+    /** The display of the client streaming it, for Gamescope's HDR metadata and EDID. */
+    void set_client_display(const client_hdr::display_t &display);
+    client_hdr::display_t client_display();
 
   private:
     std::mutex mutex;
     int fd {-1};
+    client_hdr::display_t display;
   };
 
   /** The session of a socket path, created on first use. */

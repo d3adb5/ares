@@ -2449,6 +2449,7 @@ namespace proc {
       // No card and no seat: frames and input go over this socket. The tag is the
       // detached desktop's, so its gamepads reach this session's /dev and no other.
       runtime->gamescope_stream_socket = (std::filesystem::path {runtime->runtime_dir} / "gamescope-stream").string();
+      platf::gamescope_stream::session_for(runtime->gamescope_stream_socket)->set_client_display(launch_session->client_hdr_display);
       runtime->seat_id = "ares-detached-" + runtime->runtime_id;
       std::error_code stale_ec;
       std::filesystem::remove(runtime->gamescope_stream_socket, stale_ec);
@@ -3550,6 +3551,10 @@ namespace proc {
     launch_session->kwin_wayland_socket = runtime->kwin_wayland_socket;
     launch_session->kwin_pipewire_socket = runtime->kwin_pipewire_socket;
     launch_session->gamescope_stream_socket = runtime->gamescope_stream_socket;
+    if (!runtime->gamescope_stream_socket.empty()) {
+      // Another client may resume it: its panel replaces the last one's from the next CONFIGURE.
+      platf::gamescope_stream::session_for(runtime->gamescope_stream_socket)->set_client_display(launch_session->client_hdr_display);
+    }
     if (!runtime->app.allow_client_commands) {
       launch_session->client_do_cmds.clear();
       launch_session->client_undo_cmds.clear();

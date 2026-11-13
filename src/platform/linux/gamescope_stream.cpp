@@ -245,6 +245,7 @@ namespace platf::gamescope_stream {
 
     private:
       bool connect_socket(const std::string &path) {
+        socket_path = path;
         sockaddr_un address {};
         address.sun_family = AF_UNIX;
         if (path.empty() || path.size() >= sizeof(address.sun_path)) {
@@ -313,6 +314,13 @@ namespace platf::gamescope_stream {
         request.configure.refresh_mhz = refresh_mhz;
         request.configure.slot_count = pool_slots;
         request.configure.flags = hdr ? ARES_CONFIGURE_HDR : 0;
+        // The client's panel, so its HDR metadata and the EDID games read ask for no tone mapping; zero
+        // leaves Gamescope's defaults.
+        if (const auto client = session_for(socket_path)->client_display(); client.known()) {
+          request.configure.hdr_max_luminance = client.max_luminance;
+          request.configure.hdr_max_frame_average = client.max_frame_average;
+          request.configure.hdr_min_luminance = client.min_luminance;
+        }
         request.configure.num_formats = 0;
         if (hdr) {
           request.formats[request.configure.num_formats++] = {DRM_FORMAT_XBGR2101010, 0, DRM_FORMAT_MOD_LINEAR};
@@ -538,6 +546,7 @@ namespace platf::gamescope_stream {
       file_t connection;
       file_t encode_render_fd;
       std::shared_ptr<session_t> session;
+      std::string socket_path;
       std::uint32_t current_pool {};
       std::uint32_t fourcc {};
       std::uint64_t modifier {};
@@ -563,6 +572,16 @@ namespace platf::gamescope_stream {
   bool session_t::send(const void *message, std::size_t size) {
     std::lock_guard lock {mutex};
     return fd >= 0 && ::send(fd, message, size, MSG_NOSIGNAL) == static_cast<ssize_t>(size);
+  }
+
+  void session_t::set_client_display(const client_hdr::display_t &client) {
+    std::lock_guard lock {mutex};
+    display = client;
+  }
+
+  client_hdr::display_t session_t::client_display() {
+    std::lock_guard lock {mutex};
+    return display;
   }
 
   std::shared_ptr<session_t> session_for(const std::string &socket) {
