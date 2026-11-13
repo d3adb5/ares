@@ -1009,6 +1009,19 @@ namespace proc {
       }
     }
 
+    /**
+     * Where Gamescope writes the EDID it patches with its HDR block, which Proton reads (through the
+     * Xwayland property GAMESCOPE_DISPLAY_EDID_PATH) to tell games the display can do HDR. In the
+     * user's cache, as Steam's runtime containers see the home directory but not the session's runtime.
+     */
+    std::filesystem::path patched_edid_dir(const std::string &runtime_id) {
+      const char *cache = std::getenv("XDG_CACHE_HOME");
+      const char *home = std::getenv("HOME");
+      const auto root = cache && *cache ? std::filesystem::path {cache} :
+                                          std::filesystem::path {home ? home : "/tmp"} / ".cache";
+      return root / "ares" / "sessions" / runtime_id;
+    }
+
     std::string session_bus_address(const std::string &runtime_dir) {
       return "unix:path=" + (std::filesystem::path {runtime_dir} / "bus").string();
     }
@@ -1589,6 +1602,10 @@ namespace proc {
       // session user's own /run/user, which belongs to systemd and not to us.
       std::error_code remove_ec;
       std::filesystem::remove_all(runtime->assets_dir, remove_ec);
+      if (!runtime->gamescope_stream_socket.empty()) {
+        std::error_code edid_ec;
+        std::filesystem::remove_all(patched_edid_dir(runtime->runtime_id), edid_ec);
+      }
       if (remove_ec) {
         BOOST_LOG(debug) << "[IsolatedSession] Could not remove runtime directory "
                          << runtime->assets_dir << ": " << remove_ec.message();
@@ -2457,6 +2474,12 @@ namespace proc {
       populate_session_environment(runtime->env, app, *launch_session, *runtime);
       for (const auto *name : {"XDG_SEAT", "LIBSEAT_BACKEND", "SEATD_SOCK", "WLR_DRM_DEVICES", "WLR_LIBINPUT_NO_DEVICES", "ARES_SEATD_SOCKET", "ARES_DRM_DEVICE"}) {
         runtime->env.erase(name);
+      }
+      if (!runtime->env.count("GAMESCOPE_PATCHED_EDID_FILE")) {
+        std::error_code edid_ec;
+        const auto edid_dir = patched_edid_dir(runtime->runtime_id);
+        std::filesystem::create_directories(edid_dir, edid_ec);
+        runtime->env["GAMESCOPE_PATCHED_EDID_FILE"] = (edid_dir / "edid.bin").string();
       }
       // Under FIFO each swapchain image past two queues a finished frame: a whole refresh of latency, more
       // at lower rates. Opt-in, from this host or the client. An app's own env takes precedence.
