@@ -131,7 +131,7 @@ namespace {
   int web_ui_port() {
     std::string config_path;
     if (const char *xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg) {
-      config_path = std::string {xdg} + "/hermes/ares.conf";
+      config_path = std::string {xdg} + "/ares/ares.conf";
     } else if (const char *home = std::getenv("HOME"); home && *home) {
       config_path = std::string {home} + "/.config/ares/ares.conf";
     } else {
@@ -171,7 +171,7 @@ namespace {
    *
    * The token is an argument, not a member: Hermes publishes a new one every
    * time it starts, so a token held for the console's whole life goes stale
-   * the moment anybody presses "Restart Hermes". Taking it per request lets
+   * the moment anybody presses "Restart Ares". Taking it per request lets
    * the caller re-read the file when it needs to.
    *
    * TLS verification is off because the only peer is this machine's own Hermes
@@ -631,7 +631,7 @@ namespace {
 
       // The token is re-read here rather than held from startup: Hermes
       // publishes a new one every time it starts, and the whole reason this
-      // screen has a "Restart Hermes" button is that restarting is normal.
+      // screen has a "Restart Ares" button is that restarting is normal.
       // Reading it fresh keeps that button from permanently 401-ing the very
       // console that pressed it.
       const std::string token = read_local_api_token().value_or(std::string {});
