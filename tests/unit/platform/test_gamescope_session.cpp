@@ -158,6 +158,21 @@ namespace {
     EXPECT_EQ(steam_shutdown_command(""), "");
   }
 
+  TEST(GamescopeSession, SteamStartupErrorIsTheFirstOfTheLastStart) {
+    constexpr std::string_view log =
+      "[2026-11-12 05:39:15] steam.sh[1]: Starting Steam\n"
+      "[2026-11-12 05:39:16] srt-foo[2]: E: an old error\n"
+      "[2026-11-12 21:21:25] steam.sh[4069429]: Starting SteamRT3 Steam\n"
+      "[2026-11-12 21:21:25] ReexecSteamLinux: re-launching steam in SteamRT runtime\n"
+      "[2026-11-12 21:21:25] steam-runtime-launcher-service[4069574]: E: Can't find session bus: no dbus-launch\n"
+      "[2026-11-12 21:21:25] srt-client-container[4069563]: E: Couldn't start subprocess launcher\n";
+    EXPECT_EQ(steam_startup_error(log), "steam-runtime-launcher-service: Can't find session bus: no dbus-launch");
+    EXPECT_EQ(steam_startup_error("[t] steam.sh[1]: Starting Steam\n[t] srt-foo[2]: E: an old error\n"
+                                  "[t] steam.sh[3]: Starting Steam\n[t] all fine\n"),
+              "");
+    EXPECT_EQ(steam_startup_error(""), "");
+  }
+
   TEST(GamescopeSession, TheApplicationAlwaysComesAfterTheSeparator) {
     auto launch = session(drm_selector_e::prefer_drm, true);
     launch.command = "env DXVK_HUD=1 %command% --prefer-drm /dev/dri/card0";

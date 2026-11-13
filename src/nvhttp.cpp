@@ -6,8 +6,11 @@
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 
 // standard includes
+#include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <fstream>
+#include <iterator>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -44,6 +47,9 @@
 #ifdef _WIN32
   #include "platform/windows/virtual_display.h"
 #endif
+#ifdef __linux__
+  #include "platform/linux/gamescope_session.h"
+#endif
 
 using namespace std::literals;
 
@@ -54,6 +60,22 @@ namespace nvhttp {
 
   using p_named_cert_t = crypto::p_named_cert_t;
   using PERM = crypto::PERM;
+
+  /// Why the app an isolated launch started is already gone, as far as its logs tell.
+  std::string isolated_app_exit_reason(const std::string &name, const std::string &cmd, const std::string &output) {
+    auto reason = name + " exited as soon as it started, so there is nothing to stream";
+#ifdef __linux__
+    if (platf::gamescope::steam_mode_for("auto", cmd)) {
+      const char *home = std::getenv("HOME");
+      std::ifstream file {std::string {home ? home : ""} + "/.local/share/Steam/logs/console-linux.txt"};
+      const std::string log {std::istreambuf_iterator<char> {file}, {}};
+      if (const auto error = platf::gamescope::steam_startup_error(log); !error.empty()) {
+        return reason + ". Steam: " + error;
+      }
+    }
+#endif
+    return output.empty() ? reason : reason + "; its output is in " + output;
+  }
 
   bool experimental_isolated_sessions_enabled() {
 #ifdef __linux__
@@ -1514,6 +1536,9 @@ namespace nvhttp {
     // Whether this request started the app or the isolated session, as
     // opposed to finding it already running.
     bool started_here = false;
+    std::string launched_app_name;
+    std::string launched_app_cmd;
+    std::string launched_app_output;
 
     if (is_input_only) {
       BOOST_LOG(info) << "Launching input only session..."sv;
@@ -1552,6 +1577,9 @@ namespace nvhttp {
           launch_session->client_undo_cmds.clear();
         }
 
+        launched_app_name = app_iter->name;
+        launched_app_cmd = app_iter->cmd;
+        launched_app_output = app_iter->output;
         const auto err = proc::proc.execute_isolated(*app_iter, launch_session);
         if (err) {
           tree.put("root.<xmlattr>.status_code", err);
@@ -1704,6 +1732,18 @@ namespace nvhttp {
       // Another stream holds the encoder, so this launch ran no check: an
       // earlier one of this client's would describe a stream it no longer has.
       video::forget_capture_readiness(named_cert_p->uuid);
+    }
+
+    // An app that died while capture was checked would end the stream mid-handshake,
+    // and the client would blame its firewall (error 11, UDP 47999).
+    if (isolated_launch && started_here && proc::proc.running_for_client(named_cert_p->uuid) == 0) {
+      const auto failure = isolated_app_exit_reason(launched_app_name, launched_app_cmd, launched_app_output);
+      BOOST_LOG(error) << "Launch: " << failure;
+      video::forget_capture_readiness(named_cert_p->uuid);
+      tree.put("root.<xmlattr>.status_code", 503);
+      tree.put("root.<xmlattr>.status_message", failure + ".");
+      tree.put("root.gamesession", 0);
+      return;
     }
 
     if (!rtsp_stream::launch_session_raise(launch_session)) {

@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <cctype>
 #include <format>
 #include <optional>
@@ -153,6 +154,40 @@ namespace platf::gamescope {
       return {};
     }
     return std::string {command.substr(begin, command.find_first_of(" \t", begin) - begin)} + " -shutdown";
+  }
+
+  /**
+   * The first error of Steam's last start, from its console log
+   * (~/.local/share/Steam/logs/console-linux.txt): "component: message",
+   * without timestamp or pid. Empty when that start logged none.
+   */
+  inline std::string steam_startup_error(std::string_view log) {
+    // Each start begins with steam.sh's own "Starting ... Steam" line.
+    std::size_t start = 0;
+    for (auto at = log.find("steam.sh["); at != std::string_view::npos; at = log.find("steam.sh[", at + 1)) {
+      const auto eol = log.find('\n', at);
+      if (log.substr(at, eol - at).find("]: Starting ") != std::string_view::npos) {
+        start = log.rfind('\n', at);
+        start = start == std::string_view::npos ? 0 : start + 1;
+      }
+    }
+    for (auto line_start = start; line_start < log.size();) {
+      const auto eol = std::min(log.find('\n', line_start), log.size());
+      auto line = log.substr(line_start, eol - line_start);
+      line_start = eol + 1;
+      const auto marker = line.find("]: E: ");
+      if (marker == std::string_view::npos) {
+        continue;
+      }
+      // "[time] component[pid]: E: message"
+      const auto pid = line.rfind('[', marker);
+      const auto time_end = line.find("] ");
+      if (pid == std::string_view::npos || time_end == std::string_view::npos || time_end + 2 > pid) {
+        continue;
+      }
+      return std::string {line.substr(time_end + 2, pid - time_end - 2)} + ": " + std::string {line.substr(marker + 6)};
+    }
+    return {};
   }
 
   /// The optional flags an application session gets when its app sets none.
