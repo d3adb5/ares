@@ -58,6 +58,9 @@
 #include <boost/crc.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/program_options/parsers.hpp>
+#include <boost/process/v1/env.hpp>
+#include <boost/process/v1/handles.hpp>
+#include <boost/process/v1/io.hpp>
 #include <boost/process/v1/search_path.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -187,6 +190,7 @@ namespace proc {
       std::string audio_sink;
       std::string mic_source;  ///< Empty where the client's microphone is not streamed.
       std::unique_ptr<platf::session_audio::server_t> audio_server;  ///< Where the session has its own.
+      boost::process::v1::child session_bus;  ///< The session's own D-Bus daemon, at runtime_dir/bus.
       pid_t namespace_pid {};  ///< Holds the session's mount namespace, where it has a private /dev.
       std::unique_ptr<platf::session_devices::mirror_t> device_mirror;
       std::string isolated_seat_flag;  ///< Tells the ACL rule to leave the seat's host nodes alone.
@@ -989,6 +993,57 @@ namespace proc {
       }
     }
 
+    std::string session_bus_address(const std::string &runtime_dir) {
+      return "unix:path=" + (std::filesystem::path {runtime_dir} / "bus").string();
+    }
+
+    /**
+     * @brief A session bus of the session's own, where systemd gives it none.
+     *
+     * A same-user session loses the host's bus (erase_host_graphical_session_environment)
+     * and so had no bus at all. Steam's SteamRT3 client re-executes itself through
+     * steam-runtime-launcher-service, which exits without one, and Steam with it.
+     * At $XDG_RUNTIME_DIR/bus, so sd-bus finds it without the variable too.
+     */
+    boost::process::v1::child start_session_bus(const std::string &runtime_dir) {
+      const auto daemon = boost::process::v1::search_path("dbus-daemon");
+      if (daemon.empty()) {
+        BOOST_LOG(warning) << "[IsolatedSession] dbus-daemon is not installed; the session has no D-Bus session bus.";
+        return {};
+      }
+      const auto socket = std::filesystem::path {runtime_dir} / "bus";
+      std::error_code ec;
+      std::filesystem::remove(socket, ec);
+      // Services it activates inherit this environment: none of the host's desktop.
+      auto env = boost::process::v1::environment {boost::this_process::environment()};
+      erase_host_graphical_session_environment(env);
+      env["XDG_RUNTIME_DIR"] = runtime_dir;
+      boost::process::v1::child bus {
+        daemon,
+        "--session",
+        "--nofork",
+        "--nopidfile",
+        "--address=" + session_bus_address(runtime_dir),
+        env,
+        boost::process::v1::std_in < boost::process::v1::null,
+        boost::process::v1::limit_handles,
+        ec
+      };
+      if (ec) {
+        BOOST_LOG(warning) << "[IsolatedSession] Could not start the session's D-Bus daemon: " << ec.message();
+        return {};
+      }
+      for (const auto deadline = std::chrono::steady_clock::now() + 3s; !std::filesystem::is_socket(socket, ec);) {
+        if (!bus.running() || std::chrono::steady_clock::now() > deadline) {
+          BOOST_LOG(warning) << "[IsolatedSession] The session's D-Bus daemon did not come up at " << socket.string();
+          bus.terminate(ec);
+          return {};
+        }
+        std::this_thread::sleep_for(10ms);
+      }
+      return bus;
+    }
+
     void populate_session_environment(
       boost::process::v1::environment &env,
       const ctx_t &app,
@@ -1026,6 +1081,9 @@ namespace proc {
         } else if (const auto host_runtime = host_runtime_dir(); !host_runtime.empty()) {
           env["PULSE_SERVER"] = "unix:" + host_runtime + "/pulse/native";
           env["PIPEWIRE_REMOTE"] = host_runtime + "/pipewire-0";
+        }
+        if (runtime.session_bus.valid()) {
+          env["DBUS_SESSION_BUS_ADDRESS"] = session_bus_address(runtime.runtime_dir);
         }
       }
 
@@ -1454,6 +1512,12 @@ namespace proc {
         }
       }
 
+      if (runtime->session_bus.valid()) {
+        std::error_code bus_ec;
+        runtime->session_bus.terminate(bus_ec);
+        runtime->session_bus.wait(bus_ec);
+        runtime->session_bus = {};
+      }
       if (runtime->audio_server) {
         runtime->audio_server.reset();
       } else if (!runtime->audio_sink.empty()) {
@@ -2057,6 +2121,10 @@ namespace proc {
       BOOST_LOG(warning) << "[IsolatedSession] Session " << runtime->runtime_id
                          << " runs as its own user, which has an audio server Ares cannot "
                             "reach; audio for this session is not isolated yet.";
+    }
+    // A Plasma desktop runs under dbus-run-session; an account gets a bus from systemd.
+    if (!runtime->account && !own_plasma_desktop) {
+      runtime->session_bus = start_session_bus(runtime->runtime_dir);
     }
 
     // hermes_kms_session_compositor = plasma, the default: the user's own
