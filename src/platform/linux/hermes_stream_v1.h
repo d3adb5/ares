@@ -69,7 +69,8 @@ extern "C" {
 #endif
 
 #define HERMES_STREAM_VERSION_MAJOR 1
-#define HERMES_STREAM_VERSION_MINOR 0
+/* 1.1: HELLO carries the state flags. */
+#define HERMES_STREAM_VERSION_MINOR 1
 
 /* Largest message either side sends, ancillary data excluded. */
 #define HERMES_MAX_MESSAGE_SIZE 4096
@@ -130,6 +131,12 @@ enum hermes_server_caps
 	HERMES_SERVER_CAP_TEXT = 1u << 4,
 };
 
+enum hermes_state_flags
+{
+	HERMES_STATE_HDR_ACTIVE = 1u << 0, /* frames are currently PQ / BT.2020 */
+	HERMES_STATE_HDR_CAPABLE = 1u << 1, /* games are told HDR is available */
+};
+
 struct hermes_server_hello
 {
 	struct hermes_msg_header hdr;
@@ -141,7 +148,7 @@ struct hermes_server_hello
 	uint32_t refresh_mhz;
 	uint32_t render_dev_major; /* the render node Gamescope composites on, */
 	uint32_t render_dev_minor; /* 0/0 when unknown */
-	uint32_t reserved;
+	uint32_t state_flags;      /* enum hermes_state_flags at connect time; 0 before 1.1 */
 	char gamescope_version[64];
 };
 
@@ -160,12 +167,6 @@ struct hermes_server_error
 	uint32_t code;  /* enum hermes_error_code */
 	uint32_t fatal; /* 1 when the server closes the connection after this */
 	char message[128];
-};
-
-enum hermes_state_flags
-{
-	HERMES_STATE_HDR_ACTIVE = 1u << 0, /* frames are currently PQ / BT.2020 */
-	HERMES_STATE_HDR_CAPABLE = 1u << 1, /* games are told HDR is available */
 };
 
 struct hermes_server_state
