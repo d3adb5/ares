@@ -1014,16 +1014,31 @@ namespace proc {
       const auto socket = std::filesystem::path {runtime_dir} / "bus";
       std::error_code ec;
       std::filesystem::remove(socket, ec);
+      // session.conf without its service directories: activating the host's services
+      // (its notification daemon) would start them with no display, where they crash.
+      const auto config = std::filesystem::path {runtime_dir} / "dbus-session.conf";
+      std::ofstream {config} << R"(<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <type>session</type>
+  <listen>)" << session_bus_address(runtime_dir) << R"(</listen>
+  <auth>EXTERNAL</auth>
+  <policy context="default">
+    <allow send_destination="*" eavesdrop="true"/>
+    <allow eavesdrop="true"/>
+    <allow own="*"/>
+  </policy>
+</busconfig>
+)";
       // Services it activates inherit this environment: none of the host's desktop.
       auto env = boost::process::v1::environment {boost::this_process::environment()};
       erase_host_graphical_session_environment(env);
       env["XDG_RUNTIME_DIR"] = runtime_dir;
       boost::process::v1::child bus {
         daemon,
-        "--session",
+        "--config-file=" + config.string(),
         "--nofork",
         "--nopidfile",
-        "--address=" + session_bus_address(runtime_dir),
         env,
         boost::process::v1::std_in < boost::process::v1::null,
         boost::process::v1::limit_handles,
