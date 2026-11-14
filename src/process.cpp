@@ -421,11 +421,14 @@ namespace proc {
           in_use.emplace(path.substr(0, path.find(' ')));
         }
       };
+      bool steam_alive = false;
       std::error_code ec;
       for (const auto &proc_dir : std::filesystem::directory_iterator {"/proc", ec}) {
-        if (!std::isdigit(static_cast<unsigned char>(proc_dir.path().filename().string()[0]))) {
+        const auto pid = proc_dir.path().filename().string();
+        if (!std::isdigit(static_cast<unsigned char>(pid[0]))) {
           continue;
         }
+        steam_alive = steam_alive || read_proc_line(std::stoi(pid), "comm").starts_with("steam");
         std::ifstream maps {proc_dir.path() / "maps"};
         for (std::string line; std::getline(maps, line);) {
           note_use(line);
@@ -437,18 +440,24 @@ namespace proc {
         }
       }
 
-      // A Steam that is starting may not have mapped its new segments yet.
+      // A Steam that is starting may not have mapped its new segments yet. Without
+      // one, age means nothing: Steam writes its segments until it exits.
       const auto settled = std::filesystem::file_time_type::clock::now() - 60s;
       const auto old_enough = [&](const std::filesystem::directory_entry &entry) {
         std::error_code time_ec;
         const auto written = entry.last_write_time(time_ec);
-        return !time_ec && written < settled;
+        return !steam_alive || (!time_ec && written < settled);
       };
       std::uintmax_t freed = 0;
       int removed = 0;
+      int kept = 0;
       for (const auto &entry : std::filesystem::directory_iterator {"/dev/shm", ec}) {
         const auto name = entry.path().filename().string();
-        if (!platf::gamescope::steam_shm_segment(name, uid) || in_use.contains(name) || !old_enough(entry)) {
+        if (!platf::gamescope::steam_shm_segment(name, uid)) {
+          continue;
+        }
+        if (in_use.contains(name) || !old_enough(entry)) {
+          ++kept;
           continue;
         }
         std::error_code rm_ec;
@@ -465,9 +474,11 @@ namespace proc {
           std::filesystem::remove(entry.path(), rm_ec);
         }
       }
-      if (removed) {
-        BOOST_LOG(info) << "[IsolatedSession] Removed " << removed << " leftover Steam segments ("
-                        << freed / (1024 * 1024) << " MiB) from /dev/shm.";
+      if (removed || kept) {
+        BOOST_LOG(info) << std::format(
+          "[IsolatedSession] Removed {} leftover Steam segments ({:.1f} MiB) from /dev/shm; kept {} in use{}.",
+          removed, freed / 1048576.0, kept, steam_alive ? " or new" : ""
+        );
       }
     }
 
