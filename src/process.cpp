@@ -22,6 +22,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -400,6 +401,73 @@ namespace proc {
       }
       for (const auto member : tree) {
         ::kill(member, SIGKILL);
+      }
+    }
+
+    /**
+     * @brief Remove what Steam leaves behind for this user: /dev/shm segments
+     * no process maps or holds open, and /tmp sockets of Steam clients gone.
+     *
+     * Steam's web helper leaves 50-80 MB of segments in /dev/shm per run even
+     * after a clean -shutdown; tmpfs keeps them in RAM or swap until reboot.
+     */
+    void remove_steam_leftovers() {
+      const auto uid = ::getuid();
+      const auto shm_prefix = std::format("/dev/shm/u{}-Shm_", uid);
+      std::set<std::string> in_use;
+      const auto note_use = [&](std::string_view path) {
+        if (const auto at = path.find(shm_prefix); at != std::string_view::npos) {
+          path.remove_prefix(at + std::string_view {"/dev/shm/"}.size());
+          in_use.emplace(path.substr(0, path.find(' ')));
+        }
+      };
+      std::error_code ec;
+      for (const auto &proc_dir : std::filesystem::directory_iterator {"/proc", ec}) {
+        if (!std::isdigit(static_cast<unsigned char>(proc_dir.path().filename().string()[0]))) {
+          continue;
+        }
+        std::ifstream maps {proc_dir.path() / "maps"};
+        for (std::string line; std::getline(maps, line);) {
+          note_use(line);
+        }
+        std::error_code fd_ec;
+        for (const auto &fd : std::filesystem::directory_iterator {proc_dir.path() / "fd", fd_ec}) {
+          std::error_code link_ec;
+          note_use(std::filesystem::read_symlink(fd.path(), link_ec).string());
+        }
+      }
+
+      // A Steam that is starting may not have mapped its new segments yet.
+      const auto settled = std::filesystem::file_time_type::clock::now() - 60s;
+      const auto old_enough = [&](const std::filesystem::directory_entry &entry) {
+        std::error_code time_ec;
+        const auto written = entry.last_write_time(time_ec);
+        return !time_ec && written < settled;
+      };
+      std::uintmax_t freed = 0;
+      int removed = 0;
+      for (const auto &entry : std::filesystem::directory_iterator {"/dev/shm", ec}) {
+        const auto name = entry.path().filename().string();
+        if (!platf::gamescope::steam_shm_segment(name, uid) || in_use.contains(name) || !old_enough(entry)) {
+          continue;
+        }
+        std::error_code rm_ec;
+        const auto size = entry.file_size(rm_ec);
+        if (std::filesystem::remove(entry.path(), rm_ec)) {
+          freed += size == static_cast<std::uintmax_t>(-1) ? 0 : size;
+          ++removed;
+        }
+      }
+      for (const auto &entry : std::filesystem::directory_iterator {"/tmp", ec}) {
+        const auto pid = platf::gamescope::steam_shmem_socket_pid(entry.path().filename().string(), uid);
+        if (pid && !read_proc_line(*pid, "comm").starts_with("steam") && old_enough(entry)) {
+          std::error_code rm_ec;
+          std::filesystem::remove(entry.path(), rm_ec);
+        }
+      }
+      if (removed) {
+        BOOST_LOG(info) << "[IsolatedSession] Removed " << removed << " leftover Steam segments ("
+                        << freed / (1024 * 1024) << " MiB) from /dev/shm.";
       }
     }
 
@@ -1525,6 +1593,9 @@ namespace proc {
         runtime->process = boost::process::v1::child {};
         runtime->process_group = boost::process::v1::group {};
       }
+      if (!runtime->account) {
+        remove_steam_leftovers();
+      }
       auto stopping_env = runtime->env;
       stopping_env["APOLLO_APP_STATUS"] = "TERMINATING";
       stopping_env["ARES_APP_STATUS"] = "TERMINATING";
@@ -1678,6 +1749,8 @@ namespace proc {
     if (const auto systemctl = find_program("systemctl"); !systemctl.empty()) {
       run_program({systemctl, "--user", "--quiet", "stop", "ares-detached-*.scope", "ares-detached-*.service", "hermes-detached-*.scope", "hermes-detached-*.service"}, 30s);
     }
+    // Sessions that ended with a crashed or killed Ares left theirs.
+    remove_steam_leftovers();
 #endif
     return std::make_unique<deinit_t>();
   }

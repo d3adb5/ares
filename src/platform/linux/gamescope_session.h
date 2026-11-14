@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <format>
 #include <optional>
 #include <span>
@@ -154,6 +155,39 @@ namespace platf::gamescope {
       return {};
     }
     return std::string {command.substr(begin, command.find_first_of(" \t", begin) - begin)} + " -shutdown";
+  }
+
+  /**
+   * Whether a /dev/shm name is a shared memory segment of uid's Steam
+   * (u<uid>-Shm_<hex>). Its web helper leaves them behind on every exit.
+   */
+  inline bool steam_shm_segment(std::string_view name, unsigned uid) {
+    const auto prefix = std::format("u{}-Shm_", uid);
+    if (!name.starts_with(prefix) || name.size() == prefix.size()) {
+      return false;
+    }
+    name.remove_prefix(prefix.size());
+    return std::ranges::all_of(name, [](unsigned char c) {
+      return std::isxdigit(c) != 0;
+    });
+  }
+
+  /**
+   * The pid of the Steam that made a /tmp socket of uid's
+   * (steam_chrome_shmem_uid<uid>_spid<pid>), none for any other name.
+   */
+  inline std::optional<int> steam_shmem_socket_pid(std::string_view name, unsigned uid) {
+    const auto prefix = std::format("steam_chrome_shmem_uid{}_spid", uid);
+    if (!name.starts_with(prefix)) {
+      return std::nullopt;
+    }
+    name.remove_prefix(prefix.size());
+    int pid = 0;
+    const auto [end, ec] = std::from_chars(name.data(), name.data() + name.size(), pid);
+    if (ec != std::errc {} || end != name.data() + name.size() || pid <= 0) {
+      return std::nullopt;
+    }
+    return pid;
   }
 
   /**

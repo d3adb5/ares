@@ -259,3 +259,19 @@ TEST(GamescopeSession, HdrLeavesTheSessionCardAlone) {
 
   EXPECT_EQ(command.find("hdr"), std::string::npos);
 }
+
+TEST(GamescopeSession, SteamLeftoversAreOnlyTheUsersOwn) {
+  using platf::gamescope::steam_shm_segment;
+  using platf::gamescope::steam_shmem_socket_pid;
+  EXPECT_TRUE(steam_shm_segment("u1000-Shm_1a550c6b", 1000));
+  EXPECT_FALSE(steam_shm_segment("u1001-Shm_1a550c6b", 1000));
+  EXPECT_FALSE(steam_shm_segment("u10000-Shm_1a550c6b", 1000));
+  EXPECT_FALSE(steam_shm_segment("u1000-Shm_", 1000));
+  EXPECT_FALSE(steam_shm_segment("u1000-Shm_1a5.lock", 1000));
+  EXPECT_FALSE(steam_shm_segment("pulse-shm-123", 1000));
+
+  EXPECT_EQ(steam_shmem_socket_pid("steam_chrome_shmem_uid1000_spid198943", 1000), 198943);
+  EXPECT_EQ(steam_shmem_socket_pid("steam_chrome_shmem_uid1001_spid198943", 1000), std::nullopt);
+  EXPECT_EQ(steam_shmem_socket_pid("steam_chrome_shmem_uid1000_spid12x", 1000), std::nullopt);
+  EXPECT_EQ(steam_shmem_socket_pid("steam_chrome_shmem_uid1000_spid", 1000), std::nullopt);
+}
