@@ -129,6 +129,11 @@ TEST(SteamLibrary, ScansInstalledOnlyOrOwnedToo) {
   ASSERT_EQ(all.size(), 2u);
   EXPECT_EQ(all[0].name, "Portal");
   EXPECT_FALSE(all[0].installed);
+
+  const auto before = steam_library::signature(root);
+  EXPECT_EQ(before, "400o 620i ");
+  std::filesystem::remove(root / "steamapps" / "appmanifest_620.acf");  // uninstalled
+  EXPECT_NE(steam_library::signature(root), before);
   std::filesystem::remove_all(root);
 }
 

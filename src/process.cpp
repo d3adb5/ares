@@ -235,6 +235,10 @@ namespace proc {
 
     std::mutex isolated_runtimes_mutex;
     std::unordered_map<uint32_t, std::shared_ptr<isolated_runtime_t>> isolated_runtimes;
+
+    // The library as the apps were last built from it; empty while no entry uses "steam-library".
+    std::mutex steam_library_mutex;
+    std::string steam_library_signature;
     std::unordered_map<std::string, std::shared_ptr<std::atomic_bool>>
       isolated_launching_clients;
 
@@ -5256,9 +5260,17 @@ namespace proc {
    * One entry per game of the local Steam library (installed, or owned_too), after the template: its settings, its command plus
    * steam://rungameid, so Steam (and its overlay) runs the game. Rescanned whenever apps.json is loaded.
    */
-  static void add_steam_library(const proc::ctx_t &steam, bool owned_too, std::vector<proc::ctx_t> &apps, std::set<std::string> &ids, int &i) {
+  static std::filesystem::path steam_root() {
     const char *home = std::getenv("HOME");
-    const auto root = std::filesystem::path {home ? home : ""} / ".steam" / "steam";
+    return std::filesystem::path {home ? home : ""} / ".steam" / "steam";
+  }
+
+  static void add_steam_library(const proc::ctx_t &steam, bool owned_too, std::vector<proc::ctx_t> &apps, std::set<std::string> &ids, int &i) {
+    const auto root = steam_root();
+    {
+      std::lock_guard<std::mutex> lock(steam_library_mutex);
+      steam_library_signature = steam_library::signature(root);
+    }
     const auto games = steam_library::scan(root, owned_too);
     const auto template_app = steam;
     BOOST_LOG(info) << "Steam library: "sv << games.size() << (owned_too ? " games"sv : " installed games"sv)
@@ -5279,6 +5291,10 @@ namespace proc {
   }
 
   std::optional<proc::proc_t> parse(const std::string &file_name) {
+    {
+      std::lock_guard<std::mutex> lock(steam_library_mutex);
+      steam_library_signature.clear();  // set again by an entry that still uses the library
+    }
 
     // Prepare environment variables.
     auto this_env = boost::this_process::environment();
@@ -5727,6 +5743,34 @@ namespace proc {
     if (proc_opt) {
       proc = std::move(*proc_opt);
     }
+  }
+
+  void refresh_steam_library_if_idle(const std::string &file_name) {
+    static std::chrono::steady_clock::time_point checked_at {};
+    const auto now = std::chrono::steady_clock::now();
+    std::string built;
+    {
+      std::lock_guard<std::mutex> lock(steam_library_mutex);
+      built = steam_library_signature;
+    }
+    if (built.empty() || now - checked_at < 10s) {
+      return;
+    }
+    checked_at = now;
+    if (steam_library::signature(steam_root()) == built) {
+      return;
+    }
+    {
+      std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+      if (!isolated_runtimes.empty() || !isolated_launching_clients.empty()) {
+        return;  // retried on a later request
+      }
+    }
+    if (proc.running() != 0) {
+      return;
+    }
+    BOOST_LOG(info) << "Steam library changed; reloading the apps."sv;
+    refresh(file_name, false);
   }
 
 #ifdef SUNSHINE_TESTS

@@ -1273,6 +1273,9 @@ namespace nvhttp {
                              proc::proc.running();
       auto should_hide_inactive_apps = config::input.enable_input_only_mode && current_appid > 0 && current_appid != proc::input_only_app_id;
 
+      if (current_appid == 0) {
+        proc::refresh_steam_library_if_idle(config::stream.file_apps);
+      }
       auto app_list = proc::proc.get_apps();
 
       bool enable_legacy_ordering = config::sunshine.legacy_ordering && named_cert_p->enable_legacy_ordering;

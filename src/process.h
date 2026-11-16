@@ -346,6 +346,12 @@ namespace proc {
 
   std::string validate_app_image_path(std::string app_image_path);
   void refresh(const std::string &file_name, bool needs_terminate = true);
+  /**
+   * @brief Reload the apps when a Steam library entry's games changed (installs, uninstalls) and nothing runs.
+   *
+   * For the app list request, which nvhttp serves one at a time: no launch can interleave. Checks at most every 10 s.
+   */
+  void refresh_steam_library_if_idle(const std::string &file_name);
   void migrate_apps(nlohmann::json* fileTree_p, nlohmann::json* inputTree_p);
   std::optional<proc::proc_t> parse(const std::string &file_name);
 

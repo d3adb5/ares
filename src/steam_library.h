@@ -352,6 +352,15 @@ namespace steam_library {
     return cmd + " steam://rungameid/" + std::to_string(appid);
   }
 
+  /// What the library's entries depend on: every game with whether it is installed. Changes on install or uninstall.
+  inline std::string signature(const std::filesystem::path &root) {
+    std::string out;
+    for (const auto &game : scan(root, true)) {
+      out += std::to_string(game.appid) + (game.installed ? "i " : "o ");
+    }
+    return out;
+  }
+
   /**
    * Whether Steam is running the game: its reaper, "reaper SteamLaunch AppId=<id> -- ...", waits for the game's whole
    * process tree, Proton or native, so it lives exactly as long as the game.
