@@ -131,3 +131,32 @@ TEST(SteamLibrary, ScansInstalledOnlyOrOwnedToo) {
   EXPECT_FALSE(all[0].installed);
   std::filesystem::remove_all(root);
 }
+
+TEST(SteamLibrary, FindsTheGameByItsReaper) {
+  using namespace std::string_literals;
+  const auto proc = std::filesystem::temp_directory_path() / ("steam-proc-test-" + std::to_string(::getpid()));
+  const auto process = [&](const std::string &pid, const std::string &cmdline) {
+    std::filesystem::create_directories(proc / pid);
+    std::ofstream {proc / pid / "cmdline", std::ios::binary} << cmdline;
+  };
+  process("self", "reaper\0SteamLaunch\0AppId=620\0"s);
+  process("10", "steam\0-gamepadui\0steam://rungameid/620\0"s);
+  process("11", "reaper\0SteamLaunch\0AppId=6200\0--\0game\0"s);
+  process("12", "wrapper\0--\0SteamLaunch\0AppId=620\0"s);
+  EXPECT_FALSE(steam_library::game_running(620, proc));
+  process("13", "/s/ubuntu12_32/reaper\0SteamLaunch\0AppId=620\0--\0/s/proton\0"s);
+  EXPECT_TRUE(steam_library::game_running(620, proc));
+  std::filesystem::remove_all(proc);
+}
+
+TEST(SteamLibrary, GameWatchEndsOnlyAfterTheGameRanAndLeft) {
+  using namespace std::chrono_literals;
+  steam_library::game_watch_t watch {3s};
+  const steam_library::game_watch_t::clock::time_point t0 {};
+  EXPECT_FALSE(watch.ended(false, t0 + 60s));  // still in Big Picture or shader processing
+  EXPECT_FALSE(watch.ended(true, t0 + 61s));
+  EXPECT_FALSE(watch.ended(false, t0 + 62s));  // a launcher handing over
+  EXPECT_FALSE(watch.ended(true, t0 + 63s));
+  EXPECT_FALSE(watch.ended(false, t0 + 65s));
+  EXPECT_TRUE(watch.ended(false, t0 + 66s));
+}

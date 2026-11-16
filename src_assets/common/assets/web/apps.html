@@ -428,6 +428,14 @@
           </select>
           <div class="form-text">{{ $t('apps.steam_library_desc') }}</div>
         </div>
+        <Checkbox v-if="platform === 'linux' && editForm['steam-library'] !== 'off'"
+                  class="mb-3"
+                  id="steamLibraryEndWithGame"
+                  label="apps.steam_library_end_with_game"
+                  desc="apps.steam_library_end_with_game_desc"
+                  v-model="editForm['steam-library-end-with-game']"
+                  default="true"
+        ></Checkbox>
         <!-- gamescope flags for sessions isolated with gamescope -->
         <div class="mb-3" v-if="platform === 'linux' && editForm['isolation-method'] !== 'kwin_virtual'">
           <label for="gamescopeSteamMode" class="form-label">{{ $t('apps.gamescope_steam_mode') }}</label>
@@ -643,6 +651,7 @@
     "isolate-sound": "auto",
     "stop-desktop-steam": "auto",
     "steam-library": "off",
+    "steam-library-end-with-game": true,
     "terminate-on-pause": false,
     "gamepad": ""
   }

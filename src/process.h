@@ -106,6 +106,8 @@ namespace proc {
     std::string gamepad;
     // A Steam game this entry runs through its template's Steam ("steam-library" in apps.json).
     std::string steam_appid;
+    // Its session ends when the game quits, not when Steam does ("steam-library-end-with-game").
+    bool steam_end_with_game {true};
     bool elevated;
     bool auto_detach;
     bool wait_all;

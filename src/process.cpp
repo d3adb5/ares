@@ -214,6 +214,10 @@ namespace proc {
       std::string isolated_seat_flag;  ///< Tells the ACL rule to leave the seat's host nodes alone.
       std::vector<int> held_x_displays;  ///< Locks keeping gamescope's Xwaylands adjacent.
       std::chrono::steady_clock::time_point started_at {std::chrono::steady_clock::now()};
+      std::mutex game_mutex;  ///< Guards the Steam game watch below.
+      steam_library::game_watch_t game_watch;
+      std::chrono::steady_clock::time_point game_scanned_at {};
+      bool game_ended {false};
       std::string wayland_display;
       std::string drm_device_path;
       std::string compositor_name;
@@ -1496,8 +1500,38 @@ namespace proc {
       return false;
     }
 
+    /**
+     * @brief Whether a Steam library entry's game has quit, which ends its session.
+     *
+     * Steam itself stays up after the game, back in Big Picture, so the session's own processes never end it.
+     * Scans /proc at most once a second; the stream loop asks every 150 ms.
+     */
+    bool steam_game_ended(isolated_runtime_t &runtime) {
+      if (runtime.app.steam_appid.empty() || !runtime.app.steam_end_with_game) {
+        return false;
+      }
+      const auto appid = steam_library::parse_appid(runtime.app.steam_appid);
+      if (!appid) {
+        return false;
+      }
+      std::lock_guard<std::mutex> lock(runtime.game_mutex);
+      const auto now = std::chrono::steady_clock::now();
+      if (runtime.game_ended || now - runtime.game_scanned_at < 1s) {
+        return runtime.game_ended;
+      }
+      runtime.game_scanned_at = now;
+      runtime.game_ended = runtime.game_watch.ended(steam_library::game_running(*appid), now);
+      if (runtime.game_ended) {
+        BOOST_LOG(info) << "[IsolatedSession] " << runtime.app.name << " quit; ending " << runtime.runtime_id << '.';
+      }
+      return runtime.game_ended;
+    }
+
     bool isolated_runtime_running(const std::shared_ptr<isolated_runtime_t> &runtime) {
       if (!runtime || runtime->stopping.load()) {
+        return false;
+      }
+      if (steam_game_ended(*runtime)) {
         return false;
       }
       if (runtime->user_unit) {
@@ -5471,6 +5505,7 @@ namespace proc {
               steam_library = "off";
             }
           }
+          ctx.steam_end_with_game = app_node.value("steam-library-end-with-game", true);
           apps.emplace_back(std::move(ctx));
           if (steam_library != "off") {
             add_steam_library(apps.back(), steam_library == "all", apps, ids, i);

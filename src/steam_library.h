@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -350,5 +351,61 @@ namespace steam_library {
     }
     return cmd + " steam://rungameid/" + std::to_string(appid);
   }
+
+  /**
+   * Whether Steam is running the game: its reaper, "reaper SteamLaunch AppId=<id> -- ...", waits for the game's whole
+   * process tree, Proton or native, so it lives exactly as long as the game.
+   */
+  inline bool game_running(std::uint32_t appid, const std::filesystem::path &proc = "/proc") {
+    const auto wanted = "AppId=" + std::to_string(appid);
+    std::error_code ec;
+    for (const auto &entry : std::filesystem::directory_iterator {proc, ec}) {
+      const auto pid = entry.path().filename().string();
+      if (pid.empty() || !std::all_of(pid.begin(), pid.end(), [](unsigned char c) { return std::isdigit(c); })) {
+        continue;
+      }
+      std::ifstream file {entry.path() / "cmdline", std::ios::binary};
+      const std::string cmdline {std::istreambuf_iterator<char> {file}, {}};
+      bool launch = false;
+      bool app = false;
+      for (std::size_t at = 0; at < cmdline.size();) {
+        const auto end = std::min(cmdline.find('\0', at), cmdline.size());
+        const std::string_view arg {cmdline.data() + at, end - at};
+        if (arg == "--") {
+          break;  // the game's own arguments follow
+        }
+        launch = launch || arg == "SteamLaunch";
+        app = app || arg == wanted;
+        at = end + 1;
+      }
+      if (launch && app) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Ends a session with its game: true once the game ran and has been gone for the grace period.
+  class game_watch_t {
+  public:
+    using clock = std::chrono::steady_clock;
+
+    explicit game_watch_t(std::chrono::milliseconds grace = std::chrono::seconds {3}):
+        grace {grace} {}
+
+    bool ended(bool running, clock::time_point now) {
+      if (running) {
+        seen = true;
+        last_seen = now;
+        return false;
+      }
+      return seen && now - last_seen >= grace;
+    }
+
+  private:
+    std::chrono::milliseconds grace;
+    bool seen {};
+    clock::time_point last_seen {};
+  };
 
 }  // namespace steam_library
