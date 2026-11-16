@@ -141,6 +141,8 @@
         "steam_library_off": "Off",
         "steam_library_installed": "Installed games",
         "steam_library_all": "Every game in the library",
+        "steam_library_non_steam": "Include non-Steam games",
+        "steam_library_non_steam_desc": "Also adds the games added to Steam with \"Add a Non-Steam Game\" (emulators and the like), launched through Steam the same way, with the artwork set for them in Steam's library.",
         "steam_library_end_with_game": "End a game's session when the game quits",
         "steam_library_end_with_game_desc": "A game entry's session ends once the game it started has quit, instead of staying in Steam's Big Picture until Steam exits.",
         "stop_desktop_steam": "Shut down the desktop's Steam",

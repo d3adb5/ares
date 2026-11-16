@@ -430,6 +430,14 @@
         </div>
         <Checkbox v-if="platform === 'linux' && editForm['steam-library'] !== 'off'"
                   class="mb-3"
+                  id="steamLibraryNonSteam"
+                  label="apps.steam_library_non_steam"
+                  desc="apps.steam_library_non_steam_desc"
+                  v-model="editForm['steam-library-non-steam']"
+                  default="true"
+        ></Checkbox>
+        <Checkbox v-if="platform === 'linux' && editForm['steam-library'] !== 'off'"
+                  class="mb-3"
                   id="steamLibraryEndWithGame"
                   label="apps.steam_library_end_with_game"
                   desc="apps.steam_library_end_with_game_desc"
@@ -652,6 +660,7 @@
     "stop-desktop-steam": "auto",
     "steam-library": "off",
     "steam-library-end-with-game": true,
+    "steam-library-non-steam": true,
     "terminate-on-pause": false,
     "gamepad": ""
   }

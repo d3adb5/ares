@@ -5265,13 +5265,13 @@ namespace proc {
     return std::filesystem::path {home ? home : ""} / ".steam" / "steam";
   }
 
-  static void add_steam_library(const proc::ctx_t &steam, bool owned_too, std::vector<proc::ctx_t> &apps, std::set<std::string> &ids, int &i) {
+  static void add_steam_library(const proc::ctx_t &steam, bool owned_too, bool shortcuts, std::vector<proc::ctx_t> &apps, std::set<std::string> &ids, int &i) {
     const auto root = steam_root();
     {
       std::lock_guard<std::mutex> lock(steam_library_mutex);
       steam_library_signature = steam_library::signature(root);
     }
-    const auto games = steam_library::scan(root, owned_too);
+    const auto games = steam_library::scan(root, owned_too, shortcuts);
     const auto template_app = steam;
     BOOST_LOG(info) << "Steam library: "sv << games.size() << (owned_too ? " games"sv : " installed games"sv)
                     << " after app '"sv << template_app.name << '\'';
@@ -5280,9 +5280,10 @@ namespace proc {
       ctx.idx = std::to_string(i);
       ctx.uuid = steam_library::uuid_for(game.appid);
       ctx.name = game.name;
-      ctx.cmd = steam_library::launch_command(template_app.cmd, game.appid);
-      ctx.image_path = steam_library::capsule_image(root, game.appid);
+      ctx.cmd = steam_library::launch_command(template_app.cmd, game.appid, game.shortcut);
+      ctx.image_path = game.shortcut ? steam_library::shortcut_image(root, game.appid) : steam_library::capsule_image(root, game.appid);
       ctx.steam_appid = std::to_string(game.appid);
+      ctx.steam_shortcut = game.shortcut;
       auto possible_ids = calculate_app_id(ctx.name, ctx.image_path, i++);
       ctx.id = ids.count(std::get<0>(possible_ids)) == 0 ? std::get<0>(possible_ids) : std::get<1>(possible_ids);
       ids.insert(ctx.id);
@@ -5522,9 +5523,10 @@ namespace proc {
             }
           }
           ctx.steam_end_with_game = app_node.value("steam-library-end-with-game", true);
+          const bool steam_shortcuts = app_node.value("steam-library-non-steam", true);
           apps.emplace_back(std::move(ctx));
           if (steam_library != "off") {
-            add_steam_library(apps.back(), steam_library == "all", apps, ids, i);
+            add_steam_library(apps.back(), steam_library == "all", steam_shortcuts, apps, ids, i);
           }
         }
 

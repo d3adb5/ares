@@ -108,6 +108,8 @@ namespace proc {
     std::string steam_appid;
     // Its session ends when the game quits, not when Steam does ("steam-library-end-with-game").
     bool steam_end_with_game {true};
+    // A non-Steam game added to Steam: steam_appid is its shortcut id.
+    bool steam_shortcut {false};
     bool elevated;
     bool auto_detach;
     bool wait_all;

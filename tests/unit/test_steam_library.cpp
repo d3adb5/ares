@@ -131,7 +131,7 @@ TEST(SteamLibrary, ScansInstalledOnlyOrOwnedToo) {
   EXPECT_FALSE(all[0].installed);
 
   const auto before = steam_library::signature(root);
-  EXPECT_EQ(before, "400o 620i ");
+  EXPECT_EQ(before, "400o\n620i\n");
   std::filesystem::remove(root / "steamapps" / "appmanifest_620.acf");  // uninstalled
   EXPECT_NE(steam_library::signature(root), before);
   std::filesystem::remove_all(root);
@@ -164,4 +164,86 @@ TEST(SteamLibrary, GameWatchEndsOnlyAfterTheGameRanAndLeft) {
   EXPECT_FALSE(watch.ended(true, t0 + 63s));
   EXPECT_FALSE(watch.ended(false, t0 + 65s));
   EXPECT_TRUE(watch.ended(false, t0 + 66s));
+}
+
+namespace {
+  /// shortcuts.vdf: binary KV with inline keys, as Steam writes it.
+  std::string shortcuts_vdf(const std::vector<std::tuple<std::uint32_t, std::string, bool>> &games) {
+    std::string out;
+    out += '\0';
+    out += "shortcuts";
+    out += '\0';
+    int index = 0;
+    for (const auto &[appid, name, hidden] : games) {
+      out += '\0';
+      out += std::to_string(index++) + '\0';
+      out += '\x02';
+      out += "appid";
+      out += '\0';
+      put32(out, appid);
+      out += '\x01';
+      out += "AppName";
+      out += '\0';
+      out += name + '\0';
+      out += '\x02';
+      out += "IsHidden";
+      out += '\0';
+      put32(out, hidden ? 1 : 0);
+      out += '\0';
+      out += "tags";
+      out += '\0';
+      out += '\x01';
+      out += "0";
+      out += '\0';
+      out += "favorite";
+      out += '\0';
+      out += '\x08';
+      out += '\x08';
+    }
+    out += "\x08\x08";
+    return out;
+  }
+}  // namespace
+
+TEST(SteamLibrary, ReadsNonSteamShortcuts) {
+  const auto games = steam_library::read_shortcuts(shortcuts_vdf({
+    {3927187888u, "The Wind Waker HD", false},
+    {2284676767u, "Hidden one", true},
+    {4139005981u, "Super Mario Odyssey", false},
+  }));
+  ASSERT_EQ(games.size(), 2u);
+  EXPECT_EQ(games[0].appid, 3927187888u);
+  EXPECT_EQ(games[0].name, "The Wind Waker HD");
+  EXPECT_TRUE(games[0].shortcut);
+  EXPECT_TRUE(games[0].installed);
+  EXPECT_EQ(games[1].name, "Super Mario Odyssey");
+  EXPECT_TRUE(steam_library::read_shortcuts("garbage").empty());
+}
+
+TEST(SteamLibrary, LaunchesNonSteamGamesByTheirGameId) {
+  // (appid << 32) | 0x02000000, as Steam's own "Create desktop shortcut" writes it.
+  EXPECT_EQ(steam_library::launch_command("steam -gamepadui", 3927187888u, true),
+            "steam -gamepadui steam://rungameid/16867143544240865280");
+}
+
+TEST(SteamLibrary, ScansNonSteamGamesWithTheirArt) {
+  const auto root = std::filesystem::temp_directory_path() / ("steam-shortcuts-test-" + std::to_string(::getpid()));
+  std::filesystem::create_directories(root / "steamapps");
+  std::filesystem::create_directories(root / "userdata" / "1" / "config" / "grid");
+  {
+    std::ofstream out {root / "userdata" / "1" / "config" / "shortcuts.vdf", std::ios::binary};
+    out << shortcuts_vdf({{3927187888u, "Wind Waker", false}});
+  }
+  std::ofstream {root / "userdata" / "1" / "config" / "grid" / "3927187888p.png"} << "png";
+  std::ofstream {root / "steamapps" / "appmanifest_620.acf"} << "\"AppState\" { \"appid\" \"620\" \"name\" \"Portal 2\" }";
+
+  EXPECT_EQ(steam_library::scan(root, false).size(), 1u);
+  const auto games = steam_library::scan(root, false, true);
+  ASSERT_EQ(games.size(), 2u);
+  EXPECT_EQ(games[0].name, "Portal 2");
+  EXPECT_TRUE(games[1].shortcut);
+  EXPECT_EQ(steam_library::shortcut_image(root, 3927187888u),
+            (root / "userdata" / "1" / "config" / "grid" / "3927187888p.png").string());
+  EXPECT_NE(steam_library::signature(root).find("3927187888sWind Waker"), std::string::npos);
+  std::filesystem::remove_all(root);
 }

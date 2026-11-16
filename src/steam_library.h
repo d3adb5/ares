@@ -26,6 +26,7 @@ namespace steam_library {
     std::uint32_t appid {};
     std::string name;
     bool installed {};
+    bool shortcut {};  ///< A non-Steam game added to Steam (userdata/<id>/config/shortcuts.vdf).
   };
 
   struct app_info_t {
@@ -209,6 +210,84 @@ namespace steam_library {
   }
 
   /**
+   * The non-Steam games in a shortcuts.vdf (binary KV with inline keys): "shortcuts" -> index -> fields, keys in any
+   * case. Hidden ones are left out, as Steam's library leaves them out.
+   */
+  inline std::vector<game_t> read_shortcuts(std::string_view data) {
+    std::vector<game_t> games;
+    const auto lower = [](std::string_view text) {
+      std::string out {text};
+      for (auto &c : out) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      }
+      return out;
+    };
+    std::size_t at = 0;
+    int depth = 0;
+    game_t game;
+    bool hidden = false;
+    while (at < data.size()) {
+      const auto type = static_cast<unsigned char>(data[at++]);
+      if (type == 0x08) {
+        if (depth == 2 && game.appid != 0 && !game.name.empty() && !hidden) {
+          games.push_back(game);
+        }
+        if (--depth < 0) {
+          break;
+        }
+        continue;
+      }
+      const auto zero = data.find('\0', at);
+      if (zero == std::string_view::npos) {
+        break;
+      }
+      const auto key = lower(data.substr(at, zero - at));
+      at = zero + 1;
+      if (type == 0x00) {
+        if (++depth == 2) {
+          game = {.installed = true, .shortcut = true};
+          hidden = false;
+        }
+      } else if (type == 0x01) {
+        const auto end = data.find('\0', at);
+        if (end == std::string_view::npos) {
+          break;
+        }
+        if (depth == 2 && key == "appname") {
+          game.name = data.substr(at, end - at);
+        }
+        at = end + 1;
+      } else if (type == 0x02 || type == 0x03 || type == 0x04 || type == 0x06) {
+        if (at + 4 > data.size()) {
+          break;
+        }
+        std::uint32_t value;
+        std::memcpy(&value, data.data() + at, 4);
+        at += 4;
+        if (depth == 2 && key == "appid") {
+          game.appid = value;
+        } else if (depth == 2 && key == "ishidden") {
+          hidden = value != 0;
+        }
+      } else if (type == 0x07 || type == 0x0a) {
+        at += 8;
+      } else {
+        break;
+      }
+    }
+    return games;
+  }
+
+  /// Case-insensitive by name, as Steam's library lists them.
+  inline void sort_by_name(std::vector<game_t> &games) {
+    std::ranges::sort(games, [](const game_t &a, const game_t &b) {
+      return std::lexicographical_compare(a.name.begin(), a.name.end(), b.name.begin(), b.name.end(), [](char x, char y) {
+        return std::tolower(static_cast<unsigned char>(x)) < std::tolower(static_cast<unsigned char>(y));
+      });
+    });
+  }
+
+  /**
    * The games: installed ones (manifest name, or appinfo's) and owned ones (known to appinfo as a game).
    * appinfo's type decides when it knows the app; otherwise only installed non-tools count.
    */
@@ -248,11 +327,7 @@ namespace steam_library {
     for (auto &[_, game] : games) {
       sorted.push_back(std::move(game));
     }
-    std::ranges::sort(sorted, [](const game_t &a, const game_t &b) {
-      return std::lexicographical_compare(a.name.begin(), a.name.end(), b.name.begin(), b.name.end(), [](char x, char y) {
-        return std::tolower(static_cast<unsigned char>(x)) < std::tolower(static_cast<unsigned char>(y));
-      });
-    });
+    sort_by_name(sorted);
     return sorted;
   }
 
@@ -276,9 +351,10 @@ namespace steam_library {
 
   /**
    * Scan a Steam root (~/.steam/steam): every library folder's manifests, with owned_too the apps each user's library
-   * has cached details for (userdata/<id>/config/librarycache/<appid>.json: what they own), and appinfo.vdf.
+   * has cached details for (userdata/<id>/config/librarycache/<appid>.json: what they own), and appinfo.vdf; with
+   * shortcuts the non-Steam games each user added (userdata/<id>/config/shortcuts.vdf).
    */
-  inline std::vector<game_t> scan(const std::filesystem::path &root, bool owned_too) {
+  inline std::vector<game_t> scan(const std::filesystem::path &root, bool owned_too, bool shortcuts = false) {
     std::error_code ec;
     std::map<std::uint32_t, std::string> installed;
     auto folders = text_vdf_values(read_file(root / "steamapps" / "libraryfolders.vdf"), "path");
@@ -315,7 +391,33 @@ namespace steam_library {
       }
     }
 
-    return games_from(installed, owned, read_appinfo(read_file(root / "appcache" / "appinfo.vdf")));
+    auto games = games_from(installed, owned, read_appinfo(read_file(root / "appcache" / "appinfo.vdf")));
+    if (shortcuts) {
+      std::set<std::uint32_t> added;
+      for (const auto &user : std::filesystem::directory_iterator {root / "userdata", ec}) {
+        for (auto &game : read_shortcuts(read_file(user.path() / "config" / "shortcuts.vdf"))) {
+          if (added.insert(game.appid).second) {
+            games.push_back(std::move(game));
+          }
+        }
+      }
+      sort_by_name(games);
+    }
+    return games;
+  }
+
+  /// A non-Steam game's portrait art, as set in Steam's library (userdata/<id>/config/grid); empty if none.
+  inline std::string shortcut_image(const std::filesystem::path &root, std::uint32_t appid) {
+    std::error_code ec;
+    for (const auto &user : std::filesystem::directory_iterator {root / "userdata", ec}) {
+      for (const auto *suffix : {"p.png", "p.jpg", ".png", ".jpg"}) {
+        const auto path = user.path() / "config" / "grid" / (std::to_string(appid) + suffix);
+        if (std::filesystem::exists(path, ec)) {
+          return path.string();
+        }
+      }
+    }
+    return {};
   }
 
   /// The portrait capsule Steam's library shows, cached in appcache/librarycache; empty if none.
@@ -343,20 +445,21 @@ namespace steam_library {
     return uuid;
   }
 
-  /// The template entry's command, asking its Steam to run the game.
-  inline std::string launch_command(std::string_view template_cmd, std::uint32_t appid) {
+  /// The template entry's command, asking its Steam to run the game: a non-Steam one by its 64-bit game id.
+  inline std::string launch_command(std::string_view template_cmd, std::uint32_t appid, bool shortcut = false) {
     auto cmd = std::string {template_cmd};
     while (!cmd.empty() && std::isspace(static_cast<unsigned char>(cmd.back()))) {
       cmd.pop_back();
     }
-    return cmd + " steam://rungameid/" + std::to_string(appid);
+    const auto id = shortcut ? (static_cast<std::uint64_t>(appid) << 32) | 0x02000000u : std::uint64_t {appid};
+    return cmd + " steam://rungameid/" + std::to_string(id);
   }
 
-  /// What the library's entries depend on: every game with whether it is installed. Changes on install or uninstall.
+  /// What the library's entries depend on: every game, installed or not, and the non-Steam ones with their names.
   inline std::string signature(const std::filesystem::path &root) {
     std::string out;
-    for (const auto &game : scan(root, true)) {
-      out += std::to_string(game.appid) + (game.installed ? "i " : "o ");
+    for (const auto &game : scan(root, true, true)) {
+      out += std::to_string(game.appid) + (game.shortcut ? "s" + game.name : game.installed ? "i" : "o") + '\n';
     }
     return out;
   }

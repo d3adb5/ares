@@ -1318,6 +1318,9 @@ namespace nvhttp {
         if (!app.steam_appid.empty()) {
           // Extra element: clients read only the ones they know.
           app_node.put("SteamAppId", app.steam_appid);
+          if (app.steam_shortcut) {
+            app_node.put("SteamShortcut", 1);  // a non-Steam game: no store page or artwork under that id
+          }
         }
 
         apps.push_back(std::make_pair("App", std::move(app_node)));
