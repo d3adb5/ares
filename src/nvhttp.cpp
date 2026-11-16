@@ -1312,6 +1312,10 @@ namespace nvhttp {
         app_node.put("UUID", app.uuid);
         app_node.put("IDX", app.idx);
         app_node.put("ID", app.id);
+        if (!app.steam_appid.empty()) {
+          // Extra element: clients read only the ones they know.
+          app_node.put("SteamAppId", app.steam_appid);
+        }
 
         apps.push_back(std::make_pair("App", std::move(app_node)));
       }
@@ -2045,7 +2049,7 @@ namespace nvhttp {
 
     std::ifstream in(app_image, std::ios::binary);
     SimpleWeb::CaseInsensitiveMultimap headers;
-    headers.emplace("Content-Type", "image/png");
+    headers.emplace("Content-Type", app_image.ends_with(".jpg") ? "image/jpeg" : "image/png");
     response->write(SimpleWeb::StatusCode::success_ok, in, headers);
     response->close_connection_after_response = true;
   }

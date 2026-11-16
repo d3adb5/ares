@@ -418,6 +418,16 @@
                   v-model="editForm['unlock-host-session']"
                   default="false"
         ></Checkbox>
+        <!-- one entry per Steam game, launched through this entry's Steam -->
+        <div class="mb-3" v-if="platform === 'linux'">
+          <label for="steamLibrary" class="form-label">{{ $t('apps.steam_library') }}</label>
+          <select id="steamLibrary" class="form-select" v-model="editForm['steam-library']">
+            <option value="off">{{ $t('apps.steam_library_off') }}</option>
+            <option value="installed">{{ $t('apps.steam_library_installed') }}</option>
+            <option value="all">{{ $t('apps.steam_library_all') }}</option>
+          </select>
+          <div class="form-text">{{ $t('apps.steam_library_desc') }}</div>
+        </div>
         <!-- gamescope flags for sessions isolated with gamescope -->
         <div class="mb-3" v-if="platform === 'linux' && editForm['isolation-method'] !== 'kwin_virtual'">
           <label for="gamescopeSteamMode" class="form-label">{{ $t('apps.gamescope_steam_mode') }}</label>
@@ -632,6 +642,7 @@
     "isolate-devices": "auto",
     "isolate-sound": "auto",
     "stop-desktop-steam": "auto",
+    "steam-library": "off",
     "terminate-on-pause": false,
     "gamepad": ""
   }
@@ -839,6 +850,10 @@
       },
       editApp(app) {
         this.editForm = Object.assign({}, newApp, JSON.parse(JSON.stringify(app)));
+        // An earlier build stored a checkbox: true meant every game.
+        if (typeof this.editForm["steam-library"] === "boolean") {
+          this.editForm["steam-library"] = this.editForm["steam-library"] ? "all" : "off";
+        }
         this.showEditForm = true;
       },
       exportLauncherFile(app) {

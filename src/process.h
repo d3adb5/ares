@@ -104,6 +104,8 @@ namespace proc {
     std::string image_path;
     std::string id;
     std::string gamepad;
+    // A Steam game this entry runs through its template's Steam ("steam-library" in apps.json).
+    std::string steam_appid;
     bool elevated;
     bool auto_detach;
     bool wait_all;

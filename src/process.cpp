@@ -82,6 +82,7 @@
 #include "audio.h"
 #include "video.h"
 #include "uuid.h"
+#include "steam_library.h"
 
 #ifdef _WIN32
   // from_utf8() string conversion function
@@ -4753,8 +4754,8 @@ namespace proc {
     auto image_extension = std::filesystem::path(app_image_path).extension().string();
     boost::to_lower(image_extension);
 
-    // return the default box image if extension is not "png"
-    if (image_extension != ".png") {
+    // return the default box image if extension is not "png" (or a Steam library capsule's "jpg")
+    if (image_extension != ".png" && image_extension != ".jpg") {
       return DEFAULT_APP_IMAGE_PATH;
     }
 
@@ -5217,6 +5218,32 @@ namespace proc {
     }
   }
 
+  /**
+   * One entry per game of the local Steam library (installed, or owned_too), after the template: its settings, its command plus
+   * steam://rungameid, so Steam (and its overlay) runs the game. Rescanned whenever apps.json is loaded.
+   */
+  static void add_steam_library(const proc::ctx_t &steam, bool owned_too, std::vector<proc::ctx_t> &apps, std::set<std::string> &ids, int &i) {
+    const char *home = std::getenv("HOME");
+    const auto root = std::filesystem::path {home ? home : ""} / ".steam" / "steam";
+    const auto games = steam_library::scan(root, owned_too);
+    const auto template_app = steam;
+    BOOST_LOG(info) << "Steam library: "sv << games.size() << (owned_too ? " games"sv : " installed games"sv)
+                    << " after app '"sv << template_app.name << '\'';
+    for (const auto &game : games) {
+      auto ctx = template_app;
+      ctx.idx = std::to_string(i);
+      ctx.uuid = steam_library::uuid_for(game.appid);
+      ctx.name = game.name;
+      ctx.cmd = steam_library::launch_command(template_app.cmd, game.appid);
+      ctx.image_path = steam_library::capsule_image(root, game.appid);
+      ctx.steam_appid = std::to_string(game.appid);
+      auto possible_ids = calculate_app_id(ctx.name, ctx.image_path, i++);
+      ctx.id = ids.count(std::get<0>(possible_ids)) == 0 ? std::get<0>(possible_ids) : std::get<1>(possible_ids);
+      ids.insert(ctx.id);
+      apps.push_back(std::move(ctx));
+    }
+  }
+
   std::optional<proc::proc_t> parse(const std::string &file_name) {
 
     // Prepare environment variables.
@@ -5433,7 +5460,21 @@ namespace proc {
           ctx.state_cmds = std::move(state_cmds);
           ctx.detached = std::move(detached);
 
+          // off, installed or all; true is an earlier build's checkbox, which meant all.
+          std::string steam_library = "off";
+          if (const auto it = app_node.find("steam-library"); it != app_node.end()) {
+            steam_library = it->is_boolean() ? (it->get<bool>() ? "all" : "off") :
+                            it->is_string()  ? it->get<std::string>() :
+                                               "off";
+            if (steam_library != "off" && steam_library != "installed" && steam_library != "all") {
+              BOOST_LOG(warning) << "Unknown steam-library '" << steam_library << "' for app " << ctx.name << "; off.";
+              steam_library = "off";
+            }
+          }
           apps.emplace_back(std::move(ctx));
+          if (steam_library != "off") {
+            add_steam_library(apps.back(), steam_library == "all", apps, ids, i);
+          }
         }
 
         fail_count = 0;
