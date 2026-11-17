@@ -243,6 +243,7 @@ namespace proc {
     // The library as the apps were last built from it; empty while no entry uses "steam-library".
     std::mutex steam_library_mutex;
     std::string steam_library_signature;
+    steam_library::cache_t steam_library_cache;  // rescans only when the library's files changed
     std::unordered_map<std::string, std::shared_ptr<std::atomic_bool>>
       isolated_launching_clients;
 
@@ -5318,11 +5319,12 @@ namespace proc {
    */
   static void add_steam_library(const proc::ctx_t &steam, bool owned_too, bool shortcuts, std::vector<proc::ctx_t> &apps, std::set<std::string> &ids, int &i) {
     const auto root = steam_root();
+    const auto all = steam_library_cache.games(root);
     {
       std::lock_guard<std::mutex> lock(steam_library_mutex);
-      steam_library_signature = steam_library::signature(root);
+      steam_library_signature = steam_library::signature(all);
     }
-    const auto games = steam_library::scan(root, owned_too, shortcuts);
+    const auto games = steam_library::select(all, owned_too, shortcuts);
     const auto template_app = steam;
     BOOST_LOG(info) << "Steam library: "sv << games.size() << (owned_too ? " games"sv : " installed games"sv)
                     << " after app '"sv << template_app.name << '\'';
@@ -5811,7 +5813,7 @@ namespace proc {
       return;
     }
     checked_at = now;
-    if (steam_library::signature(steam_root()) == built) {
+    if (steam_library::signature(steam_library_cache.games(steam_root())) == built) {
       return;
     }
     {

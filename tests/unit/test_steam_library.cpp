@@ -293,3 +293,40 @@ TEST(SteamLibrary, ScansNonSteamGamesWithTheirArt) {
   EXPECT_NE(steam_library::signature(root).find("3927187888sWind Waker"), std::string::npos);
   std::filesystem::remove_all(root);
 }
+
+TEST(SteamLibrary, CacheRescansOnlyWhenTheFilesChangeAndNotMidWrite) {
+  using namespace std::chrono_literals;
+  const auto root = std::filesystem::temp_directory_path() / ("steam-cache-test-" + std::to_string(::getpid()));
+  std::filesystem::create_directories(root / "steamapps");
+  std::filesystem::create_directories(root / "appcache");
+  const auto manifest = [&](int appid, const std::string &name) {
+    std::ofstream {root / "steamapps" / ("appmanifest_" + std::to_string(appid) + ".acf")}
+      << "\"AppState\"\n{\n\t\"appid\"\t\"" << appid << "\"\n\t\"name\"\t\"" << name << "\"\n}\n";
+  };
+  manifest(10, "Alpha");
+  std::ofstream {root / "appcache" / "appinfo.vdf"} << "x";
+  const auto old = std::filesystem::file_time_type::clock::now() - 60s;
+  std::filesystem::last_write_time(root / "appcache" / "appinfo.vdf", old);
+  std::filesystem::last_write_time(root / "steamapps", old);
+
+  steam_library::cache_t cache;
+  EXPECT_EQ(cache.games(root).size(), 1u);
+  EXPECT_EQ(cache.games(root).size(), 1u);
+  EXPECT_EQ(cache.scans, 1);
+
+  manifest(20, "Beta");  // the folder's time moves
+  EXPECT_EQ(cache.games(root).size(), 2u);
+  EXPECT_EQ(cache.scans, 2);
+
+  // Steam rewriting appinfo right now: the last scan stands until it has settled.
+  manifest(30, "Gamma");
+  std::filesystem::last_write_time(root / "appcache" / "appinfo.vdf", std::filesystem::file_time_type::clock::now());
+  EXPECT_EQ(cache.games(root).size(), 2u);
+  EXPECT_EQ(cache.games(root, std::filesystem::file_time_type::clock::now() + 6s).size(), 3u);
+  EXPECT_EQ(cache.scans, 3);
+
+  const auto all = cache.games(root);
+  EXPECT_EQ(steam_library::select(all, false, false).size(), 3u);
+  EXPECT_EQ(steam_library::signature(all), steam_library::signature(root));
+  std::filesystem::remove_all(root);
+}

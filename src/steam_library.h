@@ -14,6 +14,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -521,13 +522,78 @@ namespace steam_library {
     std::filesystem::remove(file.parent_path().parent_path(), ec);
   }
 
-  /// What the library's entries depend on: every game, installed or not, and the non-Steam ones with their names.
-  inline std::string signature(const std::filesystem::path &root) {
+  /// What a scan reads, as paths with their change times: equal stamps mean an equal scan.
+  inline std::string stamp(const std::filesystem::path &root) {
     std::string out;
-    for (const auto &game : scan(root, true, true)) {
+    std::error_code ec;
+    const auto add = [&](const std::filesystem::path &path) {
+      const auto time = std::filesystem::last_write_time(path, ec);
+      out += path.string() + ' ' + (ec ? "-" : std::to_string(time.time_since_epoch().count())) + '\n';
+    };
+    add(root / "steamapps" / "libraryfolders.vdf");
+    add(root / "appcache" / "appinfo.vdf");
+    auto folders = text_vdf_values(read_file(root / "steamapps" / "libraryfolders.vdf"), "path");
+    folders.push_back(root.string());
+    for (const auto &folder : folders) {
+      add(std::filesystem::path {folder} / "steamapps");
+    }
+    for (const auto &user : std::filesystem::directory_iterator {root / "userdata", ec}) {
+      add(user.path() / "config" / "librarycache");
+      add(user.path() / "config" / "shortcuts.vdf");
+    }
+    return out;
+  }
+
+  /// The games of a full scan that a narrower one (installed only, without non-Steam games) would return.
+  inline std::vector<game_t> select(std::vector<game_t> games, bool owned_too, bool shortcuts) {
+    std::erase_if(games, [&](const game_t &game) {
+      return game.shortcut ? !shortcuts : !owned_too && !game.installed;
+    });
+    return games;
+  }
+
+  /**
+   * The full scan, repeated only when the stamp changed. While Steam is rewriting appinfo.vdf (changed under 5 s
+   * ago) the last scan stands: a half-written file ends at its first bad record and would lose the games after it.
+   */
+  class cache_t {
+  public:
+    std::vector<game_t> games(const std::filesystem::path &root, std::filesystem::file_time_type now = std::filesystem::file_time_type::clock::now()) {
+      std::lock_guard<std::mutex> lock {mutex};
+      auto current = stamp(root);
+      if (current == scanned) {
+        return cached;
+      }
+      std::error_code ec;
+      const auto written = std::filesystem::last_write_time(root / "appcache" / "appinfo.vdf", ec);
+      if (!ec && !scanned.empty() && now - written < std::chrono::seconds {5}) {
+        return cached;
+      }
+      cached = scan(root, true, true);
+      scanned = std::move(current);
+      ++scans;
+      return cached;
+    }
+
+    int scans {};  ///< For tests.
+
+  private:
+    std::mutex mutex;
+    std::string scanned;
+    std::vector<game_t> cached;
+  };
+
+  /// What the library's entries depend on: every game, installed or not, and the non-Steam ones with their names.
+  inline std::string signature(const std::vector<game_t> &games) {
+    std::string out;
+    for (const auto &game : games) {
       out += std::to_string(game.appid) + (game.shortcut ? "s" + game.name : game.installed ? "i" : "o") + '\n';
     }
     return out;
+  }
+
+  inline std::string signature(const std::filesystem::path &root) {
+    return signature(scan(root, true, true));
   }
 
   /// Whether a process is Steam's reaper of the game: "reaper SteamLaunch AppId=<id> -- <the game>".
