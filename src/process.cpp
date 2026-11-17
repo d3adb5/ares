@@ -2155,6 +2155,24 @@ namespace proc {
         return std::nullopt;
       }
 
+      /**
+       * Whether a gamepad Ares made on the host still exists: its start probes every type, and the kernel takes up to
+       * 15 s to give up on the Switch one. A Steam started meanwhile sees that hidraw node in /sys, cannot open it
+       * from the session's /dev, and then ignores the client's pad given the same node name (2026-11-17).
+       */
+      static bool host_pads_present() {
+        std::error_code ec;
+        for (const auto &entry : std::filesystem::directory_iterator {"/sys/class/hidraw", ec}) {
+          std::ifstream uevent {entry.path() / "device" / "uevent"};
+          for (std::string line; std::getline(uevent, line);) {
+            if (line.starts_with("HID_PHYS=libvirtualhid/")) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
       static bool desktop_has_steam() {
         const pid_t launcher = desktop_launcher;
         // The launcher lives as long as the Steam it started, across its restarts to update.
@@ -2210,6 +2228,10 @@ namespace proc {
         }
         had_steam = steam_up;
         had_desktop = desktop;
+        if (!steam_up && host_pads_present()) {
+          not_before = std::max(not_before, now + SETTLE);  // and a while after the last one is gone
+          return;
+        }
         if (steam_up || desktop || launching || now < not_before) {
           return;
         }
