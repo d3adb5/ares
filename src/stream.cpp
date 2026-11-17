@@ -34,6 +34,7 @@ extern "C" {
 #include "platform/common.h"
 #include "process.h"
 #include "stream.h"
+#include "stream_policy.h"
 #include "sync.h"
 #include "system_tray.h"
 #include "thread_safe.h"
@@ -404,6 +405,7 @@ namespace stream {
 
       safe::mail_raw_t::event_t<bool> idr_events;
       safe::mail_raw_t::event_t<std::pair<int64_t, int64_t>> invalidate_ref_frames_events;
+      stream_policy::adaptive_fec_t fec;
 
       std::unique_ptr<platf::deinit_t> qos;
     } video;
@@ -1031,6 +1033,9 @@ namespace stream {
       std::chrono::milliseconds t {stats[1]};
 
       auto lastGoodFrame = stats[3];
+      if (count > 0) {
+        session->video.fec.loss();
+      }
 
       BOOST_LOG(verbose)
         << "type [IDX_LOSS_STATS]"sv << std::endl
@@ -1044,6 +1049,7 @@ namespace stream {
     server->map(packetTypes[IDX_REQUEST_IDR_FRAME], [&](session_t *session, const std::string_view &payload) {
       BOOST_LOG(debug) << "type [IDX_REQUEST_IDR_FRAME]"sv;
       note_recovery_after_silence(*session, "a key frame"sv);
+      session->video.fec.loss();
 
       session->video.idr_events->raise(true);
     });
@@ -1059,6 +1065,7 @@ namespace stream {
         << "lastFrame [" << lastFrame << ']';
 
       note_recovery_after_silence(*session, "reference frame invalidation"sv);
+      session->video.fec.loss();
 
       session->video.invalidate_ref_frames_events->raise(std::make_pair(firstFrame, lastFrame));
     });
@@ -1540,7 +1547,7 @@ namespace stream {
         frame_header.frame_processing_latency = 0;
       }
 
-      auto fecPercentage = config::stream.fec_percentage;
+      auto fecPercentage = config::stream.fec_adaptive ? session->video.fec.percentage(config::stream.fec_percentage) : config::stream.fec_percentage;
 
       // Insert space for packet headers
       auto blocksize = session->config.packetsize + MAX_RTP_HEADER_SIZE;

@@ -30,7 +30,20 @@ namespace va {
    * For Gamescope's stream, whose frames stay in dma-bufs the encoder reads as they are.
    * converted --> The sequence number of the image the encoder went on to last.
    */
-  std::unique_ptr<platf::avcodec_encode_device_t> make_stream_encode_device(int width, int height, file_t &&card, std::shared_ptr<std::atomic_uint64_t> converted);
+  /// The stream frame the encoder last started on. With events, wake is an eventfd written whenever that moves.
+  struct stream_progress_t {
+    explicit stream_progress_t(bool events);
+    ~stream_progress_t();
+    std::uint64_t load() const {
+      return sequence.load();
+    }
+    void store(std::uint64_t value);
+
+    std::atomic_uint64_t sequence {0};
+    int wake {-1};
+  };
+
+  std::unique_ptr<platf::avcodec_encode_device_t> make_stream_encode_device(int width, int height, file_t &&card, std::shared_ptr<stream_progress_t> converted);
 
   // Ensure the render device pointed to by fd is capable of encoding h264 with the hevc_mode configured
   bool validate(int fd);

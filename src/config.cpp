@@ -1345,7 +1345,10 @@ namespace config {
     }
 
     int_f(vars, "max_bitrate", video.max_bitrate);
-    double_between_f(vars, "minimum_fps_target", video.minimum_fps_target, {0.0, 1000.0});
+    double_between_f(vars, "minimum_fps_target", video.minimum_fps_target, {-1.0, 1000.0});
+    string_restricted_f(vars, "stream_thread_priority", video.stream_thread_priority, {"off"sv, "nice"sv, "realtime"sv});
+    string_restricted_f(vars, "gamescope_stream_poll", video.gamescope_stream_poll, {"timer"sv, "events"sv});
+    bool_f(vars, "gamescope_stream_hdr_efc", video.gamescope_stream_hdr_efc);
 
     string_f(vars, "fallback_mode", video.fallback_mode);
     bool_f(vars, "isolated_virtual_display_option", video.isolated_virtual_display_option);
@@ -1388,6 +1391,7 @@ namespace config {
 
     path_f(vars, "file_apps", stream.file_apps);
     int_between_f(vars, "fec_percentage", stream.fec_percentage, {1, 255});
+    bool_f(vars, "fec_adaptive", stream.fec_adaptive);
 
     map_int_int_f(vars, "keybindings"s, input.keybindings);
 

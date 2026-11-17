@@ -38,7 +38,13 @@
 #include <boost/process/v1/search_path.hpp>
 #include <boost/process/v1/start_dir.hpp>
 #include <fcntl.h>
+#include <sched.h>
+#include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
+#ifdef SUNSHINE_BUILD_SDBUS
+  #include <systemd/sd-bus.h>
+#endif
 #include <unistd.h>
 
 // local includes
@@ -469,8 +475,54 @@ std::string get_local_ip_for_gateway() {
     }
   }
 
+  /**
+   * stream_thread_priority nice or realtime, for the high and critical threads (capture, encode, send, audio), by
+   * rtkit: a user service has no CAP_SYS_NICE, and rtkit demotes a real-time thread that stops yielding.
+   */
   void adjust_thread_priority(thread_priority_e priority) {
-    // Unimplemented
+    const auto &mode = config::video.stream_thread_priority;
+    if (mode == "off" || priority < thread_priority_e::high) {
+      return;
+    }
+    const bool critical = priority == thread_priority_e::critical;
+    const auto tid = static_cast<std::uint64_t>(::syscall(SYS_gettid));
+#ifdef SUNSHINE_BUILD_SDBUS
+    const bool realtime = mode == "realtime";
+    if (realtime) {
+      // rtkit grants real time only to a thread that resets on fork and has a bound on its uninterrupted run.
+      sched_param none {};
+      sched_setscheduler(0, SCHED_OTHER | SCHED_RESET_ON_FORK, &none);
+      rlimit bound {};
+      if (getrlimit(RLIMIT_RTTIME, &bound) == 0 && bound.rlim_cur > 200000) {
+        bound.rlim_cur = 200000;
+        bound.rlim_max = std::min<rlim_t>(bound.rlim_max, 200000);
+        setrlimit(RLIMIT_RTTIME, &bound);
+      }
+    } else if (setpriority(PRIO_PROCESS, static_cast<id_t>(tid), critical ? -15 : -10) == 0) {
+      BOOST_LOG(info) << "Stream thread "sv << tid << ": nice "sv << (critical ? -15 : -10);
+      return;
+    }
+    sd_bus *bus = nullptr;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    int result = sd_bus_open_system(&bus);
+    if (result >= 0) {
+      const auto pid = static_cast<std::uint64_t>(::getpid());
+      result = realtime ?
+                 sd_bus_call_method(bus, "org.freedesktop.RealtimeKit1", "/org/freedesktop/RealtimeKit1", "org.freedesktop.RealtimeKit1", "MakeThreadRealtimeWithPID", &error, nullptr, "ttu", pid, tid, static_cast<std::uint32_t>(critical ? 10 : 5)) :
+                 sd_bus_call_method(bus, "org.freedesktop.RealtimeKit1", "/org/freedesktop/RealtimeKit1", "org.freedesktop.RealtimeKit1", "MakeThreadHighPriorityWithPID", &error, nullptr, "tti", pid, tid, static_cast<std::int32_t>(critical ? -15 : -10));
+    }
+    if (result < 0) {
+      BOOST_LOG(warning) << "Stream thread "sv << tid << ": rtkit refused "sv << mode << ": "sv << (error.message ? error.message : std::strerror(-result));
+    } else {
+      BOOST_LOG(info) << "Stream thread "sv << tid << ": "sv << (realtime ? "real time, priority "sv : "nice "sv) << (realtime ? (critical ? 10 : 5) : (critical ? -15 : -10));
+    }
+    sd_bus_error_free(&error);
+    sd_bus_unref(bus);
+#else
+    if (setpriority(PRIO_PROCESS, static_cast<id_t>(tid), critical ? -15 : -10) != 0) {
+      BOOST_LOG(warning) << "Stream thread "sv << tid << ": could not raise its priority (built without sd-bus): "sv << std::strerror(errno);
+    }
+#endif
   }
 
   void streaming_will_start() {

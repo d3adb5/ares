@@ -31,6 +31,7 @@ extern "C" {
 #include "platform/common.h"
 #include "sync.h"
 #include "video.h"
+#include "stream_policy.h"
 
 #ifdef HAVE_PYROWAVE
   // pyrowave.h refuses to compile unless the Vulkan types come first.
@@ -2498,6 +2499,7 @@ namespace video {
     // set max frame time based on client-requested target framerate.
     double minimum_fps_target = (config::video.minimum_fps_target > 0.0) ? config::video.minimum_fps_target * 1000 : std::max(config.encodingFramerate / 5, 10000);
     auto max_frametime = std::chrono::nanoseconds(1000ms) * 1000 / minimum_fps_target;
+    stream_policy::still_pacer_t still_pacer {std::chrono::duration_cast<std::chrono::nanoseconds>(max_frametime), config::video.minimum_fps_target < 0.0};
     auto encode_frame_threshold = std::chrono::nanoseconds(1000ms) * 1000 / config.encodingFramerate;
     auto frame_variation_threshold = encode_frame_threshold / 4;
     auto min_frame_diff = encode_frame_threshold - frame_variation_threshold;
@@ -2574,7 +2576,8 @@ namespace video {
 
       // Encode at a minimum FPS to avoid image quality issues with static content
       if (!requested_idr_frame || images->peek()) {
-        if (auto img = images->pop(max_frametime)) {
+        if (auto img = images->pop(still_pacer.wait(std::chrono::steady_clock::now()))) {
+          still_pacer.new_picture(std::chrono::steady_clock::now());
           frame_timestamp = img->frame_timestamp;
           if (!frame_timestamp) {
             if (!missing_frame_timestamp_warning_logged) {

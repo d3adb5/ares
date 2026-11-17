@@ -11,6 +11,7 @@
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <sys/eventfd.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -43,6 +44,7 @@ extern "C" {
 #include "src/platform/common.h"
 #include "src/utility.h"
 #include "src/video.h"
+#include "vaapi.h"
 
 using namespace std::literals;
 
@@ -480,7 +482,7 @@ namespace va {
    */
   class va_efc_t: public va_vram_t {
   public:
-    explicit va_efc_t(std::shared_ptr<std::atomic_uint64_t> converted):
+    explicit va_efc_t(std::shared_ptr<stream_progress_t> converted):
         converted {std::move(converted)} {
     }
 
@@ -507,11 +509,17 @@ namespace va {
       // EFC here reads 8-bit RGB (surface_for); 10-bit and HDR frames take the shader.
       const auto *vendor = vaQueryVendorString(va_display);
       const auto sw_format = reinterpret_cast<AVHWFramesContext *>(hw_frames_ctx_buf->data)->sw_format;
+      // gamescope_stream_hdr_efc (experimental) lets 10-bit frames try it too: surface_for falls back if refused.
+      const bool depth_ok = sw_format == AV_PIX_FMT_NV12 || (sw_format == AV_PIX_FMT_P010 && config::video.gamescope_stream_hdr_efc);
       usable = vendor && std::string_view {vendor}.find("radeonsi") != std::string_view::npos &&
-               width == frame->width && height == frame->height && sw_format == AV_PIX_FMT_NV12 &&
+               width == frame->width && height == frame->height && depth_ok &&
                !std::getenv("ARES_STREAM_NO_EFC");
       if (!usable) {
-        BOOST_LOG(info) << "Gamescope stream: converting with a shader, not on the encoder"sv;
+        // Expected for 10-bit and when switched off; on an 8-bit radeonsi stream it means EFC stopped working.
+        const bool expected = !depth_ok || std::getenv("ARES_STREAM_NO_EFC") ||
+                              !vendor || std::string_view {vendor}.find("radeonsi") == std::string_view::npos;
+        BOOST_LOG(expected ? info : warning) << "Gamescope stream: converting with a shader, not on the encoder"sv
+                                             << (expected ? ""sv : " (unexpected for this stream: frames wait behind the game's GPU work)"sv);
         return 0;
       }
 
@@ -538,6 +546,8 @@ namespace va {
           return 0;
         }
         usable = false;
+        BOOST_LOG(warning) << "Gamescope stream: the encoder refused the stream's buffer; converting with a shader from here on "
+                              "(frames wait behind the game's GPU work). A Mesa update may have changed it."sv;
       }
 
       // The first frames' blank image, or EFC turned out not to work.
@@ -557,7 +567,10 @@ namespace va {
       }
 
       VADRMPRIMESurfaceDescriptor prime {};
-      prime.fourcc = VA_FOURCC_BGRX;
+      // 10-bit packed RGB has the same fourcc in DRM and VA (XR30, XB30, AR30, AB30).
+      const bool deep = sd.fourcc == VA_FOURCC_X2R10G10B10 || sd.fourcc == VA_FOURCC_X2B10G10R10 ||
+                        sd.fourcc == VA_FOURCC_A2R10G10B10 || sd.fourcc == VA_FOURCC_A2B10G10R10;
+      prime.fourcc = deep ? sd.fourcc : VA_FOURCC_BGRX;
       prime.width = frame->width;
       prime.height = frame->height;
       prime.num_objects = 1;
@@ -581,7 +594,7 @@ namespace va {
       attributes[1].value.value.p = &prime;
 
       VASurfaceID surface;
-      const auto status = vaCreateSurfaces(va_display, VA_RT_FORMAT_RGB32, frame->width, frame->height, &surface, 1, attributes, 2);
+      const auto status = vaCreateSurfaces(va_display, deep ? VA_RT_FORMAT_RGB32_10 : VA_RT_FORMAT_RGB32, frame->width, frame->height, &surface, 1, attributes, 2);
       if (status != VA_STATUS_SUCCESS) {
         BOOST_LOG(warning) << "Gamescope stream: the encoder cannot read its buffers, converting with a shader: "sv << vaErrorStr(status);
         return std::nullopt;
@@ -639,7 +652,7 @@ namespace va {
     static inline std::mutex hooks_mutex;
     static inline std::map<VADriverContextP, va_efc_t *> hooks;
 
-    std::shared_ptr<std::atomic_uint64_t> converted;
+    std::shared_ptr<stream_progress_t> converted;
     VADriverContextP driver {nullptr};
     decltype(VADriverVTable::vaBeginPicture) begin_picture {nullptr};
     std::map<ino_t, VASurfaceID> surfaces;
@@ -869,7 +882,24 @@ namespace va {
     }
   }
 
-  std::unique_ptr<platf::avcodec_encode_device_t> make_stream_encode_device(int width, int height, file_t &&card, std::shared_ptr<std::atomic_uint64_t> converted) {
+  stream_progress_t::stream_progress_t(bool events):
+      wake {events ? eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC) : -1} {}
+
+  stream_progress_t::~stream_progress_t() {
+    if (wake >= 0) {
+      close(wake);
+    }
+  }
+
+  void stream_progress_t::store(std::uint64_t value) {
+    sequence.store(value);
+    if (wake >= 0) {
+      const std::uint64_t one = 1;
+      (void) !write(wake, &one, sizeof(one));
+    }
+  }
+
+  std::unique_ptr<platf::avcodec_encode_device_t> make_stream_encode_device(int width, int height, file_t &&card, std::shared_ptr<stream_progress_t> converted) {
     auto device = std::make_unique<va_efc_t>(std::move(converted));
     if (device->init(width, height, std::move(card), 0, 0)) {
       return nullptr;

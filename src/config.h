@@ -154,12 +154,19 @@ namespace config {
     } dd;
 
     int max_bitrate;  // Maximum bitrate, sets ceiling in kbps for bitrate requested from client
-    double minimum_fps_target;  ///< Lowest framerate that will be used when streaming. Range 0-1000, 0 = half of client's requested framerate.
+    double minimum_fps_target;  ///< Lowest framerate on static content. 0 = a fifth of the client's; -1 = that for 0.5 s after the last new frame, then 2.
 
     std::string fallback_mode;
     bool isolated_virtual_display_option;
     bool ignore_encoder_probe_failure;
     bool pyrowave;
+
+    // Scheduling of the capture, encode, send and audio threads: off, nice or realtime (both through rtkit).
+    std::string stream_thread_priority {"off"};
+    // How Gamescope stream capture learns a buffer can go back: a 1 ms timer, or events (encoder progress, fences).
+    std::string gamescope_stream_poll {"timer"};
+    // Experimental: 10-bit (HDR) Gamescope stream frames are converted on the encoder too, where the driver takes them.
+    bool gamescope_stream_hdr_efc {false};
   };
 
   struct audio_t {
@@ -182,6 +189,7 @@ namespace config {
     std::string file_apps;
 
     int fec_percentage;
+    bool fec_adaptive {false};  ///< fec_percentage is the ceiling; less while the client reports no loss.
 
     // Video encryption settings for LAN and WAN streams
     int lan_encryption_mode;

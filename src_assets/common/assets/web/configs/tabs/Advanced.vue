@@ -20,6 +20,35 @@ const config = ref(props.config)
       <div class="form-text">{{ $t('config.fec_percentage_desc') }}</div>
     </div>
 
+    <!-- Ares: opt-in stream tuning -->
+    <div class="mb-3 form-check">
+      <input type="checkbox" class="form-check-input" id="fec_adaptive" v-model="config.fec_adaptive" true-value="enabled" false-value="disabled" />
+      <label for="fec_adaptive" class="form-check-label">{{ $t('config.fec_adaptive') }}</label>
+      <div class="form-text">{{ $t('config.fec_adaptive_desc') }}</div>
+    </div>
+    <div class="mb-3" v-if="platform === 'linux'">
+      <label for="stream_thread_priority" class="form-label">{{ $t('config.stream_thread_priority') }}</label>
+      <select id="stream_thread_priority" class="form-select" v-model="config.stream_thread_priority">
+        <option value="off">{{ $t('config.stream_thread_priority_off') }}</option>
+        <option value="nice">{{ $t('config.stream_thread_priority_nice') }}</option>
+        <option value="realtime">{{ $t('config.stream_thread_priority_realtime') }}</option>
+      </select>
+      <div class="form-text">{{ $t('config.stream_thread_priority_desc') }}</div>
+    </div>
+    <div class="mb-3" v-if="platform === 'linux'">
+      <label for="gamescope_stream_poll" class="form-label">{{ $t('config.gamescope_stream_poll') }}</label>
+      <select id="gamescope_stream_poll" class="form-select" v-model="config.gamescope_stream_poll">
+        <option value="timer">{{ $t('config.gamescope_stream_poll_timer') }}</option>
+        <option value="events">{{ $t('config.gamescope_stream_poll_events') }}</option>
+      </select>
+      <div class="form-text">{{ $t('config.gamescope_stream_poll_desc') }}</div>
+    </div>
+    <div class="mb-3 form-check" v-if="platform === 'linux'">
+      <input type="checkbox" class="form-check-input" id="gamescope_stream_hdr_efc" v-model="config.gamescope_stream_hdr_efc" true-value="enabled" false-value="disabled" />
+      <label for="gamescope_stream_hdr_efc" class="form-check-label">{{ $t('config.gamescope_stream_hdr_efc') }}</label>
+      <div class="form-text">{{ $t('config.gamescope_stream_hdr_efc_desc') }}</div>
+    </div>
+
     <!-- Quantization Parameter -->
     <div class="mb-3">
       <label for="qp" class="form-label">{{ $t('config.qp') }}</label>

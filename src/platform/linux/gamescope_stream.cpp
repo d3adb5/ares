@@ -13,6 +13,7 @@
 #include "hermes_kms_color.h"
 #include "ares_stream_v1.h"
 #include "misc.h"
+#include "src/config.h"
 #include "src/logging.h"
 #include "src/video.h"
 #include "vaapi.h"
@@ -202,8 +203,14 @@ namespace platf::gamescope_stream {
           return capture_e::error;
         }
 
+        bool timed_out = false;
         for (;;) {
+          const auto leased = leases.size();
           release_finished();
+          if (timed_out && leases.size() < leased) {
+            BOOST_LOG(debug) << "Gamescope stream capture: " << ++late_releases << " slots released on a timeout, not an event";
+          }
+          timed_out = false;
 
           // Gamescope exits with its app. Ending capture now would drop the client with an error before
           // the session's process watch tells it the app finished, so stay until that happens.
@@ -224,7 +231,27 @@ namespace platf::gamescope_stream {
           const bool releasing = std::ranges::any_of(leases, [&](const lease_t &lease) {
             return lease.sequence != reading;
           });
-          if (!poll_fd(connection.el, POLLIN, releasing ? 1 : 100)) {
+          if (poll_events && converted->wake >= 0) {
+            // A lease ends with the encoder starting another picture, then its buffer's fences: wait for those.
+            std::vector<pollfd> fds {{connection.el, POLLIN, 0}, {converted->wake, POLLIN, 0}};
+            for (const auto &lease : leases) {
+              if (lease.sequence != reading && lease.image.use_count() <= 2 && lease.pool_id == current_pool && lease.slot < slots.size()) {
+                fds.push_back({slots[lease.slot].fd.el, POLLOUT, 0});
+              }
+            }
+            const int ready = ::poll(fds.data(), fds.size(), 100);
+            if (fds[1].revents & POLLIN) {
+              std::uint64_t count;
+              (void) !read(converted->wake, &count, sizeof(count));
+            }
+            if (!(fds[0].revents & (POLLIN | POLLHUP | POLLERR))) {
+              timed_out = ready == 0;
+              if (ready <= 0 && !push(nullptr, false)) {
+                return capture_e::ok;
+              }
+              continue;
+            }
+          } else if (!poll_fd(connection.el, POLLIN, releasing ? 1 : 100)) {
             if (!push(nullptr, false)) {
               return capture_e::ok;
             }
@@ -553,7 +580,9 @@ namespace platf::gamescope_stream {
       std::vector<slot_t> slots;
       std::deque<lease_t> leases;
       std::uint64_t sequence {};
-      std::shared_ptr<std::atomic_uint64_t> converted {std::make_shared<std::atomic_uint64_t>(0)};
+      const bool poll_events {config::video.gamescope_stream_poll == "events"};
+      std::shared_ptr<va::stream_progress_t> converted {std::make_shared<va::stream_progress_t>(poll_events)};
+      std::uint64_t late_releases {};  ///< Slots that went back only on the events mode's timeout.
     };
   }  // namespace
 
