@@ -17,12 +17,14 @@
 
 // platform includes
 #include <fcntl.h>
+#include <linux/magic.h>
 #include <linux/netlink.h>
 #include <sched.h>
 #include <sys/capability.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <unistd.h>
@@ -166,6 +168,11 @@ namespace platf::session_devices {
     // Filled by mirror() as the session's devices appear.
     add(op_t::mkdir, under("input"), {}, 0755);
     add(op_t::move, "/dev", staging);
+    // So is the hidraw class: Steam lists controllers there, and one of the host's it cannot open, met while its
+    // controller code starts, leaves it blind to every controller after (2026-11-17).
+    if (fs::is_directory("/sys/class/hidraw", ec)) {
+      add(op_t::tmpfs, "/sys/class/hidraw", {}, 0, 0, MS_NODEV);
+    }
     return plan;
   }
 
@@ -379,16 +386,28 @@ namespace platf::session_devices {
           return;
         }
         nodes.insert(device.devname);
+        // The session's /sys/class/hidraw lists its own devices only, linked as sysfs links them.
+        if (device.subsystem == "hidraw" && hidraw_fd >= 0) {
+          const auto name = fs::path {device.devname}.filename().string();
+          ::unlinkat(hidraw_fd, name.c_str(), 0);
+          if (::symlinkat((std::string {"../.."} + device.devpath).c_str(), hidraw_fd, name.c_str())) {
+            BOOST_LOG(warning) << "Couldn't list "sv << name << " in session seat ["sv << seat << "]'s /sys/class/hidraw: "sv << std::strerror(errno);
+          }
+        }
         BOOST_LOG(debug) << "Session seat ["sv << seat << "] got /dev/"sv << device.devname;
       }
 
       void remove(const device_t &device) {
         if (nodes.erase(device.devname)) {
           ::unlinkat(dev_fd, device.devname.c_str(), 0);
+          if (device.subsystem == "hidraw" && hidraw_fd >= 0) {
+            ::unlinkat(hidraw_fd, fs::path {device.devname}.filename().c_str(), 0);
+          }
         }
       }
 
       int dev_fd;
+      int hidraw_fd {-1};  ///< The session's own /sys/class/hidraw, where it has one.
       dev_t dev;
       std::string seat;
       bool hide_hid_gamepads;
@@ -402,6 +421,9 @@ namespace platf::session_devices {
       std::lock_guard lock {mirrors_mutex};
       std::erase(mirrors, this);
       ::close(dev_fd);
+      if (hidraw_fd >= 0) {
+        ::close(hidraw_fd);
+      }
     }
 
     // Kernel uevents arrive before udev has processed the device, and so
@@ -512,6 +534,15 @@ namespace platf::session_devices {
     }
 
     auto mirror = std::make_unique<mirror_impl_t>(dev_fd, st.st_dev, seat, hide_hid_gamepads);
+    // Only a tmpfs of the session's own is written to: never the host's sysfs.
+    if (const int hidraw_fd = ::open((proc + "/root/sys/class/hidraw").c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC); hidraw_fd >= 0) {
+      struct statfs fs_info {};
+      if (::fstatfs(hidraw_fd, &fs_info) == 0 && fs_info.f_type == TMPFS_MAGIC) {
+        mirror->hidraw_fd = hidraw_fd;
+      } else {
+        ::close(hidraw_fd);
+      }
+    }
     std::lock_guard lock {mirrors_mutex};
     sync(*mirror);
     mirrors.push_back(mirror.get());
