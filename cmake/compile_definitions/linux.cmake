@@ -362,6 +362,8 @@ list(APPEND PLATFORM_TARGET_FILES
         "${CMAKE_SOURCE_DIR}/src/platform/linux/session_audio.cpp"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/session_devices.h"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/session_devices.cpp"
+        "${CMAKE_SOURCE_DIR}/src/platform/linux/steam_gate.h"
+        "${CMAKE_SOURCE_DIR}/src/platform/linux/steam_gate.cpp"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/prelogin.h"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/prelogin.cpp"
         "${CMAKE_SOURCE_DIR}/src/platform/linux/session_attach.h"
