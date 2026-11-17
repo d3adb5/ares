@@ -217,7 +217,11 @@ namespace proc {
       std::mutex game_mutex;  ///< Guards the Steam game watch below.
       steam_library::game_watch_t game_watch;
       std::chrono::steady_clock::time_point game_scanned_at {};
+      long game_reaper {};  ///< Checked on every poll; /proc is scanned only while it is unknown.
       bool game_ended {false};
+      bool game_sent {false};  ///< A non-Steam game's launch went to Steam.
+      std::uintmax_t steam_ui_log_size {};  ///< Steam's UI log before it started.
+      std::chrono::steady_clock::time_point steam_started_at {};
       std::string wayland_display;
       std::string drm_device_path;
       std::string compositor_name;
@@ -1504,14 +1508,44 @@ namespace proc {
       return false;
     }
 
+    std::filesystem::path steam_root() {
+      const char *home = std::getenv("HOME");
+      return std::filesystem::path {home ? home : ""} / ".steam" / "steam";
+    }
+
+    /**
+     * @brief Ask the session's Steam for a non-Steam game once its UI has loaded them.
+     *
+     * A launch on Steam's command line reaches the UI first, which then waits for ever on an id it cannot resolve
+     * (the library shows "Cancel"). After 20 s without the UI's log line the launch is sent anyway.
+     */
+    void send_steam_shortcut(isolated_runtime_t &runtime, std::uint32_t appid) {
+      const bool ready = steam_library::ui_ready(steam_library::ui_log(steam_root()), runtime.steam_ui_log_size);
+      if (!ready && std::chrono::steady_clock::now() - runtime.steam_started_at < 20s) {
+        return;
+      }
+      runtime.game_sent = true;
+      const auto command = steam_library::send_command(runtime.app.cmd, appid, true);
+      BOOST_LOG(info) << "[IsolatedSession] Steam's UI " << (ready ? "is up" : "did not report in") << "; launching "
+                      << runtime.app.name << ": [" << command << ']';
+      std::error_code ec;
+      boost::filesystem::path working_dir;
+      auto child = platf::run_command(false, true, command, working_dir, runtime.env, nullptr, ec, nullptr);
+      if (ec) {
+        BOOST_LOG(warning) << "[IsolatedSession] Could not launch " << runtime.app.name << ": " << ec.message();
+        return;
+      }
+      child.detach();
+    }
+
     /**
      * @brief Whether a Steam library entry's game has quit, which ends its session.
      *
      * Steam itself stays up after the game, back in Big Picture, so the session's own processes never end it.
-     * Scans /proc at most once a second; the stream loop asks every 150 ms.
+     * The stream loop asks every 150 ms: a known reaper costs one read, /proc is scanned 4 times a second without.
      */
     bool steam_game_ended(isolated_runtime_t &runtime) {
-      if (runtime.app.steam_appid.empty() || !runtime.app.steam_end_with_game) {
+      if (runtime.app.steam_appid.empty()) {
         return false;
       }
       const auto appid = steam_library::parse_appid(runtime.app.steam_appid);
@@ -1519,12 +1553,22 @@ namespace proc {
         return false;
       }
       std::lock_guard<std::mutex> lock(runtime.game_mutex);
-      const auto now = std::chrono::steady_clock::now();
-      if (runtime.game_ended || now - runtime.game_scanned_at < 1s) {
+      if (runtime.app.steam_shortcut && !runtime.game_sent) {
+        send_steam_shortcut(runtime, *appid);
+      }
+      if (runtime.game_ended || !runtime.app.steam_end_with_game) {
         return runtime.game_ended;
       }
-      runtime.game_scanned_at = now;
-      runtime.game_ended = runtime.game_watch.ended(steam_library::game_running(*appid), now);
+      const auto now = std::chrono::steady_clock::now();
+      if (runtime.game_reaper && steam_library::is_reaper(*appid, "/proc/" + std::to_string(runtime.game_reaper))) {
+        runtime.game_watch.ended(true, now);
+        return false;
+      }
+      if (now - runtime.game_scanned_at >= 250ms) {
+        runtime.game_scanned_at = now;
+        runtime.game_reaper = steam_library::game_reaper(*appid);
+      }
+      runtime.game_ended = runtime.game_watch.ended(runtime.game_reaper != 0, now);
       if (runtime.game_ended) {
         BOOST_LOG(info) << "[IsolatedSession] " << runtime.app.name << " quit; ending " << runtime.runtime_id << '.';
       }
@@ -1645,6 +1689,7 @@ namespace proc {
       }
       if (!runtime->account) {
         remove_steam_leftovers();
+        steam_library::restore_intro(steam_root());
       }
       auto stopping_env = runtime->env;
       stopping_env["APOLLO_APP_STATUS"] = "TERMINATING";
@@ -1801,6 +1846,7 @@ namespace proc {
     }
     // Sessions that ended with a crashed or killed Ares left theirs.
     remove_steam_leftovers();
+    steam_library::restore_intro(steam_root());
 #endif
     return std::make_unique<deinit_t>();
   }
@@ -2221,6 +2267,16 @@ namespace proc {
       if (launch_was_cancelled()) {
         return 503;
       }
+    }
+    if (!runtime->account && runs_steam(app)) {
+      // A game entry goes straight to its game; the Steam entry keeps Big Picture's startup movie.
+      if (!app.steam_appid.empty() && app.steam_skip_intro) {
+        steam_library::skip_intro(steam_root());
+      } else {
+        steam_library::restore_intro(steam_root());
+      }
+      runtime->steam_ui_log_size = steam_library::file_size_or_zero(steam_library::ui_log(steam_root()));
+      runtime->steam_started_at = std::chrono::steady_clock::now();
     }
 
     std::error_code dir_ec;
@@ -5260,11 +5316,6 @@ namespace proc {
    * One entry per game of the local Steam library (installed, or owned_too), after the template: its settings, its command plus
    * steam://rungameid, so Steam (and its overlay) runs the game. Rescanned whenever apps.json is loaded.
    */
-  static std::filesystem::path steam_root() {
-    const char *home = std::getenv("HOME");
-    return std::filesystem::path {home ? home : ""} / ".steam" / "steam";
-  }
-
   static void add_steam_library(const proc::ctx_t &steam, bool owned_too, bool shortcuts, std::vector<proc::ctx_t> &apps, std::set<std::string> &ids, int &i) {
     const auto root = steam_root();
     {
@@ -5523,6 +5574,7 @@ namespace proc {
             }
           }
           ctx.steam_end_with_game = app_node.value("steam-library-end-with-game", true);
+          ctx.steam_skip_intro = app_node.value("steam-library-skip-intro", true);
           const bool steam_shortcuts = app_node.value("steam-library-non-steam", true);
           apps.emplace_back(std::move(ctx));
           if (steam_library != "off") {

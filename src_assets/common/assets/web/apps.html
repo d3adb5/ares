@@ -444,6 +444,14 @@
                   v-model="editForm['steam-library-end-with-game']"
                   default="true"
         ></Checkbox>
+        <Checkbox v-if="platform === 'linux' && editForm['steam-library'] !== 'off'"
+                  class="mb-3"
+                  id="steamLibrarySkipIntro"
+                  label="apps.steam_library_skip_intro"
+                  desc="apps.steam_library_skip_intro_desc"
+                  v-model="editForm['steam-library-skip-intro']"
+                  default="true"
+        ></Checkbox>
         <!-- gamescope flags for sessions isolated with gamescope -->
         <div class="mb-3" v-if="platform === 'linux' && editForm['isolation-method'] !== 'kwin_virtual'">
           <label for="gamescopeSteamMode" class="form-label">{{ $t('apps.gamescope_steam_mode') }}</label>
@@ -661,6 +669,7 @@
     "steam-library": "off",
     "steam-library-end-with-game": true,
     "steam-library-non-steam": true,
+    "steam-library-skip-intro": true,
     "terminate-on-pause": false,
     "gamepad": ""
   }

@@ -151,6 +151,10 @@ TEST(SteamLibrary, FindsTheGameByItsReaper) {
   EXPECT_FALSE(steam_library::game_running(620, proc));
   process("13", "/s/ubuntu12_32/reaper\0SteamLaunch\0AppId=620\0--\0/s/proton\0"s);
   EXPECT_TRUE(steam_library::game_running(620, proc));
+  EXPECT_EQ(steam_library::game_reaper(620, proc), 13);
+  EXPECT_TRUE(steam_library::is_reaper(620, proc / "13"));
+  EXPECT_FALSE(steam_library::is_reaper(620, proc / "11"));
+  EXPECT_FALSE(steam_library::is_reaper(620, proc / "999"));  // gone
   std::filesystem::remove_all(proc);
 }
 
@@ -222,8 +226,50 @@ TEST(SteamLibrary, ReadsNonSteamShortcuts) {
 
 TEST(SteamLibrary, LaunchesNonSteamGamesByTheirGameId) {
   // (appid << 32) | 0x02000000, as Steam's own "Create desktop shortcut" writes it.
-  EXPECT_EQ(steam_library::launch_command("steam -gamepadui", 3927187888u, true),
-            "steam -gamepadui steam://rungameid/16867143544240865280");
+  EXPECT_EQ(steam_library::game_url(3927187888u, true), "steam://rungameid/16867143544240865280");
+  // Steam starts without it and is asked once its UI is up.
+  EXPECT_EQ(steam_library::launch_command("steam -gamepadui ", 3927187888u, true), "steam -gamepadui");
+  EXPECT_EQ(steam_library::send_command(" /usr/bin/steam -gamepadui", 3927187888u, true),
+            "/usr/bin/steam -ifrunning steam://rungameid/16867143544240865280");
+}
+
+TEST(SteamLibrary, UiIsReadyOnceItsLogSaysSoAfterTheStart) {
+  const auto log = std::filesystem::temp_directory_path() / ("steam-ui-log-test-" + std::to_string(::getpid()));
+  const std::string old_run = "SteamUI: VERBOSE: SteamApp Init - After Login total time: 208 ms\n";
+  std::ofstream {log} << old_run;
+  const auto from = steam_library::file_size_or_zero(log);
+  EXPECT_FALSE(steam_library::ui_ready(log, from));
+  std::ofstream {log, std::ios::app} << "SteamUI: INFO: Login\n";
+  EXPECT_FALSE(steam_library::ui_ready(log, from));
+  std::ofstream {log, std::ios::app} << old_run;
+  EXPECT_TRUE(steam_library::ui_ready(log, from));
+  std::ofstream {log} << old_run;  // rotated: shorter than at the start
+  EXPECT_TRUE(steam_library::ui_ready(log, from + 100));
+  std::filesystem::remove(log);
+  EXPECT_FALSE(steam_library::ui_ready(log, 0));
+  EXPECT_EQ(steam_library::file_size_or_zero(log), 0u);
+}
+
+TEST(SteamLibrary, SkipsTheIntroWithAnEmptyOverrideAndTakesOnlyItsOwnBack) {
+  const auto root = std::filesystem::temp_directory_path() / ("steam-intro-test-" + std::to_string(::getpid()));
+  const auto file = steam_library::intro_override(root);
+  steam_library::skip_intro(root);  // no Steam there
+  EXPECT_FALSE(std::filesystem::exists(file));
+  std::filesystem::create_directories(root / "config");
+  steam_library::skip_intro(root);
+  EXPECT_TRUE(std::filesystem::exists(file));
+  EXPECT_EQ(std::filesystem::file_size(file), 0u);
+  steam_library::restore_intro(root);
+  EXPECT_FALSE(std::filesystem::exists(root / "config" / "uioverrides"));
+  EXPECT_TRUE(std::filesystem::exists(root / "config"));
+
+  // The user's own override stays, through both.
+  std::filesystem::create_directories(file.parent_path());
+  std::ofstream {file} << "webm";
+  steam_library::skip_intro(root);
+  steam_library::restore_intro(root);
+  EXPECT_EQ(std::filesystem::file_size(file), 4u);
+  std::filesystem::remove_all(root);
 }
 
 TEST(SteamLibrary, ScansNonSteamGamesWithTheirArt) {

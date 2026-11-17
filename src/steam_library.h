@@ -445,14 +445,80 @@ namespace steam_library {
     return uuid;
   }
 
-  /// The template entry's command, asking its Steam to run the game: a non-Steam one by its 64-bit game id.
-  inline std::string launch_command(std::string_view template_cmd, std::uint32_t appid, bool shortcut = false) {
-    auto cmd = std::string {template_cmd};
-    while (!cmd.empty() && std::isspace(static_cast<unsigned char>(cmd.back()))) {
-      cmd.pop_back();
-    }
+  inline std::string game_url(std::uint32_t appid, bool shortcut) {
     const auto id = shortcut ? (static_cast<std::uint64_t>(appid) << 32) | 0x02000000u : std::uint64_t {appid};
-    return cmd + " steam://rungameid/" + std::to_string(id);
+    return "steam://rungameid/" + std::to_string(id);
+  }
+
+  inline std::string trimmed(std::string_view text) {
+    while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back()))) {
+      text.remove_suffix(1);
+    }
+    return std::string {text};
+  }
+
+  /**
+   * The template entry's command, asking its Steam to run the game. A non-Steam game gets the template's own: Steam's
+   * UI drops a launch that arrives before it has loaded them (send_command, once ui_ready).
+   */
+  inline std::string launch_command(std::string_view template_cmd, std::uint32_t appid, bool shortcut = false) {
+    return shortcut ? trimmed(template_cmd) : trimmed(template_cmd) + ' ' + game_url(appid, false);
+  }
+
+  /// Asks the running Steam of the template's command to run the game; never starts a second client.
+  inline std::string send_command(std::string_view template_cmd, std::uint32_t appid, bool shortcut) {
+    const auto begin = std::min(template_cmd.find_first_not_of(" \t"), template_cmd.size());
+    const auto program = template_cmd.substr(begin, template_cmd.find_first_of(" \t", begin) - begin);
+    return std::string {program} + " -ifrunning " + game_url(appid, shortcut);
+  }
+
+  /// Steam's UI log; its size before Steam starts is where ui_ready reads from.
+  inline std::filesystem::path ui_log(const std::filesystem::path &root) {
+    return root / "logs" / "webhelper_js.txt";
+  }
+
+  inline std::uintmax_t file_size_or_zero(const std::filesystem::path &path) {
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(path, ec);
+    return ec ? 0 : size;
+  }
+
+  /// Whether Steam's UI finished loading since the log was `from` bytes long (a shorter log was rotated).
+  inline bool ui_ready(const std::filesystem::path &log, std::uintmax_t from) {
+    std::ifstream in {log, std::ios::binary};
+    if (file_size_or_zero(log) >= from) {
+      in.seekg(static_cast<std::streamoff>(from));
+    }
+    const std::string text {std::istreambuf_iterator<char> {in}, {}};
+    return text.find("SteamApp Init - After Login total time") != std::string::npos;
+  }
+
+  /// Steam plays this instead of Big Picture's startup movie; an empty one fails to play and is skipped at once.
+  inline std::filesystem::path intro_override(const std::filesystem::path &root) {
+    return root / "config" / "uioverrides" / "movies" / "bigpicture_startup.webm";
+  }
+
+  /// Skip the startup movie of the next Steam start, unless the user has an override of their own.
+  inline void skip_intro(const std::filesystem::path &root) {
+    std::error_code ec;
+    const auto file = intro_override(root);
+    if (!std::filesystem::exists(root / "config", ec) || std::filesystem::exists(file, ec)) {
+      return;
+    }
+    std::filesystem::create_directories(file.parent_path(), ec);
+    std::ofstream {file};
+  }
+
+  /// Undo skip_intro: only an empty override is ours, and only folders it left empty go.
+  inline void restore_intro(const std::filesystem::path &root) {
+    std::error_code ec;
+    const auto file = intro_override(root);
+    if (!std::filesystem::is_regular_file(file, ec) || std::filesystem::file_size(file, ec) != 0) {
+      return;
+    }
+    std::filesystem::remove(file, ec);
+    std::filesystem::remove(file.parent_path(), ec);
+    std::filesystem::remove(file.parent_path().parent_path(), ec);
   }
 
   /// What the library's entries depend on: every game, installed or not, and the non-Steam ones with their names.
@@ -464,45 +530,57 @@ namespace steam_library {
     return out;
   }
 
-  /**
-   * Whether Steam is running the game: its reaper, "reaper SteamLaunch AppId=<id> -- ...", waits for the game's whole
-   * process tree, Proton or native, so it lives exactly as long as the game.
-   */
-  inline bool game_running(std::uint32_t appid, const std::filesystem::path &proc = "/proc") {
+  /// Whether a process is Steam's reaper of the game: "reaper SteamLaunch AppId=<id> -- <the game>".
+  inline bool is_reaper(std::uint32_t appid, const std::filesystem::path &proc_pid) {
     const auto wanted = "AppId=" + std::to_string(appid);
+    std::ifstream file {proc_pid / "cmdline", std::ios::binary};
+    const std::string cmdline {std::istreambuf_iterator<char> {file}, {}};
+    bool launch = false;
+    bool app = false;
+    for (std::size_t at = 0; at < cmdline.size();) {
+      const auto end = std::min(cmdline.find('\0', at), cmdline.size());
+      const std::string_view arg {cmdline.data() + at, end - at};
+      if (arg == "--") {
+        break;  // the game's own arguments follow
+      }
+      launch = launch || arg == "SteamLaunch";
+      app = app || arg == wanted;
+      at = end + 1;
+    }
+    return launch && app;
+  }
+
+  /**
+   * The pid of Steam's reaper of the game, 0 if none: it waits for the game's whole process tree, Proton or native,
+   * so it lives exactly as long as the game.
+   */
+  inline long game_reaper(std::uint32_t appid, const std::filesystem::path &proc = "/proc") {
     std::error_code ec;
     for (const auto &entry : std::filesystem::directory_iterator {proc, ec}) {
       const auto pid = entry.path().filename().string();
       if (pid.empty() || !std::all_of(pid.begin(), pid.end(), [](unsigned char c) { return std::isdigit(c); })) {
         continue;
       }
-      std::ifstream file {entry.path() / "cmdline", std::ios::binary};
-      const std::string cmdline {std::istreambuf_iterator<char> {file}, {}};
-      bool launch = false;
-      bool app = false;
-      for (std::size_t at = 0; at < cmdline.size();) {
-        const auto end = std::min(cmdline.find('\0', at), cmdline.size());
-        const std::string_view arg {cmdline.data() + at, end - at};
-        if (arg == "--") {
-          break;  // the game's own arguments follow
-        }
-        launch = launch || arg == "SteamLaunch";
-        app = app || arg == wanted;
-        at = end + 1;
-      }
-      if (launch && app) {
-        return true;
+      if (is_reaper(appid, entry.path())) {
+        return std::stol(pid);
       }
     }
-    return false;
+    return 0;
   }
 
-  /// Ends a session with its game: true once the game ran and has been gone for the grace period.
+  inline bool game_running(std::uint32_t appid, const std::filesystem::path &proc = "/proc") {
+    return game_reaper(appid, proc) != 0;
+  }
+
+  /**
+   * Ends a session with its game: true once the game ran and has been gone for the grace period, which only has to
+   * outlast the gap between two scans; a known reaper is checked by pid, so every poll sees it go.
+   */
   class game_watch_t {
   public:
     using clock = std::chrono::steady_clock;
 
-    explicit game_watch_t(std::chrono::milliseconds grace = std::chrono::seconds {3}):
+    explicit game_watch_t(std::chrono::milliseconds grace = std::chrono::milliseconds {400}):
         grace {grace} {}
 
     bool ended(bool running, clock::time_point now) {
