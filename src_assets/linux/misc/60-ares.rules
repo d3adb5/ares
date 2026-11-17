@@ -41,8 +41,9 @@ SUBSYSTEMS=="input", ATTRS{name}=="Sunshine Nintendo (virtual) pad", GROUP="inpu
 # into the session. The session is the one whose /dev (its device number, in
 # Hermes' seat flag) alone is seen by the holders of /dev/uinput, Hermes aside; a
 # uinput device records no creator. Not the mount namespace: Steam's runtime
-# containers have their own, but bind the session's /dev.
-SUBSYSTEM=="input", KERNEL=="event*|js*", DEVPATH=="/devices/virtual/input/*", ATTRS{id/vendor}=="28de", ATTRS{phys}=="", IMPORT{program}="/bin/sh -c 'uid=$$(cat /etc/hermes-kms/session-user) || exit 0; holders=$$(find /proc/[0-9]*/fd -lname /dev/uinput 2>/dev/null | cut -d/ -f3 | sort -u); for flag in /run/user/$$uid/ares/isolated/hermes-kms-* /run/user/$$uid/ares/isolated/ares-detached-*; do [ -f $$flag ] || continue; read dev hermes < $$flag; found=0; for pid in $$holders; do [ $$pid = $$hermes ] && continue; [ x$$(stat -L -c %d /proc/$$pid/root/dev) = x$$dev ] || { found=0; break; }; found=1; done; [ $$found = 1 ] && echo ID_SEAT=$${flag##*/} && exit 0; done; exit 0'"
+# containers have their own, but bind the session's /dev. Every user's flags are
+# read: no Hermes-KMS session-user file is needed.
+SUBSYSTEM=="input", KERNEL=="event*|js*", DEVPATH=="/devices/virtual/input/*", ATTRS{id/vendor}=="28de", ATTRS{phys}=="", IMPORT{program}="/bin/sh -c 'holders=$$(find /proc/[0-9]*/fd -lname /dev/uinput 2>/dev/null | cut -d/ -f3 | sort -u); for flag in /run/user/[0-9]*/ares/isolated/hermes-kms-* /run/user/[0-9]*/ares/isolated/ares-detached-*; do [ -f $$flag ] || continue; read dev hermes < $$flag; found=0; for pid in $$holders; do [ $$pid = $$hermes ] && continue; [ x$$(stat -L -c %d /proc/$$pid/root/dev) = x$$dev ] || { found=0; break; }; found=1; done; [ $$found = 1 ] && echo ID_SEAT=$${flag##*/} && exit 0; done; exit 0'"
 SUBSYSTEM=="input", ENV{ID_SEAT}=="hermes-kms-*", TAG+="seat", GROUP:="input", MODE:="0660", TAG+="uaccess"
 # Detached desktops run as the same user as the host desktop, so no group, mode
 # or ACL could give one of them a device that the user's host applications
