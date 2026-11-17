@@ -1651,11 +1651,15 @@ namespace proc {
       platf::gamescope_stream::session_for(runtime->gamescope_stream_socket)->set_hidden(true);
       BOOST_LOG(info) << "[IsolatedSession] Keeping " << runtime->runtime_id << " and its Steam warm for " << minutes << " min.";
       std::thread([runtime, generation, minutes]() {
-        const auto until = std::chrono::steady_clock::now() + std::chrono::minutes {minutes};
+        auto until = std::chrono::steady_clock::now() + std::chrono::minutes {minutes};
         while (std::chrono::steady_clock::now() < until) {
           std::this_thread::sleep_for(1s);
           if (!runtime->warm.load() || runtime->warm_generation.load() != generation || runtime->stopping.load()) {
             return;
+          }
+          // A game left running in Big Picture is not stopped under the player: the wait starts over while one runs.
+          if (std::chrono::steady_clock::now() >= until && steam_library::any_game_running()) {
+            until = std::chrono::steady_clock::now() + 1min;
           }
         }
         {
@@ -3564,6 +3568,11 @@ namespace proc {
       }
       if (it->second->warm.load()) {
         return;  // its game quit and it is kept for the next launch
+      }
+      // The Steam entry left by its client is kept warm as well: a game entry can then take it over, where a
+      // session waiting to be resumed would first have to be quit (and Steam with it).
+      if (it->second->app.steam_appid.empty() && runs_steam(it->second->app) && isolated_runtime_running(it->second) && park_warm(it->second)) {
+        return;
       }
       terminate_on_pause = it->second->app.terminate_on_pause;
       if (!terminate_on_pause) {

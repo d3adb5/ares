@@ -152,6 +152,11 @@ TEST(SteamLibrary, FindsTheGameByItsReaper) {
   process("13", "/s/ubuntu12_32/reaper\0SteamLaunch\0AppId=620\0--\0/s/proton\0"s);
   EXPECT_TRUE(steam_library::game_running(620, proc));
   EXPECT_EQ(steam_library::game_reaper(620, proc), 13);
+  // Its install script's reaper is not the game.
+  process("14", "/s/reaper\0SteamLaunch\0AppId=730\0Install=1\0--\0proton\0run\0iscriptevaluator.exe\0"s);
+  EXPECT_FALSE(steam_library::game_running(730, proc));
+  EXPECT_TRUE(steam_library::any_game_running(proc));
+  EXPECT_FALSE(steam_library::is_reaper(0, proc / "14"));
   EXPECT_TRUE(steam_library::is_reaper(620, proc / "13"));
   EXPECT_FALSE(steam_library::is_reaper(620, proc / "11"));
   EXPECT_FALSE(steam_library::is_reaper(620, proc / "999"));  // gone
@@ -160,14 +165,25 @@ TEST(SteamLibrary, FindsTheGameByItsReaper) {
 
 TEST(SteamLibrary, GameWatchEndsOnlyAfterTheGameRanAndLeft) {
   using namespace std::chrono_literals;
-  steam_library::game_watch_t watch {3s};
+  steam_library::game_watch_t watch {400ms};
   const steam_library::game_watch_t::clock::time_point t0 {};
   EXPECT_FALSE(watch.ended(false, t0 + 60s));  // still in Big Picture or shader processing
+  // Something short-lived (a step before the game): the game may follow within seconds.
   EXPECT_FALSE(watch.ended(true, t0 + 61s));
-  EXPECT_FALSE(watch.ended(false, t0 + 62s));  // a launcher handing over
   EXPECT_FALSE(watch.ended(true, t0 + 63s));
-  EXPECT_FALSE(watch.ended(false, t0 + 65s));
-  EXPECT_TRUE(watch.ended(false, t0 + 66s));
+  EXPECT_FALSE(watch.ended(false, t0 + 64s));
+  EXPECT_FALSE(watch.ended(false, t0 + 67s));
+  // The game itself, played for a while: ends promptly.
+  EXPECT_FALSE(watch.ended(true, t0 + 67500ms));
+  EXPECT_FALSE(watch.ended(true, t0 + 600s));
+  EXPECT_FALSE(watch.ended(false, t0 + 600s + 300ms));
+  EXPECT_TRUE(watch.ended(false, t0 + 600s + 400ms));
+
+  steam_library::game_watch_t brief {400ms};
+  EXPECT_FALSE(brief.ended(true, t0));
+  EXPECT_FALSE(brief.ended(true, t0 + 2s));
+  EXPECT_FALSE(brief.ended(false, t0 + 6s));
+  EXPECT_TRUE(brief.ended(false, t0 + 7s));  // nothing followed for five seconds
 }
 
 namespace {

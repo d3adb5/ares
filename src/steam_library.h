@@ -606,7 +606,11 @@ namespace steam_library {
     return signature(scan(root, true, true));
   }
 
-  /// Whether a process is Steam's reaper of the game: "reaper SteamLaunch AppId=<id> -- <the game>".
+  /**
+   * Whether a process is Steam's reaper of the game: "reaper SteamLaunch AppId=<id> -- <the game>"; with appid 0, of
+   * any game. Not the one of its install script ("... AppId=<id> Install=1 -- ... iscriptevaluator.exe"), which Steam
+   * runs and ends seconds before the game on a first launch after an update.
+   */
   inline bool is_reaper(std::uint32_t appid, const std::filesystem::path &proc_pid) {
     const auto wanted = "AppId=" + std::to_string(appid);
     std::ifstream file {proc_pid / "cmdline", std::ios::binary};
@@ -620,7 +624,10 @@ namespace steam_library {
         break;  // the game's own arguments follow
       }
       launch = launch || arg == "SteamLaunch";
-      app = app || arg == wanted;
+      app = app || arg == wanted || (appid == 0 && arg.starts_with("AppId="));
+      if (arg.starts_with("Install=")) {
+        return false;
+      }
       at = end + 1;
     }
     return launch && app;
@@ -648,29 +655,45 @@ namespace steam_library {
     return game_reaper(appid, proc) != 0;
   }
 
+  /// Whether Steam runs any game at all.
+  inline bool any_game_running(const std::filesystem::path &proc = "/proc") {
+    return game_reaper(0, proc) != 0;
+  }
+
   /**
-   * Ends a session with its game: true once the game ran and has been gone for the grace period, which only has to
-   * outlast the gap between two scans; a known reaper is checked by pid, so every poll sees it go.
+   * Ends a session with its game: true once the game ran and has been gone for the grace period. A known reaper is
+   * checked by pid on every poll, so the grace only spans the gap between scans, unless what ran was short-lived:
+   * a step before the game, or a launcher handing over through Steam, is followed by the game within seconds.
    */
   class game_watch_t {
   public:
     using clock = std::chrono::steady_clock;
+    static constexpr std::chrono::seconds SHORT_LIVED {10};
+    static constexpr std::chrono::seconds SHORT_LIVED_GRACE {5};
 
     explicit game_watch_t(std::chrono::milliseconds grace = std::chrono::milliseconds {400}):
         grace {grace} {}
 
     bool ended(bool running, clock::time_point now) {
       if (running) {
+        if (!seen || !was_running) {
+          run_began = now;
+        }
         seen = true;
+        was_running = true;
         last_seen = now;
         return false;
       }
-      return seen && now - last_seen >= grace;
+      was_running = false;
+      const bool short_lived = last_seen - run_began < SHORT_LIVED;
+      return seen && now - last_seen >= (short_lived ? std::max<std::chrono::milliseconds>(grace, SHORT_LIVED_GRACE) : grace);
     }
 
   private:
     std::chrono::milliseconds grace;
     bool seen {};
+    bool was_running {};
+    clock::time_point run_began {};
     clock::time_point last_seen {};
   };
 
