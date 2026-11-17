@@ -104,15 +104,10 @@ else()
         endif()
         install(FILES "${CMAKE_CURRENT_BINARY_DIR}/sunshine.service"
                 DESTINATION "${SYSTEMD_USER_UNIT_INSTALL_DIR}")
+        # No EVDI module config: isolated sessions need no virtual display, and a modprobe.d file makes every
+        # install rebuild the initramfs. A host-session virtual display on EVDI is set up by hand (notes/).
         install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/60-ares.conf"
-                "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/61-ares-evdi.conf"
                 DESTINATION "${SYSTEMD_MODULES_LOAD_DIR}")
-        # modprobe.d has no pkg-config variable. It sits beside modules-load.d
-        # (/usr/lib on every distribution, lib64 or not), where kmod reads it
-        # whatever prefix Hermes itself was built with.
-        get_filename_component(ARES_MODULES_CONFIG_DIR "${SYSTEMD_MODULES_LOAD_DIR}" DIRECTORY)
-        install(FILES "${SUNSHINE_SOURCE_ASSETS_DIR}/linux/misc/ares-evdi-modprobe.conf"
-                DESTINATION "${ARES_MODULES_CONFIG_DIR}/modprobe.d" RENAME "ares-evdi.conf")
         # A system unit, unlike sunshine.service: it runs as root because
         # configfs is root's, and is socket-activated so it is not running
         # while nobody is asking for a card.
