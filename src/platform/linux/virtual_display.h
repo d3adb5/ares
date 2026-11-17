@@ -419,6 +419,7 @@ namespace VDISPLAY {
     bool hermes_kms_multi_device {false};  ///< The driver exposes a session-device pool.
     bool drm_seat_isolation {false};  ///< Session DRM cards carry a private ID_SEAT.
     bool isolated_sessions_requested {false};  ///< The user turned isolation on.
+    bool gamescope_stream {false};  ///< Isolated sessions run on the Gamescope stream: no Hermes-KMS card.
     /// Hyprland's control socket is reachable, so Hermes can create a headless
     /// output. Recorded separately from the compositor because a service
     /// started outside the session sees Hyprland running and still cannot

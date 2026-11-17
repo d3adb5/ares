@@ -328,3 +328,12 @@ TEST(SessionAssessment, AnX11SessionUsesItsOwnPathRatherThanReportingNoProtocols
   EXPECT_EQ(reportFor(facts, VDISPLAY::feature_e::virtual_display).readiness, VDISPLAY::readiness_e::ready);
   EXPECT_EQ(reportFor(facts, VDISPLAY::feature_e::exclusive_mode).readiness, VDISPLAY::readiness_e::ready);
 }
+
+TEST(SessionAssessment, TheGamescopeStreamNeedsNoHermesKms) {
+  auto facts = workingKwinSession();
+  facts.hermes_kms_present = false;
+  facts.hermes_kms_multi_device = false;
+  facts.drm_seat_isolation = false;
+  facts.gamescope_stream = true;
+  EXPECT_EQ(reportFor(facts, VDISPLAY::feature_e::isolated_sessions).readiness, VDISPLAY::readiness_e::ready);
+}

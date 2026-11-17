@@ -2310,7 +2310,13 @@ namespace VDISPLAY {
     }
 
     // --- isolated sessions ---------------------------------------------------
-    if (!facts.hermes_kms_multi_device) {
+    if (facts.gamescope_stream) {
+      add(
+        feature_e::isolated_sessions,
+        readiness_e::ready,
+        "Each session is a Gamescope streaming to Ares over a socket; no Hermes-KMS card or seat is needed."
+      );
+    } else if (!facts.hermes_kms_multi_device) {
       add(
         feature_e::isolated_sessions,
         readiness_e::unavailable,
@@ -6126,6 +6132,7 @@ namespace VDISPLAY {
     facts.hermes_kms_multi_device = hermes_kms.multi_device_capable;
     facts.drm_seat_isolation = hermesKmsSeatIsolationActive();
     facts.isolated_sessions_requested = config::video.isolated_sessions;
+    facts.gamescope_stream = config::video.isolated_sessions && config::video.isolation_method == "gamescope_stream";
 
     return facts;
   }
