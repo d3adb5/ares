@@ -1102,7 +1102,10 @@ namespace nvhttp {
     #if defined(_WIN32) || defined(__linux__)
       tree.put("root.VirtualDisplayCapable", true);
       if (!!(named_cert_p->perm & PERM::_all_actions)) {
-        tree.put("root.VirtualDisplayDriverReady", proc::vDisplayDriverStatus == VDISPLAY::DRIVER_STATUS::OK);
+        // An isolated session on the Gamescope stream needs no virtual-display driver; clients ask before every
+        // launch that requests one ("isolated session" in Athena).
+        const bool stream_sessions = config::video.isolated_sessions && config::video.isolation_method == "gamescope_stream";
+        tree.put("root.VirtualDisplayDriverReady", stream_sessions || proc::vDisplayDriverStatus == VDISPLAY::DRIVER_STATUS::OK);
       } else {
         tree.put("root.VirtualDisplayDriverReady", true);
       }
