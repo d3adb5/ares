@@ -147,6 +147,8 @@
         "steam_library_end_with_game_desc": "A game entry's session ends once the game it started has quit, instead of staying in Steam's Big Picture until Steam exits.",
         "steam_library_skip_intro": "Skip Big Picture's startup movie for game entries",
         "steam_library_skip_intro_desc": "A game entry's Steam starts without the startup movie; this entry itself still plays it. Left alone if you have a startup movie override of your own in Steam's config/uioverrides.",
+        "steam_library_hide_steam": "Show nothing of Steam around a game entry's game",
+        "steam_library_hide_steam_desc": "The stream stays black until the game's own window is in front, and goes black again when the game quits, so Big Picture and its notifications never show; Steam's overlay in the game still does. Steam is shown after all if no game window appears for 30 seconds (it may be asking something), or when you go to Steam yourself while the game runs. Gamescope stream sessions only.",
         "stop_desktop_steam": "Shut down the desktop's Steam",
         "stop_desktop_steam_desc": "Independent sessions only. Steam runs once per user and hands a second launch to the running client, so a Steam left open on the desktop would take over the session's. Ares asks it to quit (SIGTERM: it logs off and saves its settings) and kills it only if it is still running after 30 seconds. A Steam inside another Ares session is left alone.",
         "stop_desktop_steam_auto": "Auto (when the command runs steam)",

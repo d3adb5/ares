@@ -7,6 +7,7 @@
 #include "src/client_hdr.h"
 #include "src/platform/common.h"
 
+#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -33,11 +34,19 @@ namespace platf::gamescope_stream {
     /** The display of the client streaming it, for Gamescope's HDR metadata and EDID. */
     void set_client_display(const client_hdr::display_t &display);
     client_hdr::display_t client_display();
+    /** While hidden, Gamescope's frames are not passed on: the client keeps the last picture, or black before any. */
+    void set_hidden(bool hide) {
+      hidden_now.store(hide);
+    }
+    bool hidden() const {
+      return hidden_now.load();
+    }
 
   private:
     std::mutex mutex;
     int fd {-1};
     client_hdr::display_t display;
+    std::atomic_bool hidden_now {false};
   };
 
   /** The session of a socket path, created on first use. */

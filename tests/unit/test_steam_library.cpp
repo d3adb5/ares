@@ -330,3 +330,33 @@ TEST(SteamLibrary, CacheRescansOnlyWhenTheFilesChangeAndNotMidWrite) {
   EXPECT_EQ(steam_library::signature(all), steam_library::signature(root));
   std::filesystem::remove_all(root);
 }
+
+TEST(SteamLibrary, CurtainHidesSteamAroundTheGameButNeverForEver) {
+  using namespace std::chrono_literals;
+  const steam_library::curtain_t::clock::time_point t0 {1000s};
+  steam_library::curtain_t curtain;
+  EXPECT_TRUE(curtain.hidden(0u, false, t0));  // Gamescope up, nothing shown
+  EXPECT_TRUE(curtain.hidden(769u, false, t0 + 3s));  // Big Picture
+  EXPECT_TRUE(curtain.hidden(769u, true, t0 + 6s));  // the game is starting
+  EXPECT_FALSE(curtain.hidden(1055540u, true, t0 + 9s));  // its window
+  EXPECT_FALSE(curtain.hidden(1055540u, true, t0 + 600s));
+  // The player goes to Steam on purpose: shown after a moment.
+  EXPECT_TRUE(curtain.hidden(769u, true, t0 + 601s));
+  EXPECT_FALSE(curtain.hidden(769u, true, t0 + 603s));
+  EXPECT_FALSE(curtain.hidden(1055540u, true, t0 + 610s));
+  // The game quit: Steam is back in front, and stays hidden until the session ends.
+  EXPECT_TRUE(curtain.hidden(769u, false, t0 + 700s));
+  EXPECT_TRUE(curtain.hidden(769u, false, t0 + 760s));
+
+  // No game window within half a minute: Steam may be asking something.
+  steam_library::curtain_t stuck;
+  EXPECT_TRUE(stuck.hidden(769u, false, t0));
+  EXPECT_TRUE(stuck.hidden(769u, true, t0 + 29s));
+  EXPECT_FALSE(stuck.hidden(769u, true, t0 + 30s));
+
+  // Without Gamescope's focus, the game running for a few seconds counts as shown.
+  steam_library::curtain_t blind;
+  EXPECT_TRUE(blind.hidden(std::nullopt, false, t0));
+  EXPECT_TRUE(blind.hidden(std::nullopt, true, t0 + 5s));
+  EXPECT_FALSE(blind.hidden(std::nullopt, true, t0 + 8s));
+}

@@ -508,6 +508,10 @@ namespace platf::gamescope_stream {
         }
 
         std::shared_ptr<img_t> image;
+        if (session->hidden() && curtain_drawn) {
+          release(frame.pool_id, frame.slot);
+          return std::nullopt;
+        }
         if (!pull(image)) {
           release(frame.pool_id, frame.slot);
           return capture_e::interrupted;
@@ -515,6 +519,15 @@ namespace platf::gamescope_stream {
 
         auto *descriptor = static_cast<egl::img_descriptor_t *>(image.get());
         descriptor->reset();
+        // A Steam library game's session shows nothing of Steam: one blank picture (sequence 0, as the dummy),
+        // which the encoder repeats, stands in for Gamescope's frames until the session shows them again.
+        curtain_drawn = session->hidden();
+        if (curtain_drawn) {
+          release(frame.pool_id, frame.slot);
+          descriptor->sequence = 0;
+          descriptor->frame_timestamp = std::chrono::steady_clock::now();
+          return push(std::move(image), true) ? std::nullopt : std::optional<capture_e> {capture_e::ok};
+        }
         descriptor->sd.width = width;
         descriptor->sd.height = height;
         descriptor->sd.fourcc = fourcc;
@@ -582,6 +595,7 @@ namespace platf::gamescope_stream {
       std::uint64_t sequence {};
       const bool poll_events {config::video.gamescope_stream_poll == "events"};
       std::shared_ptr<va::stream_progress_t> converted {std::make_shared<va::stream_progress_t>(poll_events)};
+      bool curtain_drawn {false};
       std::uint64_t late_releases {};  ///< Slots that went back only on the events mode's timeout.
     };
   }  // namespace

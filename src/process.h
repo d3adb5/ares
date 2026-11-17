@@ -112,6 +112,8 @@ namespace proc {
     bool steam_shortcut {false};
     // Its Steam starts without Big Picture's startup movie ("steam-library-skip-intro").
     bool steam_skip_intro {true};
+    // Nothing of Steam is streamed around its game: black until the game's window, its last picture after ("steam-library-hide-steam").
+    bool steam_hide {true};
     bool elevated;
     bool auto_detach;
     bool wait_all;

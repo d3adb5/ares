@@ -43,6 +43,7 @@
   #ifdef __linux__
     #include "platform/linux/bounded_command.h"
   #endif
+  #include "platform/linux/gamescope_focus.h"
   #include "platform/linux/gamescope_session.h"
   #include "platform/linux/gamescope_stream.h"
   #include "platform/linux/misc.h"
@@ -221,6 +222,10 @@ namespace proc {
       bool game_ended {false};
       bool game_sent {false};  ///< A non-Steam game's launch went to Steam.
       std::uintmax_t steam_ui_log_size {};  ///< Steam's UI log before it started.
+      steam_library::curtain_t steam_curtain;
+      platf::gamescope::focus_reader_t steam_focus;
+      std::string steam_x_display;  ///< Gamescope's first Xwayland, from the environment of the session's Steam.
+      bool steam_hidden {false};
       std::chrono::steady_clock::time_point steam_started_at {};
       std::string wayland_display;
       std::string drm_device_path;
@@ -1539,6 +1544,38 @@ namespace proc {
       child.detach();
     }
 
+    /// The DISPLAY of the user's running Steam: in a session, Gamescope's first Xwayland, whose root has its focus.
+    std::string steam_x_display() {
+      const char *home = std::getenv("HOME");
+      pid_t pid = 0;
+      std::ifstream {std::string {home ? home : ""} + "/.steam/steam.pid"} >> pid;
+      if (pid <= 0 || read_proc_line(pid, "comm") != "steam") {
+        return {};
+      }
+      std::ifstream environ {"/proc/" + std::to_string(pid) + "/environ"};
+      for (std::string variable; std::getline(environ, variable, '\0');) {
+        if (variable.starts_with("DISPLAY=")) {
+          return variable.substr(8);
+        }
+      }
+      return {};
+    }
+
+    /// Hold the stream back while Steam, not the game, is what Gamescope shows (steam_library::curtain_t).
+    void draw_steam_curtain(isolated_runtime_t &runtime, bool game_running, std::chrono::steady_clock::time_point now) {
+      if (runtime.steam_x_display.empty()) {
+        runtime.steam_x_display = steam_x_display();
+      }
+      const auto focused = runtime.steam_focus.focused_app(runtime.steam_x_display);
+      const bool hide = runtime.steam_curtain.hidden(focused, game_running, now);
+      if (hide != runtime.steam_hidden) {
+        runtime.steam_hidden = hide;
+        platf::gamescope_stream::session_for(runtime.gamescope_stream_socket)->set_hidden(hide);
+        BOOST_LOG(info) << "[IsolatedSession] " << runtime.runtime_id << (hide ? ": holding the stream back (app in front " : ": showing the stream (app in front ")
+                        << (focused ? std::to_string(*focused) : "unknown"s) << ')';
+      }
+    }
+
     /**
      * @brief Whether a Steam library entry's game has quit, which ends its session.
      *
@@ -1557,19 +1594,27 @@ namespace proc {
       if (runtime.app.steam_shortcut && !runtime.game_sent) {
         send_steam_shortcut(runtime, *appid);
       }
-      if (runtime.game_ended || !runtime.app.steam_end_with_game) {
-        return runtime.game_ended;
+      if (runtime.game_ended) {
+        return true;
       }
       const auto now = std::chrono::steady_clock::now();
-      if (runtime.game_reaper && steam_library::is_reaper(*appid, "/proc/" + std::to_string(runtime.game_reaper))) {
-        runtime.game_watch.ended(true, now);
-        return false;
-      }
-      if (now - runtime.game_scanned_at >= 250ms) {
+      const bool known = runtime.game_reaper && steam_library::is_reaper(*appid, "/proc/" + std::to_string(runtime.game_reaper));
+      if (!known && now - runtime.game_scanned_at >= 250ms) {
         runtime.game_scanned_at = now;
         runtime.game_reaper = steam_library::game_reaper(*appid);
       }
-      runtime.game_ended = runtime.game_watch.ended(runtime.game_reaper != 0, now);
+      const bool running = known || runtime.game_reaper != 0;
+      if (runtime.app.steam_hide && !runtime.gamescope_stream_socket.empty()) {
+        draw_steam_curtain(runtime, running, now);
+      }
+      if (running) {
+        runtime.game_watch.ended(true, now);
+        return false;
+      }
+      runtime.game_ended = runtime.game_watch.ended(false, now);
+      if (!runtime.app.steam_end_with_game) {
+        runtime.game_ended = false;  // followed for the curtain only
+      }
       if (runtime.game_ended) {
         BOOST_LOG(info) << "[IsolatedSession] " << runtime.app.name << " quit; ending " << runtime.runtime_id << '.';
       }
@@ -2647,6 +2692,9 @@ namespace proc {
       // detached desktop's, so its gamepads reach this session's /dev and no other.
       runtime->gamescope_stream_socket = (std::filesystem::path {runtime->runtime_dir} / "gamescope-stream").string();
       platf::gamescope_stream::session_for(runtime->gamescope_stream_socket)->set_client_display(launch_session->client_hdr_display);
+      // A game entry starts behind the curtain; steam_game_ended lifts it for the game's window.
+      runtime->steam_hidden = !app.steam_appid.empty() && app.steam_hide;
+      platf::gamescope_stream::session_for(runtime->gamescope_stream_socket)->set_hidden(runtime->steam_hidden);
       runtime->seat_id = "ares-detached-" + runtime->runtime_id;
       std::error_code stale_ec;
       std::filesystem::remove(runtime->gamescope_stream_socket, stale_ec);
@@ -5577,6 +5625,7 @@ namespace proc {
           }
           ctx.steam_end_with_game = app_node.value("steam-library-end-with-game", true);
           ctx.steam_skip_intro = app_node.value("steam-library-skip-intro", true);
+          ctx.steam_hide = app_node.value("steam-library-hide-steam", true);
           const bool steam_shortcuts = app_node.value("steam-library-non-steam", true);
           apps.emplace_back(std::move(ctx));
           if (steam_library != "off") {

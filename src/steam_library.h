@@ -664,4 +664,53 @@ namespace steam_library {
     clock::time_point last_seen {};
   };
 
+  /**
+   * Whether a game entry's stream is held back, so that nothing of Steam shows: until the game's window is in front
+   * (the app Gamescope draws is neither none nor Steam, 769; its overlay over a game does not count), and again once Steam is back in front after it.
+   * Never for ever: Steam is shown if no game window came for REVEAL_AFTER (it may be asking something), and if the
+   * player went to Steam while the game runs. Without the focus (no X connection) the game running for a while counts.
+   */
+  class curtain_t {
+  public:
+    using clock = std::chrono::steady_clock;
+    static constexpr std::uint32_t STEAM = 769;
+    static constexpr std::chrono::seconds REVEAL_AFTER {30};
+    static constexpr std::chrono::seconds STEAM_ON_PURPOSE {2};
+    static constexpr std::chrono::seconds UNKNOWN_FOCUS_WAIT {3};
+
+    bool hidden(std::optional<std::uint32_t> focused, bool game_running, clock::time_point now) {
+      if (!begun) {
+        begun = now;
+      }
+      if (!game_running) {
+        running_since.reset();
+      } else if (!running_since) {
+        running_since = now;
+      }
+      const bool game_front = focused ? *focused != 0 && *focused != STEAM :
+                                        running_since && now - *running_since >= UNKNOWN_FOCUS_WAIT;
+      if (game_front) {
+        seen = true;
+        steam_since.reset();
+        return false;
+      }
+      if (!seen) {
+        return now - *begun < REVEAL_AFTER;
+      }
+      if (!game_running) {
+        return true;  // the game quit: nothing of Steam until the session ends
+      }
+      if (!steam_since) {
+        steam_since = now;
+      }
+      return now - *steam_since < STEAM_ON_PURPOSE;
+    }
+
+  private:
+    std::optional<clock::time_point> begun;
+    std::optional<clock::time_point> running_since;
+    std::optional<clock::time_point> steam_since;
+    bool seen {};
+  };
+
 }  // namespace steam_library
