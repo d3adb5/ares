@@ -460,6 +460,12 @@
                   v-model="editForm['steam-library-hide-steam']"
                   default="true"
         ></Checkbox>
+        <div class="mb-3" v-if="platform === 'linux' && editForm['steam-library'] !== 'off'">
+          <label for="steamLibraryKeepWarm" class="form-label">{{ $t('apps.steam_library_keep_warm') }}</label>
+          <input type="number" class="form-control monospace" id="steamLibraryKeepWarm"
+                 v-model="editForm['steam-library-keep-warm']" min="0" max="1440" placeholder="0" />
+          <div class="form-text">{{ $t('apps.steam_library_keep_warm_desc') }}</div>
+        </div>
         <!-- gamescope flags for sessions isolated with gamescope -->
         <div class="mb-3" v-if="platform === 'linux' && editForm['isolation-method'] !== 'kwin_virtual'">
           <label for="gamescopeSteamMode" class="form-label">{{ $t('apps.gamescope_steam_mode') }}</label>
@@ -679,6 +685,7 @@
     "steam-library-non-steam": true,
     "steam-library-skip-intro": true,
     "steam-library-hide-steam": true,
+    "steam-library-keep-warm": 0,
     "terminate-on-pause": false,
     "gamepad": ""
   }
@@ -1052,6 +1059,7 @@
           return;
         }
         this.editForm["exit-timeout"] = parseInt(this.editForm["exit-timeout"]) || 5
+        this.editForm["steam-library-keep-warm"] = parseInt(this.editForm["steam-library-keep-warm"]) || 0
         this.editForm["scale-factor"] = parseInt(this.editForm["scale-factor"]) || 100
         this.editForm["first-frame-timeout"] = Math.min(600, Math.max(0, parseInt(this.editForm["first-frame-timeout"]) || 0))
         this.editForm["image-path"] = this.editForm["image-path"].toString().trim().replace(/"/g, '');

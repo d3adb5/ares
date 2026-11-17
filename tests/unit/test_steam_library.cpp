@@ -360,3 +360,10 @@ TEST(SteamLibrary, CurtainHidesSteamAroundTheGameButNeverForEver) {
   EXPECT_TRUE(blind.hidden(std::nullopt, true, t0 + 5s));
   EXPECT_FALSE(blind.hidden(std::nullopt, true, t0 + 8s));
 }
+
+TEST(SteamLibrary, TemplateCommandDropsTheGameUrlOnly) {
+  EXPECT_EQ(steam_library::template_command("steam -gamepadui steam://rungameid/620 "), "steam -gamepadui");
+  EXPECT_EQ(steam_library::template_command("steam -gamepadui"), "steam -gamepadui");
+  EXPECT_EQ(steam_library::template_command("steam steam://open/bigpicture"), "steam");
+  EXPECT_EQ(steam_library::template_command("steam"), "steam");
+}

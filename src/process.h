@@ -114,6 +114,8 @@ namespace proc {
     bool steam_skip_intro {true};
     // Nothing of Steam is streamed around its game: black until the game's window, its last picture after ("steam-library-hide-steam").
     bool steam_hide {true};
+    // Minutes its Steam and Gamescope stay up after a game entry's game quit, for the next launch ("steam-library-keep-warm").
+    int steam_keep_warm {0};
     bool elevated;
     bool auto_detach;
     bool wait_all;

@@ -473,6 +473,16 @@ namespace steam_library {
     return std::string {program} + " -ifrunning " + game_url(appid, shortcut);
   }
 
+  /// A command without its steam:// argument: what entries of one template share, so their Steam can be reused.
+  inline std::string template_command(std::string_view cmd) {
+    auto text = trimmed(cmd);
+    const auto last = text.find_last_of(" \t");
+    if (last != std::string::npos && std::string_view {text}.substr(last + 1).starts_with("steam://")) {
+      text = trimmed(std::string_view {text}.substr(0, last));
+    }
+    return text;
+  }
+
   /// Steam's UI log; its size before Steam starts is where ui_ready reads from.
   inline std::filesystem::path ui_log(const std::filesystem::path &root) {
     return root / "logs" / "webhelper_js.txt";

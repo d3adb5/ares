@@ -510,7 +510,8 @@ namespace platf::gamescope_stream {
         std::shared_ptr<img_t> image;
         if (session->hidden() && curtain_drawn) {
           release(frame.pool_id, frame.slot);
-          return std::nullopt;
+          // Still ask whether to go on: with every frame dropped here, nothing else would notice the stream ending.
+          return push(nullptr, false) ? std::nullopt : std::optional<capture_e> {capture_e::ok};
         }
         if (!pull(image)) {
           release(frame.pool_id, frame.slot);

@@ -26,6 +26,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <format>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -226,6 +227,11 @@ namespace proc {
       platf::gamescope::focus_reader_t steam_focus;
       std::string steam_x_display;  ///< Gamescope's first Xwayland, from the environment of the session's Steam.
       bool steam_hidden {false};
+      // Kept warm: the game quit and the client is gone, but Gamescope and Steam stay for the next launch.
+      std::atomic_bool warm {false};
+      std::atomic_uint64_t warm_generation {0};  ///< Tells an expiry timer its wait was overtaken.
+      std::string warm_key;  ///< What a launch must share to reuse it: the template's command and the stream's mode.
+      bool warm_reused {false};  ///< Steam was already up for this launch: every game goes through send_command.
       std::chrono::steady_clock::time_point steam_started_at {};
       std::string wayland_display;
       std::string drm_device_path;
@@ -1526,12 +1532,12 @@ namespace proc {
      * (the library shows "Cancel"). After 20 s without the UI's log line the launch is sent anyway.
      */
     void send_steam_shortcut(isolated_runtime_t &runtime, std::uint32_t appid) {
-      const bool ready = steam_library::ui_ready(steam_library::ui_log(steam_root()), runtime.steam_ui_log_size);
+      const bool ready = runtime.warm_reused || steam_library::ui_ready(steam_library::ui_log(steam_root()), runtime.steam_ui_log_size);
       if (!ready && std::chrono::steady_clock::now() - runtime.steam_started_at < 20s) {
         return;
       }
       runtime.game_sent = true;
-      const auto command = steam_library::send_command(runtime.app.cmd, appid, true);
+      const auto command = steam_library::send_command(runtime.app.cmd, appid, runtime.app.steam_shortcut);
       BOOST_LOG(info) << "[IsolatedSession] Steam's UI " << (ready ? "is up" : "did not report in") << "; launching "
                       << runtime.app.name << ": [" << command << ']';
       std::error_code ec;
@@ -1591,7 +1597,7 @@ namespace proc {
         return false;
       }
       std::lock_guard<std::mutex> lock(runtime.game_mutex);
-      if (runtime.app.steam_shortcut && !runtime.game_sent) {
+      if ((runtime.app.steam_shortcut || runtime.warm_reused) && !runtime.game_sent) {
         send_steam_shortcut(runtime, *appid);
       }
       if (runtime.game_ended) {
@@ -1621,11 +1627,59 @@ namespace proc {
       return runtime.game_ended;
     }
 
+    void stop_isolated_runtime(const std::shared_ptr<isolated_runtime_t> &runtime);
+
+    std::string steam_warm_key(const ctx_t &app, const rtsp_stream::launch_session_t &launch_session) {
+      return std::format("{}|{}x{}@{}|hdr{}", steam_library::template_command(app.cmd), launch_session.width, launch_session.height, launch_session.fps, launch_session.enable_hdr ? 1 : 0);
+    }
+
+    /**
+     * @brief Keep a game entry's Gamescope and Steam after its game quit, so the next launch skips Steam's start.
+     *
+     * The client sees its app end (any_running, running_for_client) while the runtime lives on; a launch with the
+     * same template and mode takes it over (adopt_warm_runtime), anything else or the timer stops it.
+     */
+    bool park_warm(const std::shared_ptr<isolated_runtime_t> &runtime) {
+      const int minutes = runtime->app.steam_keep_warm;
+      if (minutes <= 0 || runtime->account || runtime->gamescope_stream_socket.empty() || runtime->warm_key.empty()) {
+        return false;
+      }
+      if (runtime->warm.exchange(true)) {
+        return true;
+      }
+      const auto generation = ++runtime->warm_generation;
+      platf::gamescope_stream::session_for(runtime->gamescope_stream_socket)->set_hidden(true);
+      BOOST_LOG(info) << "[IsolatedSession] Keeping " << runtime->runtime_id << " and its Steam warm for " << minutes << " min.";
+      std::thread([runtime, generation, minutes]() {
+        const auto until = std::chrono::steady_clock::now() + std::chrono::minutes {minutes};
+        while (std::chrono::steady_clock::now() < until) {
+          std::this_thread::sleep_for(1s);
+          if (!runtime->warm.load() || runtime->warm_generation.load() != generation || runtime->stopping.load()) {
+            return;
+          }
+        }
+        {
+          std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+          if (!runtime->warm.load() || runtime->warm_generation.load() != generation) {
+            return;
+          }
+          const auto it = isolated_runtimes.find(runtime->launch_session_id);
+          if (it != isolated_runtimes.end() && it->second == runtime) {
+            isolated_runtimes.erase(it);
+          }
+        }
+        BOOST_LOG(info) << "[IsolatedSession] " << runtime->runtime_id << " was kept warm for " << minutes << " min unused; stopping it.";
+        stop_isolated_runtime(runtime);
+      }).detach();
+      return true;
+    }
+
     bool isolated_runtime_running(const std::shared_ptr<isolated_runtime_t> &runtime) {
       if (!runtime || runtime->stopping.load()) {
         return false;
       }
-      if (steam_game_ended(*runtime)) {
+      // A warm one is alive while its processes are; its game is not followed until a launch takes it over.
+      if (!runtime->warm.load() && steam_game_ended(*runtime) && !park_warm(runtime)) {
         return false;
       }
       if (runtime->user_unit) {
@@ -2181,6 +2235,64 @@ namespace proc {
 #endif
   }
 
+#ifndef _WIN32
+  /**
+   * @brief Give a runtime kept warm to a new launch of its client: another game of the library, or the Steam entry.
+   *
+   * Steam is up already, so the game is asked of it at once (steam_game_ended sends it); the Steam entry just shows
+   * Big Picture where Steam was left. The runtime keeps its registry id, as for a resume.
+   */
+  static bool adopt_warm_runtime(const std::shared_ptr<isolated_runtime_t> &runtime, const ctx_t &app, rtsp_stream::launch_session_t &launch_session) {
+    const bool hide = !app.steam_appid.empty() && app.steam_hide;
+    {
+      std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+      const auto it = isolated_runtimes.find(runtime->launch_session_id);
+      if (it == isolated_runtimes.end() || it->second != runtime || !runtime->warm.load() || runtime->stopping.load()) {
+        return false;
+      }
+      std::lock_guard<std::mutex> game_lock(runtime->game_mutex);
+      ++runtime->warm_generation;
+      runtime->app = app;
+      runtime->client_name = launch_session.device_name;
+      runtime->warm_reused = true;
+      runtime->game_sent = false;
+      runtime->game_reaper = 0;
+      runtime->game_ended = false;
+      runtime->game_scanned_at = {};
+      runtime->game_watch = steam_library::game_watch_t {};
+      runtime->steam_curtain = steam_library::curtain_t {};
+      runtime->steam_hidden = hide;
+      runtime->steam_started_at = std::chrono::steady_clock::now();
+      const auto stream = platf::gamescope_stream::session_for(runtime->gamescope_stream_socket);
+      stream->set_hidden(hide);
+      stream->set_client_display(launch_session.client_hdr_display);
+      runtime->warm.store(false);
+    }
+
+    launch_session.isolated_session = true;
+    launch_session.isolated_runtime_owner_id = runtime->launch_session_id;
+    launch_session.isolated_session_profile = runtime->profile;
+    launch_session.isolated_runtime_id = runtime->runtime_id;
+    launch_session.isolated_seat_id = runtime->seat_id;
+    launch_session.session_scoped_virtual_display = true;
+    launch_session.session_virtual_display_cleanup_pending = false;
+    launch_session.virtual_display = true;
+    launch_session.display_name = runtime->display_name;
+    launch_session.display_guid = runtime->display_guid;
+    launch_session.drm_device_path = runtime->drm_device_path;
+    launch_session.wayland_display = runtime->wayland_display;
+    launch_session.kwin_wayland_socket = runtime->kwin_wayland_socket;
+    launch_session.kwin_pipewire_socket = runtime->kwin_pipewire_socket;
+    launch_session.gamescope_stream_socket = runtime->gamescope_stream_socket;
+    if (!app.allow_client_commands) {
+      launch_session.client_do_cmds.clear();
+      launch_session.client_undo_cmds.clear();
+    }
+    BOOST_LOG(info) << "[IsolatedSession] " << app.name << " takes over " << runtime->runtime_id << ", kept warm with its Steam.";
+    return true;
+  }
+#endif
+
   int proc_t::execute_isolated(
     const ctx_t &app,
     std::shared_ptr<rtsp_stream::launch_session_t> launch_session
@@ -2229,6 +2341,22 @@ namespace proc {
     // The reservation prevents a second launch for this client while liveness
     // is queried. A broker timeout must not hold every other client's registry
     // lock while we wait for it.
+    if (stale_runtime && stale_runtime->warm.load() && isolated_runtime_running(stale_runtime)) {
+      if (stale_runtime->warm_key == steam_warm_key(app, *launch_session) && adopt_warm_runtime(stale_runtime, app, *launch_session)) {
+        return 0;
+      }
+      BOOST_LOG(info) << "[IsolatedSession] " << stale_runtime->runtime_id << " was kept warm for another kind of launch; stopping it.";
+      stale_runtime->warm_generation++;
+      {
+        std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+        const auto it = isolated_runtimes.find(stale_runtime->launch_session_id);
+        if (it != isolated_runtimes.end() && it->second == stale_runtime) {
+          isolated_runtimes.erase(it);
+        }
+      }
+      stop_isolated_runtime(stale_runtime);
+      stale_runtime.reset();
+    }
     if (isolated_runtime_running(stale_runtime)) {
       BOOST_LOG(warning) << "[IsolatedSession] Client " << launch_session->device_name
                          << " already owns runtime " << stale_runtime->runtime_id;
@@ -2322,6 +2450,7 @@ namespace proc {
         steam_library::restore_intro(steam_root());
       }
       runtime->steam_ui_log_size = steam_library::file_size_or_zero(steam_library::ui_log(steam_root()));
+      runtime->warm_key = steam_warm_key(app, *launch_session);
       runtime->steam_started_at = std::chrono::steady_clock::now();
     }
 
@@ -3433,6 +3562,9 @@ namespace proc {
       if (it == isolated_runtimes.end() || !it->second) {
         return;
       }
+      if (it->second->warm.load()) {
+        return;  // its game quit and it is kept for the next launch
+      }
       terminate_on_pause = it->second->app.terminate_on_pause;
       if (!terminate_on_pause) {
         BOOST_LOG(info) << "[IsolatedSession] Keeping " << it->second->runtime_id
@@ -3516,6 +3648,9 @@ namespace proc {
       if (it == isolated_runtimes.end() || it->second != runtime) {
         return 0;
       }
+      if (active && runtime->warm.load()) {
+        return 0;  // kept warm: no app of the client's runs
+      }
       if (active && !runtime->stopping.load()) {
         return util::from_view(runtime->app.id);
       }
@@ -3536,7 +3671,7 @@ namespace proc {
       std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
       runtime = find_isolated_client_locked(client_uuid);
     }
-    if (!isolated_runtime_running(runtime)) {
+    if (!isolated_runtime_running(runtime) || runtime->warm.load()) {
       return {};
     }
     std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
@@ -3573,7 +3708,8 @@ namespace proc {
     std::vector<std::shared_ptr<isolated_runtime_t>> stopped;
     for (const auto &runtime : runtimes) {
       if (isolated_runtime_running(runtime)) {
-        isolated_running = true;
+        // One kept warm serves no client: the stream's control loop may end.
+        isolated_running = isolated_running || !runtime->warm.load();
       } else {
         stopped.push_back(runtime);
       }
@@ -3763,6 +3899,9 @@ namespace proc {
         }
       }
       return false;
+    }
+    if (runtime->warm.load()) {
+      return false;  // nothing of the client's to resume; a launch takes it over
     }
     if (runtime->user_unit) {
       std::lock_guard<std::mutex> mode_lock(runtime->process_mutex);
@@ -5626,6 +5765,13 @@ namespace proc {
           ctx.steam_end_with_game = app_node.value("steam-library-end-with-game", true);
           ctx.steam_skip_intro = app_node.value("steam-library-skip-intro", true);
           ctx.steam_hide = app_node.value("steam-library-hide-steam", true);
+          if (const auto warm = app_node.find("steam-library-keep-warm"); warm != app_node.end()) {
+            // The web UI saves numbers as it got them: a number or its text.
+            ctx.steam_keep_warm = warm->is_number() ? warm->get<int>() :
+                                  warm->is_string() ? static_cast<int>(util::from_view(warm->get<std::string>())) :
+                                                      0;
+            ctx.steam_keep_warm = std::clamp(ctx.steam_keep_warm, 0, 24 * 60);
+          }
           const bool steam_shortcuts = app_node.value("steam-library-non-steam", true);
           apps.emplace_back(std::move(ctx));
           if (steam_library != "off") {
