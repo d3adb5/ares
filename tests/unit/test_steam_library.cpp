@@ -364,6 +364,15 @@ TEST(SteamLibrary, CurtainHidesSteamAroundTheGameButNeverForEver) {
   EXPECT_TRUE(curtain.hidden(769u, false, t0 + 700s));
   EXPECT_TRUE(curtain.hidden(769u, false, t0 + 760s));
 
+  // With Gamescope's list of windows: going to Steam with the game's window alive shows at once, its window gone hides.
+  steam_library::curtain_t exact;
+  EXPECT_TRUE(exact.hidden(769u, true, t0, false));
+  EXPECT_FALSE(exact.hidden(1055540u, true, t0 + 5s, true));
+  EXPECT_FALSE(exact.hidden(769u, true, t0 + 60s, true));  // Settings from the overlay
+  EXPECT_FALSE(exact.hidden(1055540u, true, t0 + 90s, true));
+  EXPECT_TRUE(exact.hidden(769u, true, t0 + 120s, false));  // quitting: window gone, processes not yet
+  EXPECT_TRUE(exact.hidden(769u, false, t0 + 121s, false));
+
   // No game window within half a minute: Steam may be asking something.
   steam_library::curtain_t stuck;
   EXPECT_TRUE(stuck.hidden(769u, false, t0));

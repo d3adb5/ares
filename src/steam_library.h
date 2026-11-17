@@ -700,8 +700,9 @@ namespace steam_library {
   /**
    * Whether a game entry's stream is held back, so that nothing of Steam shows: until the game's window is in front
    * (the app Gamescope draws is neither none nor Steam, 769; its overlay over a game does not count), and again once Steam is back in front after it.
-   * Never for ever: Steam is shown if no game window came for REVEAL_AFTER (it may be asking something), and if the
-   * player went to Steam while the game runs. Without the focus (no X connection) the game running for a while counts.
+   * Never for ever: Steam is shown if no game window came for REVEAL_AFTER (it may be asking something), and when the
+   * player goes to Steam while the game's window is still there. Without the focus (no X connection) the game
+   * running for a while counts.
    */
   class curtain_t {
   public:
@@ -711,7 +712,8 @@ namespace steam_library {
     static constexpr std::chrono::seconds STEAM_ON_PURPOSE {2};
     static constexpr std::chrono::seconds UNKNOWN_FOCUS_WAIT {3};
 
-    bool hidden(std::optional<std::uint32_t> focused, bool game_running, clock::time_point now) {
+    /// game_window: some app other than Steam still has a window; nothing when that is not known.
+    bool hidden(std::optional<std::uint32_t> focused, bool game_running, clock::time_point now, std::optional<bool> game_window = std::nullopt) {
       if (!begun) {
         begun = now;
       }
@@ -732,6 +734,11 @@ namespace steam_library {
       }
       if (!game_running) {
         return true;  // the game quit: nothing of Steam until the session ends
+      }
+      if (game_window) {
+        // Steam in front with the game's window still there: the player went to Steam (its settings from the
+        // overlay, the library), shown at once. Without the window the game is on its way out.
+        return !*game_window;
       }
       if (!steam_since) {
         steam_since = now;

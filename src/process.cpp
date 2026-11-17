@@ -1572,8 +1572,9 @@ namespace proc {
       if (runtime.steam_x_display.empty()) {
         runtime.steam_x_display = steam_x_display();
       }
-      const auto focused = runtime.steam_focus.focused_app(runtime.steam_x_display);
-      const bool hide = runtime.steam_curtain.hidden(focused, game_running, now);
+      const auto focus = runtime.steam_focus.focus(runtime.steam_x_display);
+      const auto focused = focus ? std::optional<std::uint32_t> {focus->front} : std::nullopt;
+      const bool hide = runtime.steam_curtain.hidden(focused, game_running, now, focus ? std::optional<bool> {focus->game_window} : std::nullopt);
       if (hide != runtime.steam_hidden) {
         runtime.steam_hidden = hide;
         platf::gamescope_stream::session_for(runtime.gamescope_stream_socket)->set_hidden(hide);
