@@ -119,6 +119,9 @@ namespace proc {
     // Its Steam runs as long as Ares does, shared by every client and handed to the desktop when idle
     // ("steam-library-keep-running"); steam_keep_warm is then unused.
     bool steam_keep_running {false};
+    // The mode it is started in before any client asked ("steam-library-keep-running-mode", "1920x1080x120[ hdr]");
+    // empty: the last client's.
+    std::string steam_keep_running_mode;
     bool elevated;
     bool auto_detach;
     bool wait_all;

@@ -427,3 +427,11 @@ TEST(SteamLibrary, WarmModeRoundTripsAndRefusesNonsense) {
   EXPECT_FALSE(steam_library::warm_mode_t::parse("0x0x60000 0 196610"));
   EXPECT_EQ(steam_library::warm_mode_t {}.str(), "1920x1080x60000 0 196610");
 }
+
+TEST(SteamLibrary, ReadsTheKeptSteamsModeAsTyped) {
+  EXPECT_EQ(steam_library::warm_mode_t::parse_setting("1920x1080x120")->str(), "1920x1080x120000 0 196610");
+  EXPECT_EQ(steam_library::warm_mode_t::parse_setting(" 3840x2160x59.94 hdr")->str(), "3840x2160x59940 1 196610");
+  EXPECT_FALSE(steam_library::warm_mode_t::parse_setting(""));
+  EXPECT_FALSE(steam_library::warm_mode_t::parse_setting("1920x1080"));
+  EXPECT_FALSE(steam_library::warm_mode_t::parse_setting("1920x1080x120 sdr"));
+}

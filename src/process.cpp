@@ -2217,7 +2217,7 @@ namespace proc {
       }
 
       void start(const ctx_t &entry) {
-        const auto mode = remembered_warm_mode();
+        const auto mode = steam_library::warm_mode_t::parse_setting(entry.steam_keep_running_mode).value_or(remembered_warm_mode());
         auto launch_session = std::make_shared<rtsp_stream::launch_session_t>();
         launch_session->id = nvhttp::next_launch_id();
         launch_session->unique_id = STEAM_KEEPER;
@@ -6231,6 +6231,12 @@ namespace proc {
             ctx.steam_keep_warm = std::clamp(ctx.steam_keep_warm, 0, 24 * 60);
           }
           ctx.steam_keep_running = steam_library != "off" && app_node.value("steam-library-keep-running", true);
+          ctx.steam_keep_running_mode = app_node.value("steam-library-keep-running-mode", "");
+          if (!ctx.steam_keep_running_mode.empty() && !steam_library::warm_mode_t::parse_setting(ctx.steam_keep_running_mode)) {
+            BOOST_LOG(warning) << "Unreadable steam-library-keep-running-mode '" << ctx.steam_keep_running_mode << "' for app "
+                               << ctx.name << "; the last client's mode is used.";
+            ctx.steam_keep_running_mode.clear();
+          }
           const bool steam_shortcuts = app_node.value("steam-library-non-steam", true);
           apps.emplace_back(std::move(ctx));
           if (steam_library != "off") {

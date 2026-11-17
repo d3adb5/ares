@@ -732,6 +732,21 @@ namespace steam_library {
       mode.hdr = hdr == 1;
       return mode;
     }
+
+    /// A mode as the web UI takes it: "<width>x<height>x<refresh in Hz>", then optionally " hdr". Stereo.
+    static std::optional<warm_mode_t> parse_setting(std::string_view text) {
+      warm_mode_t mode;
+      double hz = 0;
+      char rest[8] {};
+      const std::string line {text};
+      const int read = std::sscanf(line.c_str(), " %dx%dx%lf %7s", &mode.width, &mode.height, &hz, rest);
+      if (read < 3 || (read == 4 && std::string_view {rest} != "hdr" && std::string_view {rest} != "HDR")) {
+        return std::nullopt;
+      }
+      mode.hdr = read == 4;
+      mode.fps = static_cast<int>(hz * 1000 + 0.5);
+      return parse(mode.str());  // same limits
+    }
   };
 
   /**

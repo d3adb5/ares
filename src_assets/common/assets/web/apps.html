@@ -468,6 +468,12 @@
                   v-model="editForm['steam-library-keep-running']"
                   default="true"
         ></Checkbox>
+        <div class="mb-3" v-if="platform === 'linux' && editForm['steam-library'] !== 'off' && editForm['steam-library-keep-running'] !== false">
+          <label for="steamLibraryKeepRunningMode" class="form-label">{{ $t('apps.steam_library_keep_running_mode') }}</label>
+          <input type="text" class="form-control monospace" id="steamLibraryKeepRunningMode"
+                 v-model="editForm['steam-library-keep-running-mode']" placeholder="1920x1080x120" />
+          <div class="form-text">{{ $t('apps.steam_library_keep_running_mode_desc') }}</div>
+        </div>
         <div class="mb-3" v-if="platform === 'linux' && editForm['steam-library'] !== 'off' && editForm['steam-library-keep-running'] === false">
           <label for="steamLibraryKeepWarm" class="form-label">{{ $t('apps.steam_library_keep_warm') }}</label>
           <input type="number" class="form-control monospace" id="steamLibraryKeepWarm"
@@ -695,6 +701,7 @@
     "steam-library-hide-steam": true,
     "steam-library-keep-warm": 0,
     "steam-library-keep-running": true,
+    "steam-library-keep-running-mode": "",
     "terminate-on-pause": false,
     "gamepad": ""
   }
@@ -1069,6 +1076,7 @@
         }
         this.editForm["exit-timeout"] = parseInt(this.editForm["exit-timeout"]) || 5
         this.editForm["steam-library-keep-warm"] = parseInt(this.editForm["steam-library-keep-warm"]) || 0
+        this.editForm["steam-library-keep-running-mode"] = (this.editForm["steam-library-keep-running-mode"] || "").trim()
         this.editForm["scale-factor"] = parseInt(this.editForm["scale-factor"]) || 100
         this.editForm["first-frame-timeout"] = Math.min(600, Math.max(0, parseInt(this.editForm["first-frame-timeout"]) || 0))
         this.editForm["image-path"] = this.editForm["image-path"].toString().trim().replace(/"/g, '');
