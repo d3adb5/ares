@@ -460,7 +460,15 @@
                   v-model="editForm['steam-library-hide-steam']"
                   default="true"
         ></Checkbox>
-        <div class="mb-3" v-if="platform === 'linux' && editForm['steam-library'] !== 'off'">
+        <Checkbox v-if="platform === 'linux' && editForm['steam-library'] !== 'off'"
+                  class="mb-3"
+                  id="steamLibraryKeepRunning"
+                  label="apps.steam_library_keep_running"
+                  desc="apps.steam_library_keep_running_desc"
+                  v-model="editForm['steam-library-keep-running']"
+                  default="true"
+        ></Checkbox>
+        <div class="mb-3" v-if="platform === 'linux' && editForm['steam-library'] !== 'off' && editForm['steam-library-keep-running'] === false">
           <label for="steamLibraryKeepWarm" class="form-label">{{ $t('apps.steam_library_keep_warm') }}</label>
           <input type="number" class="form-control monospace" id="steamLibraryKeepWarm"
                  v-model="editForm['steam-library-keep-warm']" min="0" max="1440" placeholder="0" />
@@ -686,6 +694,7 @@
     "steam-library-skip-intro": true,
     "steam-library-hide-steam": true,
     "steam-library-keep-warm": 0,
+    "steam-library-keep-running": true,
     "terminate-on-pause": false,
     "gamepad": ""
   }

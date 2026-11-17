@@ -190,6 +190,10 @@ namespace nvhttp {
     return session_id_counter.load();
   }
 
+  uint32_t next_launch_id() {
+    return ++session_id_counter;
+  }
+
   /**
    * @brief The clients whose pairing requests are waiting for a PIN, if any.
    *

@@ -392,3 +392,38 @@ TEST(SteamLibrary, TemplateCommandDropsTheGameUrlOnly) {
   EXPECT_EQ(steam_library::template_command("steam steam://open/bigpicture"), "steam");
   EXPECT_EQ(steam_library::template_command("steam"), "steam");
 }
+
+TEST(SteamLibrary, FollowsParentsAndTreesThroughProc) {
+  const auto proc = std::filesystem::temp_directory_path() / ("steam-tree-test-" + std::to_string(::getpid()));
+  const auto process = [&](long pid, long parent, const std::string &name = "x") {
+    std::filesystem::create_directories(proc / std::to_string(pid));
+    std::ofstream {proc / std::to_string(pid) / "stat"} << pid << " (" << name << ") S " << parent << " 1 1 0";
+  };
+  process(1, 0, "systemd");
+  process(100, 1, "ares");
+  process(200, 100, "gamescope");
+  process(300, 200, "reaper (x) y");  // a name with spaces and parentheses
+  process(301, 300);
+  process(302, 301);
+  process(400, 1, "bin_steam.sh");
+  EXPECT_EQ(steam_library::parent_of(300, proc), 200);
+  EXPECT_EQ(steam_library::parent_of(999, proc), 0);
+  EXPECT_TRUE(steam_library::descends_from(302, 100, proc));
+  EXPECT_TRUE(steam_library::descends_from(100, 100, proc));
+  EXPECT_FALSE(steam_library::descends_from(400, 100, proc));
+  auto tree = steam_library::process_tree(300, proc);
+  std::sort(tree.begin(), tree.end());
+  EXPECT_EQ(tree, (std::vector<long> {300, 301, 302}));
+  std::filesystem::remove_all(proc);
+}
+
+TEST(SteamLibrary, WarmModeRoundTripsAndRefusesNonsense) {
+  const steam_library::warm_mode_t mode {1920, 1080, 120000, true, 196610};
+  const auto parsed = steam_library::warm_mode_t::parse(mode.str());
+  ASSERT_TRUE(parsed);
+  EXPECT_EQ(parsed->str(), "1920x1080x120000 1 196610");
+  EXPECT_FALSE(steam_library::warm_mode_t::parse(""));
+  EXPECT_FALSE(steam_library::warm_mode_t::parse("1920x1080x60 0 196610"));  // fps is in thousandths
+  EXPECT_FALSE(steam_library::warm_mode_t::parse("0x0x60000 0 196610"));
+  EXPECT_EQ(steam_library::warm_mode_t {}.str(), "1920x1080x60000 0 196610");
+}

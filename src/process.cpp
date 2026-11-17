@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <condition_variable>
 #include <csignal>
 #include <cstdio>
 #include <cctype>
@@ -79,6 +80,7 @@
 #include "platform/common.h"
 #include "process.h"
 #include "httpcommon.h"
+#include "nvhttp.h"
 #include "system_tray.h"
 #include "utility.h"
 #include "audio.h"
@@ -99,6 +101,7 @@
   #include "platform/linux/session_broker.h"
   #include "platform/linux/process_group.h"
   #include "platform/linux/session_devices.h"
+  #include "platform/linux/steam_gate.h"
   #include "platform/linux/virtual_display.h"
   #include <sys/stat.h>
   #include <sys/sysmacros.h>
@@ -232,6 +235,8 @@ namespace proc {
       std::atomic_uint64_t warm_generation {0};  ///< Tells an expiry timer its wait was overtaken.
       std::string warm_key;  ///< What a launch must share to reuse it: the template's command and the stream's mode.
       bool warm_reused {false};  ///< Steam was already up for this launch: every game goes through send_command.
+      std::string steam_client_uuid;  ///< The client in Steam's environment, which a takeover does not change.
+      std::atomic<std::chrono::steady_clock::rep> parked_at {0};  ///< When its client left it (Quit Session's /cancel follows).
       std::chrono::steady_clock::time_point steam_started_at {};
       std::string wayland_display;
       std::string drm_device_path;
@@ -378,12 +383,38 @@ namespace proc {
      * seconds even when its window is unmapped; `steam -shutdown` would start
      * Steam's updater if no client were left by then.
      */
-    void stop_desktop_steam() {
+    /// Whether a process is Ares' or a session's: below Ares, in its service's cgroup, or in a session's mounts.
+    bool started_by_ares(pid_t pid) {
+      if (steam_library::descends_from(pid, ::getpid())) {
+        return true;
+      }
+      const auto own = read_proc_line(::getpid(), "cgroup");
+      if (own.ends_with(".service") && read_proc_line(pid, "cgroup").starts_with(own)) {
+        return true;
+      }
+      std::error_code ec;
+      const auto mounts = std::filesystem::read_symlink("/proc/" + std::to_string(pid) + "/ns/mnt", ec);
+      return !ec && mounts != std::filesystem::read_symlink("/proc/self/ns/mnt", ec) && !ec;
+    }
+
+    /// The pid of the user's running Steam client, 0 if none.
+    pid_t steam_client_pid() {
       const char *home = std::getenv("HOME");
       pid_t pid = 0;
       std::ifstream {std::string {home ? home : ""} + "/.steam/steam.pid"} >> pid;
       // The pid file outlives the client.
-      if (pid <= 0 || read_proc_line(pid, "comm") != "steam") {
+      return pid > 0 && read_proc_line(pid, "comm") == "steam" ? pid : 0;
+    }
+
+    /// The pid of a Steam client running outside Ares' sessions, 0 if none.
+    pid_t desktop_steam_pid() {
+      const pid_t pid = steam_client_pid();
+      return pid && !started_by_ares(pid) ? pid : 0;
+    }
+
+    void stop_desktop_steam() {
+      const pid_t pid = steam_client_pid();
+      if (!pid) {
         return;
       }
       const auto own = read_proc_line(getpid(), "cgroup");
@@ -1631,7 +1662,36 @@ namespace proc {
     void stop_isolated_runtime(const std::shared_ptr<isolated_runtime_t> &runtime);
 
     std::string steam_warm_key(const ctx_t &app, const rtsp_stream::launch_session_t &launch_session) {
-      return std::format("{}|{}x{}@{}|hdr{}", steam_library::template_command(app.cmd), launch_session.width, launch_session.height, launch_session.fps, launch_session.enable_hdr ? 1 : 0);
+      // A Steam kept running serves any rate: each stream's CONFIGURE sets Gamescope's.
+      const int fps = app.steam_keep_running ? 0 : launch_session.fps;
+      return std::format("{}|{}x{}@{}|hdr{}", steam_library::template_command(app.cmd), launch_session.width, launch_session.height, fps, launch_session.enable_hdr ? 1 : 0);
+    }
+
+    /// Who started the Steam that is kept running, before any client took it.
+    constexpr std::string_view STEAM_KEEPER {"ares-steam-keeper"};
+
+    /// Kept running and no client's: any client's Steam launch takes it.
+    bool kept_for_anyone(const isolated_runtime_t &runtime) {
+      return runtime.app.steam_keep_running && runtime.warm.load();
+    }
+
+    void wake_steam_keeper();
+
+    std::filesystem::path warm_mode_path() {
+      return platf::appdata() / "steam_warm_mode";
+    }
+
+    /// The mode Steam is started in for nobody: the last client's.
+    void remember_warm_mode(const rtsp_stream::launch_session_t &launch_session) {
+      const steam_library::warm_mode_t mode {launch_session.width, launch_session.height, launch_session.fps, launch_session.enable_hdr, launch_session.surround_info};
+      std::ofstream {warm_mode_path()} << mode.str() << '\n';
+    }
+
+    steam_library::warm_mode_t remembered_warm_mode() {
+      std::ifstream file {warm_mode_path()};
+      std::string line;
+      std::getline(file, line);
+      return steam_library::warm_mode_t::parse(line).value_or(steam_library::warm_mode_t {});
     }
 
     /**
@@ -1642,14 +1702,20 @@ namespace proc {
      */
     bool park_warm(const std::shared_ptr<isolated_runtime_t> &runtime) {
       const int minutes = runtime->app.steam_keep_warm;
-      if (minutes <= 0 || runtime->account || runtime->gamescope_stream_socket.empty() || runtime->warm_key.empty()) {
+      const bool always = runtime->app.steam_keep_running;
+      if ((minutes <= 0 && !always) || runtime->account || runtime->gamescope_stream_socket.empty() || runtime->warm_key.empty()) {
         return false;
       }
       if (runtime->warm.exchange(true)) {
         return true;
       }
       const auto generation = ++runtime->warm_generation;
+      runtime->parked_at = std::chrono::steady_clock::now().time_since_epoch().count();
       platf::gamescope_stream::session_for(runtime->gamescope_stream_socket)->set_hidden(true);
+      if (always) {
+        BOOST_LOG(info) << "[IsolatedSession] Keeping " << runtime->runtime_id << " and its Steam running for the next launch.";
+        return true;
+      }
       BOOST_LOG(info) << "[IsolatedSession] Keeping " << runtime->runtime_id << " and its Steam warm for " << minutes << " min.";
       std::thread([runtime, generation, minutes]() {
         auto until = std::chrono::steady_clock::now() + std::chrono::minutes {minutes};
@@ -1677,6 +1743,29 @@ namespace proc {
         stop_isolated_runtime(runtime);
       }).detach();
       return true;
+    }
+
+    /// Ends the game Steam runs as Steam's Stop does: its reaper's whole tree, by force after 10 s. Steam stays.
+    void quit_steam_game() {
+      const long reaper = steam_library::game_reaper(0);
+      if (!reaper) {
+        return;
+      }
+      BOOST_LOG(info) << "[IsolatedSession] Quitting the game Steam runs (reaper " << reaper << "); Steam stays.";
+      const auto signal_tree = [reaper](int signal) {
+        for (const auto pid : steam_library::process_tree(reaper)) {
+          ::kill(static_cast<pid_t>(pid), signal);
+        }
+      };
+      signal_tree(SIGTERM);
+      const auto deadline = std::chrono::steady_clock::now() + 10s;
+      while (steam_library::is_reaper(0, "/proc/" + std::to_string(reaper)) && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(100ms);
+      }
+      if (steam_library::is_reaper(0, "/proc/" + std::to_string(reaper))) {
+        BOOST_LOG(warning) << "[IsolatedSession] The game ignored SIGTERM for 10 s; killing it.";
+        signal_tree(SIGKILL);
+      }
     }
 
     bool isolated_runtime_running(const std::shared_ptr<isolated_runtime_t> &runtime) {
@@ -1720,7 +1809,8 @@ namespace proc {
       }
       std::ifstream environ {"/proc/" + std::to_string(pid) + "/environ"};
       const std::string env_of_steam {std::istreambuf_iterator<char> {environ}, {}};
-      if (env_of_steam.find("APOLLO_CLIENT_UUID=" + runtime.client_uuid) == std::string::npos) {
+      const auto &started_for = runtime.steam_client_uuid.empty() ? runtime.client_uuid : runtime.steam_client_uuid;
+      if (env_of_steam.find("APOLLO_CLIENT_UUID=" + started_for) == std::string::npos) {
         BOOST_LOG(info) << "[IsolatedSession] Steam (pid " << pid << ") is not " << runtime.runtime_id << "'s; leaving it running.";
         return;
       }
@@ -1881,15 +1971,36 @@ namespace proc {
         BOOST_LOG(debug) << "[IsolatedSession] Could not remove runtime directory "
                          << runtime->assets_dir << ": " << remove_ec.message();
       }
+      if (runtime->app.steam_keep_running) {
+        wake_steam_keeper();  // a Steam to start again
+      }
     }
 
     std::shared_ptr<isolated_runtime_t> find_isolated_client_locked(const std::string &client_uuid) {
       for (const auto &[id, runtime] : isolated_runtimes) {
-        if (runtime && runtime->client_uuid == client_uuid) {
+        // A Steam kept running is nobody's once its client left: their other launches leave it be.
+        if (runtime && runtime->client_uuid == client_uuid && !kept_for_anyone(*runtime)) {
           return runtime;
         }
       }
       return {};
+    }
+
+    /// The Steam kept running for any client, while none has it.
+    std::shared_ptr<isolated_runtime_t> find_kept_steam_locked() {
+      for (const auto &[id, runtime] : isolated_runtimes) {
+        if (runtime && kept_for_anyone(*runtime) && !runtime->stopping.load()) {
+          return runtime;
+        }
+      }
+      return {};
+    }
+
+    /// The Steam kept running this client has just left: Athena's Quit Session ends the stream, then sends /cancel.
+    std::shared_ptr<isolated_runtime_t> find_just_left_locked(const std::string &client_uuid) {
+      const auto runtime = find_kept_steam_locked();
+      const std::chrono::steady_clock::time_point parked {std::chrono::steady_clock::duration {runtime ? runtime->parked_at.load() : 0}};
+      return runtime && runtime->client_uuid == client_uuid && std::chrono::steady_clock::now() - parked < 30s ? runtime : nullptr;
     }
   }  // namespace
 
@@ -1930,9 +2041,263 @@ namespace proc {
     }
   }
 
+#ifndef _WIN32
+  namespace {
+    /// Whether a process lives and runs a program: not gone, not a zombie its parent has yet to reap.
+    bool alive(pid_t pid) {
+      std::ifstream file {"/proc/" + std::to_string(pid) + "/cmdline"};
+      return pid > 0 && file.peek() != std::ifstream::traits_type::eof();
+    }
+
+    /**
+     * @brief Keeps the Steam of an entry with steam-library-keep-running up while Ares runs.
+     *
+     * Started a while after Ares starts, and again a few seconds after it exits, unless the desktop has Steam: then
+     * once that one is gone. A gate on Steam's launcher hands an idle one over to a desktop start (on_desktop_start).
+     */
+    class steam_keeper_t {
+    public:
+      static constexpr auto SETTLE = 10s;  ///< After Ares' start; after the desktop's Steam left (it restarts to update).
+      static constexpr auto AFTER_EXIT = 5s;
+      static constexpr auto POLL = 5s;  ///< Reads two small /proc files; launches and exits wake it at once.
+
+      steam_keeper_t():
+          thread {[this]() {
+            run();
+          }} {}
+
+      ~steam_keeper_t() {
+        {
+          std::lock_guard lock {mutex};
+          stop = true;
+        }
+        wakeup.notify_all();
+        thread.join();
+        gate.reset();
+      }
+
+      void wake() {
+        {
+          std::lock_guard lock {mutex};
+          woken = true;
+        }
+        wakeup.notify_all();
+      }
+
+      /**
+       * A start of Steam's launcher, held until this returns. Ares' own pass at once. The desktop's finds Steam
+       * gone if it was only kept for nobody, and starts it on the desktop; it reaches the streamed one if a client
+       * has it or a game runs in it.
+       */
+      static void on_desktop_start(pid_t pid) {
+        if (started_by_ares(pid)) {
+          return;
+        }
+        desktop_launcher = pid;
+        // One being started for nobody is let finish, then stopped.
+        for (const auto until = std::chrono::steady_clock::now() + 60s; std::chrono::steady_clock::now() < until;) {
+          {
+            std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+            if (!isolated_launching_clients.contains(std::string {STEAM_KEEPER})) {
+              break;
+            }
+          }
+          std::this_thread::sleep_for(200ms);
+        }
+        std::shared_ptr<isolated_runtime_t> kept;
+        {
+          std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+          kept = find_kept_steam_locked();
+          if (!kept) {
+            return;
+          }
+          if (steam_library::any_game_running()) {
+            BOOST_LOG(info) << "[SteamKeeper] The desktop starts Steam (pid " << pid << "), which runs a game in "
+                            << kept->runtime_id << "; it stays there.";
+            return;
+          }
+          isolated_runtimes.erase(kept->launch_session_id);
+        }
+        BOOST_LOG(info) << "[SteamKeeper] The desktop starts Steam (pid " << pid << "); handing it over from " << kept->runtime_id << '.';
+        stop_isolated_runtime(kept);
+      }
+
+    private:
+      void run() {
+        std::unique_lock lock {mutex};
+        wakeup.wait_for(lock, SETTLE, [this]() {
+          return stop;
+        });
+        while (!stop) {
+          woken = false;
+          lock.unlock();
+          pass();
+          lock.lock();
+          wakeup.wait_for(lock, POLL, [this]() {
+            return stop || woken;
+          });
+        }
+      }
+
+      /// The entry whose Steam is kept: the first Steam entry with the setting.
+      static std::optional<ctx_t> kept_entry() {
+        if (!config::video.isolated_sessions) {
+          return std::nullopt;
+        }
+        for (const auto &app : proc.get_apps()) {
+          if (app.steam_keep_running && app.steam_appid.empty() && runs_steam(app) && !app.host_session) {
+            return app;
+          }
+        }
+        return std::nullopt;
+      }
+
+      static bool desktop_has_steam() {
+        const pid_t launcher = desktop_launcher;
+        // The launcher lives as long as the Steam it started, across its restarts to update.
+        return desktop_steam_pid() != 0 || alive(launcher);
+      }
+
+      void pass() {
+        const auto entry = kept_entry();
+        if (!entry) {
+          gate.reset();
+          gate_tried = false;
+          stop_kept_if_idle();
+          return;
+        }
+        if (!gate_tried) {
+          gate_tried = true;
+          // Static: a held start may be decided after this keeper is gone.
+          gate = platf::steam_gate::start("/usr/lib/steam", "bin_steam.sh", &steam_keeper_t::on_desktop_start);
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        std::vector<std::shared_ptr<isolated_runtime_t>> runtimes;
+        bool launching;
+        {
+          std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+          for (const auto &[id, runtime] : isolated_runtimes) {
+            if (runtime && !runtime->account && runs_steam(runtime->app)) {
+              runtimes.push_back(runtime);
+            }
+          }
+          launching = !isolated_launching_clients.empty();
+        }
+        bool steam_up = false;
+        for (const auto &runtime : runtimes) {
+          // A client's stream follows its own; one kept for nobody is followed here.
+          if (!runtime->warm.load() || isolated_runtime_running(runtime)) {
+            steam_up = steam_up || !runtime->stopping.load();
+            continue;
+          }
+          BOOST_LOG(info) << "[SteamKeeper] " << runtime->runtime_id << "'s Steam has exited.";
+          {
+            std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+            const auto it = isolated_runtimes.find(runtime->launch_session_id);
+            if (it != isolated_runtimes.end() && it->second == runtime) {
+              isolated_runtimes.erase(it);
+            }
+          }
+          stop_isolated_runtime(runtime);
+        }
+        const bool desktop = desktop_has_steam();
+        if ((had_steam && !steam_up) || (had_desktop && !desktop)) {
+          not_before = std::max(not_before, now + (had_desktop ? SETTLE : AFTER_EXIT));
+        }
+        had_steam = steam_up;
+        had_desktop = desktop;
+        if (steam_up || desktop || launching || now < not_before) {
+          return;
+        }
+        start(*entry);
+      }
+
+      void start(const ctx_t &entry) {
+        const auto mode = remembered_warm_mode();
+        auto launch_session = std::make_shared<rtsp_stream::launch_session_t>();
+        launch_session->id = nvhttp::next_launch_id();
+        launch_session->unique_id = STEAM_KEEPER;
+        launch_session->device_name = "Ares";
+        launch_session->perm = crypto::PERM::_all;
+        launch_session->input_only = false;
+        launch_session->host_audio = false;
+        launch_session->width = mode.width;
+        launch_session->height = mode.height;
+        launch_session->fps = mode.fps;
+        launch_session->gcmap = 0;
+        launch_session->surround_info = mode.surround;
+        launch_session->enable_hdr = mode.hdr;
+        launch_session->enable_sops = false;
+        launch_session->virtual_display = true;
+        launch_session->vsync_double_buffer = false;
+        launch_session->scale_factor = 100;
+        launch_session->launch_mode = "normal";
+        launch_session->control_connect_data = 0;
+        launch_session->rtsp_iv_counter = 0;
+
+        BOOST_LOG(info) << "[SteamKeeper] Starting " << entry.name << "'s Steam for the next launch, in " << mode.str() << '.';
+        if (const int status = proc.execute_isolated(entry, launch_session); status != 0) {
+          failures = std::min(failures + 1, 5);
+          const auto wait = std::chrono::minutes {1 << failures};  // 2, 4 ... 32 min
+          not_before = std::chrono::steady_clock::now() + wait;
+          BOOST_LOG(warning) << "[SteamKeeper] Could not start Steam (" << status << "); trying again in " << wait.count() << " min.";
+          return;
+        }
+        failures = 0;
+      }
+
+      /// With the setting gone, one kept for nobody goes too, unless a game is left in it.
+      static void stop_kept_if_idle() {
+        std::shared_ptr<isolated_runtime_t> kept;
+        {
+          std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+          kept = find_kept_steam_locked();
+          if (!kept || steam_library::any_game_running()) {
+            return;
+          }
+          isolated_runtimes.erase(kept->launch_session_id);
+        }
+        stop_isolated_runtime(kept);
+      }
+
+      std::mutex mutex;
+      std::condition_variable wakeup;
+      bool stop {false};
+      bool woken {false};
+      static inline std::atomic<pid_t> desktop_launcher {0};  ///< The desktop's last start of Steam.
+      std::unique_ptr<platf::steam_gate::gate_t> gate;
+      bool gate_tried {false};
+      bool had_steam {false};
+      bool had_desktop {false};
+      int failures {0};
+      std::chrono::steady_clock::time_point not_before {};
+      std::thread thread;  // last: run() uses everything above
+    };
+
+    std::mutex steam_keeper_mutex;
+    std::unique_ptr<steam_keeper_t> steam_keeper;
+
+    void wake_steam_keeper() {
+      std::lock_guard lock {steam_keeper_mutex};
+      if (steam_keeper) {
+        steam_keeper->wake();
+      }
+    }
+  }  // namespace
+#endif
+
   class deinit_t: public platf::deinit_t {
   public:
     ~deinit_t() {
+#ifndef _WIN32
+      std::unique_ptr<steam_keeper_t> keeper;
+      {
+        std::lock_guard lock {steam_keeper_mutex};
+        keeper = std::move(steam_keeper);
+      }
+      keeper.reset();  // outside the lock: its last pass may wake it
+#endif
       proc.terminate_all_isolated();
       proc.terminate();
       // Join the watchdog thread before global destructors run, otherwise a
@@ -1952,6 +2317,10 @@ namespace proc {
     // Sessions that ended with a crashed or killed Ares left theirs.
     remove_steam_leftovers();
     steam_library::restore_intro(steam_root());
+    {
+      std::lock_guard lock {steam_keeper_mutex};
+      steam_keeper = std::make_unique<steam_keeper_t>();
+    }
 #endif
     return std::make_unique<deinit_t>();
   }
@@ -2258,6 +2627,7 @@ namespace proc {
       std::lock_guard<std::mutex> game_lock(runtime->game_mutex);
       ++runtime->warm_generation;
       runtime->app = app;
+      runtime->client_uuid = launch_session.unique_id;
       runtime->client_name = launch_session.device_name;
       runtime->warm_reused = true;
       runtime->game_sent = false;
@@ -2343,6 +2713,53 @@ namespace proc {
         isolated_launching_clients.erase(it);
       }
     });
+    // A Steam kept running goes to whoever launches Steam: as it is, or, in another mode, after a fresh start.
+    if (app.steam_keep_running && runs_steam(app) && launch_session->unique_id != STEAM_KEEPER) {
+      // One being started for nobody is waited for: two Steams of one user cannot run.
+      for (const auto until = std::chrono::steady_clock::now() + 60s; std::chrono::steady_clock::now() < until;) {
+        {
+          std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+          if (!isolated_launching_clients.contains(std::string {STEAM_KEEPER})) {
+            break;
+          }
+        }
+        std::this_thread::sleep_for(200ms);
+      }
+      std::shared_ptr<isolated_runtime_t> kept;
+      {
+        std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+        kept = find_kept_steam_locked();
+      }
+      if (kept && isolated_runtime_running(kept)) {
+        const bool fits = kept->warm_key == steam_warm_key(app, *launch_session);
+        // A game left running is never stopped for a mode: the stream gets Gamescope's.
+        const bool game = steam_library::any_game_running();
+        if (!fits && game) {
+          BOOST_LOG(warning) << "[IsolatedSession] " << kept->runtime_id << " runs a game in another mode; taking it over as it is.";
+        }
+        if ((fits || game) && adopt_warm_runtime(kept, app, *launch_session)) {
+          remember_warm_mode(*launch_session);
+          return 0;
+        }
+      }
+      if (kept) {
+        BOOST_LOG(info) << "[IsolatedSession] " << kept->runtime_id << " kept Steam running for another mode; starting it again.";
+        {
+          std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+          const auto it = isolated_runtimes.find(kept->launch_session_id);
+          if (it != isolated_runtimes.end() && it->second == kept) {
+            isolated_runtimes.erase(it);
+          }
+        }
+        stop_isolated_runtime(kept);
+      }
+      if (desktop_steam_pid() && steam_library::any_game_running()) {
+        launch_session->launch_error_message = "Steam is running a game on the desktop.";
+        BOOST_LOG(info) << "[IsolatedSession] " << launch_session->launch_error_message << " Not stopping it for " << app.name << '.';
+        return 503;
+      }
+    }
+
     // The reservation prevents a second launch for this client while liveness
     // is queried. A broker timeout must not hold every other client's registry
     // lock while we wait for it.
@@ -2393,6 +2810,7 @@ namespace proc {
     auto runtime = std::make_shared<isolated_runtime_t>();
     runtime->launch_session_id = launch_session->id;
     runtime->client_uuid = launch_session->unique_id;
+    runtime->steam_client_uuid = launch_session->unique_id;
     runtime->client_name = launch_session->device_name;
     runtime->app = app;
     runtime->profile = choose_isolated_profile(app);
@@ -2440,8 +2858,13 @@ namespace proc {
       runtime->runtime_dir = "/run/user/" + std::to_string(runtime->account->uid);
     }
 
+    // Steam started for nobody never takes the desktop's.
+    if (launch_session->unique_id == STEAM_KEEPER && desktop_steam_pid()) {
+      return 409;
+    }
     // Only a session of the Hermes user shares its Steam instance.
-    if (!runtime->account && (app.stop_desktop_steam == "on" || (app.stop_desktop_steam != "off" && runs_steam(app)))) {
+    if (!runtime->account && launch_session->unique_id != STEAM_KEEPER &&
+        (app.stop_desktop_steam == "on" || (app.stop_desktop_steam != "off" && runs_steam(app)))) {
       stop_desktop_steam();
       if (launch_was_cancelled()) {
         return 503;
@@ -3529,9 +3952,16 @@ namespace proc {
                         << launch_session->device_name;
         return 503;
       }
+      // Started for nobody: any client's launch finds it kept, never half-way.
+      if (launch_session->unique_id == STEAM_KEEPER && !park_warm(runtime)) {
+        return -1;
+      }
       isolated_runtimes[runtime->launch_session_id] = runtime;
     }
     cleanup.disable();
+    if (app.steam_keep_running && launch_session->unique_id != STEAM_KEEPER) {
+      remember_warm_mode(*launch_session);
+    }
 
     BOOST_LOG(info) << "[IsolatedSession] Runtime " << runtime->runtime_id
                     << " ready at " << active_width << 'x' << active_height
@@ -3572,7 +4002,9 @@ namespace proc {
       }
       // The Steam entry left by its client is kept warm as well: a game entry can then take it over, where a
       // session waiting to be resumed would first have to be quit (and Steam with it).
-      if (it->second->app.steam_appid.empty() && runs_steam(it->second->app) && isolated_runtime_running(it->second) && park_warm(it->second)) {
+      // Kept running, a game entry's Steam is too, with its game: the Steam entry resumes it.
+      if ((it->second->app.steam_appid.empty() || it->second->app.steam_keep_running) && runs_steam(it->second->app) &&
+          isolated_runtime_running(it->second) && park_warm(it->second)) {
         return;
       }
       terminate_on_pause = it->second->app.terminate_on_pause;
@@ -3591,6 +4023,7 @@ namespace proc {
   void proc_t::terminate_isolated_client(const std::string &client_uuid) {
 #ifndef _WIN32
     std::shared_ptr<isolated_runtime_t> runtime;
+    bool keep_steam = false;
     {
       std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
       if (const auto launching = isolated_launching_clients.find(client_uuid);
@@ -3599,9 +4032,20 @@ namespace proc {
         launching->second->store(true, std::memory_order_relaxed);
       }
       runtime = find_isolated_client_locked(client_uuid);
-      if (runtime) {
+      if (!runtime) {
+        runtime = find_just_left_locked(client_uuid);
+      }
+      // Quitting a Steam kept running quits only its game.
+      keep_steam = runtime && runtime->app.steam_keep_running && runs_steam(runtime->app) && !runtime->account &&
+                   !runtime->gamescope_stream_socket.empty() && !runtime->stopping.load();
+      if (runtime && !keep_steam) {
         isolated_runtimes.erase(runtime->launch_session_id);
       }
+    }
+    if (keep_steam) {
+      park_warm(runtime);
+      std::thread(quit_steam_game).detach();
+      return;
     }
     stop_isolated_runtime(runtime);
 #else
@@ -3613,7 +4057,8 @@ namespace proc {
 #ifndef _WIN32
     std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
     return isolated_launching_clients.contains(client_uuid) ||
-           find_isolated_client_locked(client_uuid) != nullptr;
+           find_isolated_client_locked(client_uuid) != nullptr ||
+           find_just_left_locked(client_uuid) != nullptr;
 #else
     (void) client_uuid;
     return false;
@@ -5782,6 +6227,7 @@ namespace proc {
                                                       0;
             ctx.steam_keep_warm = std::clamp(ctx.steam_keep_warm, 0, 24 * 60);
           }
+          ctx.steam_keep_running = steam_library != "off" && app_node.value("steam-library-keep-running", true);
           const bool steam_shortcuts = app_node.value("steam-library-non-steam", true);
           apps.emplace_back(std::move(ctx));
           if (steam_library != "off") {
@@ -6004,6 +6450,9 @@ namespace proc {
     if (proc_opt) {
       proc = std::move(*proc_opt);
     }
+  #ifndef _WIN32
+    wake_steam_keeper();  // the kept entry may have changed
+  #endif
   }
 
   void refresh_steam_library_if_idle(const std::string &file_name) {

@@ -660,6 +660,80 @@ namespace steam_library {
     return game_reaper(0, proc) != 0;
   }
 
+  /// A process's parent from /proc/<pid>/stat; 0 when it is gone.
+  inline long parent_of(long pid, const std::filesystem::path &proc = "/proc") {
+    std::ifstream file {proc / std::to_string(pid) / "stat"};
+    const std::string stat {std::istreambuf_iterator<char> {file}, {}};
+    const auto end = stat.rfind(')');  // the name may hold spaces and parentheses
+    long parent = 0;
+    if (end == std::string::npos || std::sscanf(stat.c_str() + end + 1, " %*c %ld", &parent) != 1) {
+      return 0;
+    }
+    return parent;
+  }
+
+  /// Whether pid is ancestor or one of its descendants.
+  inline bool descends_from(long pid, long ancestor, const std::filesystem::path &proc = "/proc") {
+    for (int hops = 0; pid > 1 && hops < 128; ++hops, pid = parent_of(pid, proc)) {
+      if (pid == ancestor) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// A process and all its descendants, parents first.
+  inline std::vector<long> process_tree(long root, const std::filesystem::path &proc = "/proc") {
+    std::vector<std::pair<long, long>> parents;
+    std::error_code ec;
+    for (const auto &entry : std::filesystem::directory_iterator {proc, ec}) {
+      const auto name = entry.path().filename().string();
+      if (!name.empty() && std::all_of(name.begin(), name.end(), [](unsigned char c) { return std::isdigit(c); })) {
+        const long pid = std::stol(name);
+        parents.emplace_back(pid, parent_of(pid, proc));
+      }
+    }
+    std::vector<long> tree {root};
+    for (std::size_t at = 0; at < tree.size(); ++at) {
+      for (const auto &[pid, parent] : parents) {
+        if (parent == tree[at] && std::find(tree.begin(), tree.end(), pid) == tree.end()) {
+          tree.push_back(pid);
+        }
+      }
+    }
+    return tree;
+  }
+
+  /**
+   * The stream mode a Steam kept running starts in before any client asked for one: the last one a client used.
+   * Stored as "<width>x<height>x<fps * 1000> <hdr 0|1> <surround info>".
+   */
+  struct warm_mode_t {
+    int width {1920};
+    int height {1080};
+    int fps {60000};
+    bool hdr {false};
+    int surround {196610};  // stereo, as a client that names nothing gets
+
+    std::string str() const {
+      return std::to_string(width) + 'x' + std::to_string(height) + 'x' + std::to_string(fps) + ' ' + (hdr ? '1' : '0') + ' ' +
+             std::to_string(surround);
+    }
+
+    static std::optional<warm_mode_t> parse(std::string_view text) {
+      warm_mode_t mode;
+      int hdr = 0;
+      const std::string line {text};
+      if (std::sscanf(line.c_str(), "%dx%dx%d %d %d", &mode.width, &mode.height, &mode.fps, &hdr, &mode.surround) != 5 ||
+          mode.width < 320 || mode.height < 200 || mode.width > 16384 || mode.height > 16384 || mode.fps < 1000 ||
+          mode.fps > 1000000 || (hdr != 0 && hdr != 1)) {
+        return std::nullopt;
+      }
+      mode.hdr = hdr == 1;
+      return mode;
+    }
+  };
+
   /**
    * Ends a session with its game: true once the game ran and has been gone for the grace period. A known reaper is
    * checked by pid on every poll, so the grace only spans the gap between scans, unless what ran was short-lived:

@@ -71,6 +71,9 @@ namespace nvhttp {
    */
   uint32_t launch_count();
 
+  /// An id for a launch no client asked for (the Steam Ares keeps running), drawn from the clients' sequence.
+  uint32_t next_launch_id();
+
   std::string
   get_arg(const args_t &args, const char *name, const char *default_value = nullptr);
 

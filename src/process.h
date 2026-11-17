@@ -116,6 +116,9 @@ namespace proc {
     bool steam_hide {true};
     // Minutes its Steam and Gamescope stay up after a game entry's game quit, for the next launch ("steam-library-keep-warm").
     int steam_keep_warm {0};
+    // Its Steam runs as long as Ares does, shared by every client and handed to the desktop when idle
+    // ("steam-library-keep-running"); steam_keep_warm is then unused.
+    bool steam_keep_running {false};
     bool elevated;
     bool auto_detach;
     bool wait_all;
