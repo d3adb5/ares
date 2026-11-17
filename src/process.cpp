@@ -383,7 +383,10 @@ namespace proc {
      * seconds even when its window is unmapped; `steam -shutdown` would start
      * Steam's updater if no client were left by then.
      */
-    /// Whether a process is Ares' or a session's: below Ares, in its service's cgroup, or in a session's mounts.
+    /**
+     * Whether a process is Ares' or a session's: below Ares, in its service's cgroup, or carrying a session's
+     * ARES_CLIENT_UUID. Not by mount namespace: the desktop's Steam runs in a container of its own too.
+     */
     bool started_by_ares(pid_t pid) {
       if (steam_library::descends_from(pid, ::getpid())) {
         return true;
@@ -392,9 +395,9 @@ namespace proc {
       if (own.ends_with(".service") && read_proc_line(pid, "cgroup").starts_with(own)) {
         return true;
       }
-      std::error_code ec;
-      const auto mounts = std::filesystem::read_symlink("/proc/" + std::to_string(pid) + "/ns/mnt", ec);
-      return !ec && mounts != std::filesystem::read_symlink("/proc/self/ns/mnt", ec) && !ec;
+      std::ifstream file {"/proc/" + std::to_string(pid) + "/environ", std::ios::binary};
+      const std::string environ {std::istreambuf_iterator<char> {file}, {}};
+      return environ.starts_with("ARES_CLIENT_UUID=") || environ.find(std::string_view {"\0ARES_CLIENT_UUID=", 18}) != std::string::npos;
     }
 
     /// The pid of the user's running Steam client, 0 if none.
