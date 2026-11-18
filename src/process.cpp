@@ -468,9 +468,10 @@ namespace proc {
      * no process maps or holds open, and /tmp sockets of Steam clients gone.
      *
      * Steam's web helper leaves 50-80 MB of segments in /dev/shm per run even
-     * after a clean -shutdown; tmpfs keeps them in RAM or swap until reboot.
+     * after a clean -shutdown; tmpfs keeps them in RAM or swap until reboot. A Steam kept running drops them too,
+     * ~270 MB over a day (2026-11-17): the keeper sweeps those older than min_age while it runs.
      */
-    void remove_steam_leftovers() {
+    void remove_steam_leftovers(std::chrono::seconds min_age = 60s) {
       const auto uid = ::getuid();
       const auto shm_prefix = std::format("/dev/shm/u{}-Shm_", uid);
       std::set<std::string> in_use;
@@ -501,7 +502,7 @@ namespace proc {
 
       // A Steam that is starting may not have mapped its new segments yet. Without
       // one, age means nothing: Steam writes its segments until it exits.
-      const auto settled = std::filesystem::file_time_type::clock::now() - 60s;
+      const auto settled = std::filesystem::file_time_type::clock::now() - min_age;
       const auto old_enough = [&](const std::filesystem::directory_entry &entry) {
         std::error_code time_ec;
         const auto written = entry.last_write_time(time_ec);
@@ -533,7 +534,7 @@ namespace proc {
           std::filesystem::remove(entry.path(), rm_ec);
         }
       }
-      if (removed || kept) {
+      if (removed || (kept && min_age <= 60s)) {
         BOOST_LOG(info) << std::format(
           "[IsolatedSession] Removed {} leftover Steam segments ({:.1f} MiB) from /dev/shm; kept {} in use{}.",
           removed, freed / 1048576.0, kept, steam_alive ? " or new" : ""
@@ -2063,6 +2064,8 @@ namespace proc {
       static constexpr auto SETTLE = 10s;  ///< After Ares' start; after the desktop's Steam left (it restarts to update).
       static constexpr auto AFTER_EXIT = 5s;
       static constexpr auto POLL = 5s;  ///< Reads two small /proc files; launches and exits wake it at once.
+      static constexpr auto SWEEP = 10min;  ///< Reads every process' maps and fds: not each POLL.
+      static constexpr auto SWEEP_AGE = 10min;  ///< Unused this long while Steam runs: dropped, not yet picked up.
 
       steam_keeper_t():
           thread {[this]() {
@@ -2180,6 +2183,7 @@ namespace proc {
       }
 
       void pass() {
+        sweep_while_steam_runs();
         const auto entry = kept_entry();
         if (!entry) {
           gate.reset();
@@ -2272,6 +2276,25 @@ namespace proc {
         failures = 0;
       }
 
+      /// Segments a running session Steam dropped: the stop's sweep never comes for one kept running.
+      void sweep_while_steam_runs() {
+        const auto now = std::chrono::steady_clock::now();
+        if (now < next_sweep) {
+          return;
+        }
+        next_sweep = now + SWEEP;
+        bool steam = false;
+        {
+          std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
+          for (const auto &[id, runtime] : isolated_runtimes) {
+            steam = steam || (runtime && !runtime->account && runs_steam(runtime->app) && !runtime->stopping.load());
+          }
+        }
+        if (steam) {
+          remove_steam_leftovers(SWEEP_AGE);
+        }
+      }
+
       /// With the setting gone, one kept for nobody goes too, unless a game is left in it.
       static void stop_kept_if_idle() {
         std::shared_ptr<isolated_runtime_t> kept;
@@ -2297,6 +2320,7 @@ namespace proc {
       bool had_desktop {false};
       int failures {0};
       std::chrono::steady_clock::time_point not_before {};
+      std::chrono::steady_clock::time_point next_sweep {};
       std::thread thread;  // last: run() uses everything above
     };
 
