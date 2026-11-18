@@ -107,13 +107,13 @@ namespace proc {
     // A Steam game this entry runs through its template's Steam ("steam-library" in apps.json).
     std::string steam_appid;
     // Its session ends when the game quits, not when Steam does ("steam-library-end-with-game").
-    bool steam_end_with_game {true};
+    bool steam_end_with_game {false};
     // A non-Steam game added to Steam: steam_appid is its shortcut id.
     bool steam_shortcut {false};
     // Its Steam starts without Big Picture's startup movie ("steam-library-skip-intro").
-    bool steam_skip_intro {true};
+    bool steam_skip_intro {false};
     // Nothing of Steam is streamed around its game: black until the game's window, its last picture after ("steam-library-hide-steam").
-    bool steam_hide {true};
+    bool steam_hide {false};
     // Minutes its Steam and Gamescope stay up after a game entry's game quit, for the next launch ("steam-library-keep-warm").
     int steam_keep_warm {0};
     // Its Steam runs as long as Ares does, shared by every client and handed to the desktop when idle

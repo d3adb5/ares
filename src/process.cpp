@@ -6265,19 +6265,25 @@ namespace proc {
               BOOST_LOG(warning) << "Unknown steam-library '" << steam_library << "' for app " << ctx.name << "; off.";
               steam_library = "off";
             }
+            if (steam_library != "off" && !platf::gamescope::steam_mode_for("auto", ctx.cmd)) {
+              BOOST_LOG(warning) << "steam-library needs a command that runs steam; off for app " << ctx.name << '.';
+              steam_library = "off";
+            }
           }
-          ctx.steam_end_with_game = app_node.value("steam-library-end-with-game", true);
-          ctx.steam_skip_intro = app_node.value("steam-library-skip-intro", true);
-          ctx.steam_hide = app_node.value("steam-library-hide-steam", true);
-          if (const auto warm = app_node.find("steam-library-keep-warm"); warm != app_node.end()) {
+          // The steam-library-* settings belong to the library: an entry without it keeps none of them.
+          const bool library = steam_library != "off";
+          ctx.steam_end_with_game = library && app_node.value("steam-library-end-with-game", true);
+          ctx.steam_skip_intro = library && app_node.value("steam-library-skip-intro", true);
+          ctx.steam_hide = library && app_node.value("steam-library-hide-steam", true);
+          if (const auto warm = app_node.find("steam-library-keep-warm"); library && warm != app_node.end()) {
             // The web UI saves numbers as it got them: a number or its text.
             ctx.steam_keep_warm = warm->is_number() ? warm->get<int>() :
                                   warm->is_string() ? static_cast<int>(util::from_view(warm->get<std::string>())) :
                                                       0;
             ctx.steam_keep_warm = std::clamp(ctx.steam_keep_warm, 0, 24 * 60);
           }
-          ctx.steam_keep_running = steam_library != "off" && app_node.value("steam-library-keep-running", true);
-          ctx.steam_keep_running_mode = app_node.value("steam-library-keep-running-mode", "");
+          ctx.steam_keep_running = library && app_node.value("steam-library-keep-running", true);
+          ctx.steam_keep_running_mode = library ? app_node.value("steam-library-keep-running-mode", "") : "";
           if (!ctx.steam_keep_running_mode.empty() && !steam_library::warm_mode_t::parse_setting(ctx.steam_keep_running_mode)) {
             BOOST_LOG(warning) << "Unreadable steam-library-keep-running-mode '" << ctx.steam_keep_running_mode << "' for app "
                                << ctx.name << "; the last client's mode is used.";
@@ -6285,7 +6291,7 @@ namespace proc {
           }
           const bool steam_shortcuts = app_node.value("steam-library-non-steam", true);
           apps.emplace_back(std::move(ctx));
-          if (steam_library != "off") {
+          if (library) {
             add_steam_library(apps.back(), steam_library == "all", steam_shortcuts, apps, ids, i);
           }
         }

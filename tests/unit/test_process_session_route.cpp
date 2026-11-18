@@ -6,6 +6,10 @@
 
 #include <src/process.h>
 
+#include <filesystem>
+#include <fstream>
+#include <unistd.h>
+
 TEST(ProcessSessionRoute, DisabledCapabilityAlwaysUsesHost) {
   proc::ctx_t app {};
   app.isolation_method = "kwin_virtual";
@@ -212,4 +216,30 @@ TEST(ProcessSessionRoute, MigrationRenamesSessionType) {
     EXPECT_FALSE(app.contains("session-type"));
   }
   EXPECT_EQ(tree["version"], 7);
+}
+
+TEST(ProcessSteamLibrarySettings, BelongOnlyToEntriesWithTheLibrary) {
+  const auto file = std::filesystem::temp_directory_path() / ("apps-steam-" + std::to_string(::getpid()) + ".json");
+  std::ofstream {file} << R"({"version": 2, "apps": [
+    {"name": "Emulator", "cmd": "/usr/bin/retroarch", "steam-library": "all",
+     "steam-library-keep-running": true, "steam-library-keep-warm": 10, "steam-library-hide-steam": true},
+    {"name": "Steam", "cmd": "steam -gamepadui", "steam-library": "off",
+     "steam-library-keep-running": true, "steam-library-keep-warm": 10, "steam-library-keep-running-mode": "1280x720x60"}
+  ]})";
+  const auto proc = proc::parse(file.string());
+  std::filesystem::remove(file);
+  ASSERT_TRUE(proc);
+  int found = 0;
+  for (const auto &app : proc->get_apps()) {
+    EXPECT_TRUE(app.steam_appid.empty()) << app.name;  // no game entries
+    if (app.name != "Emulator" && app.name != "Steam") {
+      continue;
+    }
+    ++found;
+    EXPECT_FALSE(app.steam_keep_running) << app.name;
+    EXPECT_EQ(app.steam_keep_warm, 0) << app.name;
+    EXPECT_FALSE(app.steam_hide) << app.name;
+    EXPECT_TRUE(app.steam_keep_running_mode.empty()) << app.name;
+  }
+  EXPECT_EQ(found, 2);
 }
