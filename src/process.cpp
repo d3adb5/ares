@@ -6532,8 +6532,12 @@ namespace proc {
       return;
     }
     {
+      // A runtime kept warm holds its own copy of its app: only a streaming or launching one waits.
       std::lock_guard<std::mutex> lock(isolated_runtimes_mutex);
-      if (!isolated_runtimes.empty() || !isolated_launching_clients.empty()) {
+      const bool streaming = std::any_of(isolated_runtimes.begin(), isolated_runtimes.end(), [](const auto &entry) {
+        return entry.second && !entry.second->warm.load();
+      });
+      if (streaming || !isolated_launching_clients.empty()) {
         return;  // retried on a later request
       }
     }
