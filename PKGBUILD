@@ -10,25 +10,37 @@ url='https://github.com/d3adb5/ares'
 license=('GPL-3.0-only')
 install=ares.install
 
+# Libraries are named by soname where their package provides it (makepkg pins
+# the version): pacman then refuses an update that would break the binary.
+# packaging/linux/Arch/ares.hook reports the rest after each update.
 depends=(
-  'acl'
   'avahi'
-  'curl'
-  'libcap'
+  'glibc'
+  'libacl.so'
+  'libcap.so'
+  'libcrypto.so'
+  'libcurl.so'
   'libdrm'
-  'libevdev'
-  'libpipewire'
-  'libpulse'
-  'libva'
+  'libevdev.so'
+  'libgcc_s.so'
+  'libminiupnpc.so'
+  'libnuma.so'
+  'libopus.so'
+  'libpipewire-0.3.so'
+  'libpulse.so'
+  'libpulse-simple.so'
+  'libssl.so'
+  'libstdc++.so'
+  'libsystemd.so'
+  'libva.so'
+  'libva-drm.so'
+  'libwayland-client.so'
   'libx11'
   'libxcb'
   'libxfixes'
   'libxrandr'
   'libxtst'
-  'miniupnpc'
-  'numactl'
-  'openssl'
-  'opus'
+  'mesa'
   'qt6-base'
   'qt6-svg'
   'udev'
@@ -189,6 +201,9 @@ package() {
       mv "${pkgdir}/usr/lib/systemd/user/sunshine.service" \
          "${pkgdir}/usr/lib/systemd/user/ares.service"
     fi
+
+    install -Dm644 packaging/linux/Arch/ares.hook -t "${pkgdir}/usr/share/libalpm/hooks/"
+    install -Dm755 packaging/linux/Arch/check-libs.sh "${pkgdir}/usr/share/libalpm/scripts/ares-libs"
 
     _hermes_migration_notice
 }
